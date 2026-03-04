@@ -7,6 +7,23 @@
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    .gif-wrap { text-align: center; margin: 2.5rem 0; }
+    .gif-wrap img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
+    .gif-caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; font-style: italic; line-height: 1.5; }
+    .concept-box { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .warning-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .danger-box { background: #fff1f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .output-block { background: #0f172a; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-family: monospace; font-size: 0.85rem; color: #a3e635; overflow-x: auto; border: 1px solid #1e293b; }
+    .output-block .comment { color: #64748b; }
+    .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+    .series-nav a { color: var(--accent); text-decoration: none; }
+    .series-nav a:hover { text-decoration: underline; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
+  </style>
 </head>
 <body>
 
@@ -45,6 +62,11 @@
         10x slower than the same algorithm using shared memory correctly. Understanding the
         hierarchy is non-negotiable.
       </p>
+
+      <div class="gif-wrap">
+        <img src="assets/gif_cuda_memory_hierarchy.gif" alt="GPU memory hierarchy latency pyramid animation" />
+        <p class="gif-caption">The GPU memory pyramid: each level is faster but smaller. The latency gap between registers (~1 cycle) and global DRAM (~800 cycles) is 800×. Choosing the right memory type is the single biggest lever in CUDA performance.</p>
+      </div>
 
       <h2>The Full Memory Hierarchy at a Glance</h2>
 

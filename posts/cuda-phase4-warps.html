@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    .gif-wrap { text-align: center; margin: 2.5rem 0; }
+    .gif-wrap img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
+    .gif-caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; font-style: italic; line-height: 1.5; }
+    .concept-box { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .warning-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .danger-box { background: #fff1f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .output-block { background: #0f172a; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-family: monospace; font-size: 0.85rem; color: #a3e635; overflow-x: auto; border: 1px solid #1e293b; }
+    .output-block .comment { color: #64748b; }
+    .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+    .series-nav a { color: var(--accent); text-decoration: none; }
+    .series-nav a:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
   <nav>
@@ -41,6 +54,11 @@
         understand CUDA.
       </p>
 
+      <div class="gif-wrap">
+        <img src="assets/gif_cuda_warp_divergence.gif" alt="Warp divergence serialization animation" />
+        <p class="gif-caption">Without divergence (left): all 32 threads execute the same path simultaneously — full SIMT efficiency. With divergence (right): threads taking different branches are serialized — the warp executes both paths sequentially, cutting throughput by up to 2×.</p>
+      </div>
+
       <h2>1. What a Warp Is</h2>
 
       <pre><code>  A warp = 32 consecutive threads from the same block.
@@ -59,6 +77,11 @@
   (analogous to CPU's SIMD, but the "width" is hidden from the programmer)</code></pre>
 
       <h2>2. Warp Scheduling — Latency Hiding</h2>
+
+      <div class="gif-wrap">
+        <img src="assets/gif_cuda_warp_scheduling.gif" alt="SM warp scheduling and latency hiding animation" />
+        <p class="gif-caption">The SM's warp scheduler switches between ready warps every cycle. When warp A issues a memory load (800-cycle latency), the scheduler immediately runs warp B, C, D... — hiding the stall. High occupancy = more warps to switch between = more latency hidden.</p>
+      </div>
 
       <pre><code>  An SM has 4 warp schedulers, each can issue 1 instruction/cycle.
   Each SM can hold up to 64 active warps (2048 threads).
