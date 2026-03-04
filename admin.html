@@ -417,9 +417,80 @@ body {
   overflow-y: auto;
 }
 .copy-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+
+/* ── Auth Gate ── */
+.auth-gate {
+  position: fixed; inset: 0;
+  background: #0f0f0f;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  flex-direction: column;
+  gap: 0;
+}
+.auth-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 2.5rem 2rem;
+  width: 100%; max-width: 360px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.auth-box .auth-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.auth-box h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.3rem; }
+.auth-box p  { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.5rem; }
+.auth-input {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 0.75rem;
+  text-align: center;
+  letter-spacing: 0.08em;
+  transition: border-color 0.15s;
+}
+.auth-input:focus { border-color: var(--accent); }
+.auth-input.shake {
+  animation: shake 0.4s ease;
+  border-color: var(--danger) !important;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px); }
+  40%      { transform: translateX(8px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX(5px); }
+}
+.auth-error {
+  font-size: 0.78rem; color: var(--danger);
+  margin-bottom: 0.5rem; min-height: 1.2em;
+}
+.auth-hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.75rem; }
 </style>
 </head>
 <body>
+
+<!-- ── Auth Gate ── -->
+<div class="auth-gate" id="auth-gate">
+  <div class="auth-box">
+    <div class="auth-icon">🔐</div>
+    <h2>Admin Access</h2>
+    <p>Enter your password to continue</p>
+    <input class="auth-input" id="auth-input" type="password"
+           placeholder="Password"
+           onkeydown="if(event.key==='Enter') checkAuth()"
+           autocomplete="current-password" />
+    <div class="auth-error" id="auth-error"></div>
+    <button class="btn btn-primary" style="width:100%;padding:0.6rem" onclick="checkAuth()">Unlock</button>
+    <div class="auth-hint" id="auth-attempts"></div>
+  </div>
+</div>
+
+<!-- ── Admin UI (hidden until auth passes) ── -->
+<div id="admin-ui" style="display:none;flex-direction:column;height:100%">
 
 <!-- ── Top Nav ── -->
 <nav class="top-nav">
@@ -649,8 +720,64 @@ git push</div>
   </div>
 </div>
 
+</div><!-- /admin-ui -->
 
 <script>
+// ─────────────────────────────────────────────────────────
+//  AUTH GATE — SHA-256 password check
+// ─────────────────────────────────────────────────────────
+const PASS_HASH = 'c2193f723dd017efe110fe4cce62cac49921d8f1e131a3fe00cf7967ebb31c25';
+let authAttempts = 0;
+
+async function sha256(str) {
+  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkAuth() {
+  const val = document.getElementById('auth-input').value;
+  const hash = await sha256(val);
+  if (hash === PASS_HASH) {
+    sessionStorage.setItem('admin_ok', '1');
+    document.getElementById('auth-gate').style.display = 'none';
+    const ui = document.getElementById('admin-ui');
+    ui.style.display = 'flex';
+    ui.style.height  = '100vh';
+    initAdminOnce();
+  } else {
+    authAttempts++;
+    const input = document.getElementById('auth-input');
+    const err   = document.getElementById('auth-error');
+    input.value = '';
+    input.classList.remove('shake');
+    void input.offsetWidth; // reflow to restart animation
+    input.classList.add('shake');
+    if (authAttempts >= 5) {
+      err.textContent = 'Too many attempts. Redirecting...';
+      setTimeout(() => window.location.href = 'index.html', 1500);
+    } else {
+      err.textContent = `Wrong password. ${5 - authAttempts} attempt${5 - authAttempts === 1 ? '' : 's'} left.`;
+      document.getElementById('auth-attempts').textContent = '';
+    }
+  }
+}
+
+// Check session (stay unlocked while tab is open)
+if (sessionStorage.getItem('admin_ok') === '1') {
+  document.getElementById('auth-gate').style.display = 'none';
+  const ui = document.getElementById('admin-ui');
+  ui.style.display = 'flex';
+  ui.style.height  = '100vh';
+}
+
+let adminInited = false;
+function initAdminOnce() {
+  if (adminInited) return;
+  adminInited = true;
+  // trigger Quill init (deferred so DOM is visible first)
+  quill.focus();
+}
+
 // ─────────────────────────────────────────────────────────
 //  QUILL SETUP
 // ─────────────────────────────────────────────────────────
