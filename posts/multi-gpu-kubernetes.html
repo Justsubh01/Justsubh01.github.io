@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-GPU Kubernetes — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">January 2026</span>
+        <span class="post-tag">deployment</span>
+        <span class="read-time">· 14 min read</span>
+      </div>
+      <h1>Multi-GPU Kubernetes: How We Stopped Wasting 40% of Our Compute</h1>
+      <p class="post-description">
+        GPU utilization monitoring, resource quotas, node affinity rules, and the specific
+        NVIDIA device plugin configs that took us from 58% to 94% average GPU utilization
+        across the cluster.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        When we first looked at our GPU utilization dashboards six months ago, the number
+        was 58%. On a cluster that costs a significant amount of money per month. That's
+        42% of our compute budget going to heat. This is the story of how we fixed it.
+      </p>
+
+      <h2>Why GPU Clusters Waste Compute</h2>
+
+      <p>
+        The culprits are almost always the same: over-provisioned resource requests,
+        poor scheduling bin-packing, idle pods holding GPU reservations, and
+        workload bursts that spike then crater. Kubernetes doesn't know what a GPU
+        actually is — it just sees an opaque resource count. Getting it to schedule
+        efficiently requires deliberate configuration.
+      </p>
+
+      <h2>The NVIDIA Device Plugin Setup That Actually Works</h2>
+
+      <p>
+        The NVIDIA device plugin is the bridge between Kubernetes and your GPUs.
+        The default installation works, but the default config doesn't optimize for
+        sharing. We use time-slicing for our preprocessing workloads (which use <10%
+        GPU each) and dedicated GPU allocation for inference:
+      </p>
+
+      <pre><code># nvidia-device-plugin ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nvidia-device-plugin
+  namespace: kube-system
+data:
+  config.yaml: |
+    version: v1
+    flags:
+      migStrategy: none
+    sharing:
+      timeSlicing:
+        resources:
+          - name: nvidia.com/gpu
+            replicas: 4  # 4 logical GPUs per physical GPU
+            # use for preprocessing pods only</code></pre>
+
+      <h2>Node Affinity: Putting the Right Workload on the Right Node</h2>
+
+      <p>
+        We have two node pools: A100s for inference, T4s for preprocessing and training.
+        Without affinity rules, the scheduler happily puts inference pods on T4s and
+        preprocessing on A100s. Affinity rules fix this:
+      </p>
+
+      <pre><code># For inference pods
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: nvidia.com/gpu.product
+          operator: In
+          values:
+          - A100-SXM4-80GB
+
+# Resource request that reserves a whole GPU
+resources:
+  limits:
+    nvidia.com/gpu: 1</code></pre>
+
+      <h2>Right-Sizing Resource Requests</h2>
+
+      <p>
+        The single highest-impact change we made: auditing and correcting our resource
+        requests. Most pods had been configured with "just in case" headroom — often
+        requesting 2x the actual peak usage. We profiled every workload under production
+        load for a week, then set requests at P95 actual usage + 15% buffer.
+      </p>
+
+      <blockquote>
+        Over-requesting GPU memory is a silent killer. A pod requesting 40GB but using
+        12GB blocks 28GB from every other workload, indefinitely.
+      </blockquote>
+
+      <h2>Monitoring That Actually Helps</h2>
+
+      <p>
+        We run DCGM exporter on every node and scrape into Prometheus. The dashboards
+        that matter most for utilization optimization:
+      </p>
+
+      <ul>
+        <li><strong>Per-pod GPU utilization</strong> — identify under-utilizing pods</li>
+        <li><strong>GPU memory allocation vs usage</strong> — catch over-provisioning</li>
+        <li><strong>GPU idle time per node</strong> — scheduling gaps and bin-packing issues</li>
+        <li><strong>Pending pod queue depth</strong> — indicates resource pressure</li>
+      </ul>
+
+      <h2>The Results</h2>
+
+      <p>
+        After three months of systematic fixes — right-sizing requests, node affinity,
+        time-slicing for low-utilization workloads, and fixing a scheduling bug where
+        pods were landing on the wrong node pool — average cluster utilization went
+        from 58% to 94%. That's a 62% improvement in compute efficiency with zero
+        additional hardware spend.
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

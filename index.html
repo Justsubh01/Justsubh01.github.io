@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sudhanshu — ML Engineer</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="#writing">writing</a>
+      <a href="#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+      <a href="admin.html" style="opacity:0.4;font-size:0.8em" title="Admin">✏️</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-text">
+        <h1>hey, I'm Sudhanshu <span class="wave">👋</span></h1>
+        <p class="tagline">ML Engineer · real-time video systems · multi-GPU clusters</p>
+        <p class="bio">
+          I build the infrastructure that makes machines see the world at scale.
+          4+ years working on high-throughput, low-latency computer vision pipelines —
+          from model training through TensorRT optimization, Triton serving, and
+          Kubernetes deployment. Currently processing 100+ concurrent camera streams
+          for traffic enforcement and surveillance at city scale.
+        </p>
+        <p class="bio">
+          This is my little corner of the internet where I write about what I'm
+          building, what I'm learning, and the hard problems worth thinking about.
+        </p>
+        <div class="social-links">
+          <a href="https://github.com/Justsubh01" target="_blank">GitHub</a>
+          <a href="https://linkedin.com/in/Justsubh01" target="_blank">LinkedIn</a>
+          <a href="https://twitter.com/Justsubh01" target="_blank">Twitter</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Writing -->
+    <section class="writing" id="writing">
+      <h2>writing</h2>
+
+      <div class="post-list">
+
+        <a href="posts/tensorrt-optimization-guide.html" class="post-card">
+          <div class="post-meta">
+            <span class="post-date">March 2026</span>
+            <span class="post-tag">inference</span>
+          </div>
+          <h3 class="post-title">TensorRT in the Real World: Lessons from Optimizing 15+ Production Models</h3>
+          <p class="post-excerpt">
+            Everything I wish I knew before spending three months squeezing latency out of
+            detection models — precision calibration, layer fusion pitfalls, and when FP16
+            is lying to you.
+          </p>
+          <span class="read-time">12 min read</span>
+        </a>
+
+        <a href="posts/triton-serving-at-scale.html" class="post-card">
+          <div class="post-meta">
+            <span class="post-date">February 2026</span>
+            <span class="post-tag">infrastructure</span>
+          </div>
+          <h3 class="post-title">Triton Inference Server: Serving 100+ Camera Streams Without Losing Your Mind</h3>
+          <p class="post-excerpt">
+            A deep dive into dynamic batching, model pipelines, and the config knobs
+            that actually matter when you need sub-100ms end-to-end latency across
+            a city-scale deployment.
+          </p>
+          <span class="read-time">18 min read</span>
+        </a>
+
+        <a href="posts/multi-gpu-kubernetes.html" class="post-card">
+          <div class="post-meta">
+            <span class="post-date">January 2026</span>
+            <span class="post-tag">deployment</span>
+          </div>
+          <h3 class="post-title">Multi-GPU Kubernetes: How We Stopped Wasting 40% of Our Compute</h3>
+          <p class="post-excerpt">
+            GPU utilization monitoring, resource quotas, node affinity rules, and the
+            specific NVIDIA device plugin configs that took us from 58% to 94% average
+            GPU utilization across the cluster.
+          </p>
+          <span class="read-time">14 min read</span>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- About -->
+    <section class="about" id="about">
+      <h2>about</h2>
+      <div class="about-content">
+        <p>
+          I'm an ML Engineer focused on computer vision infrastructure. My work lives
+          at the intersection of research and production — taking models that work
+          in notebooks and making them work reliably at scale, fast, under real
+          operational constraints.
+        </p>
+        <p>
+          End-to-end ownership is my thing: I've trained the detectors, written
+          the data pipelines, optimized with TensorRT, deployed on Triton, wired up
+          Kubernetes, and monitored it all in production. I care about latency,
+          cost, and reliability in equal measure.
+        </p>
+        <p>
+          Outside of work: hiking, coffee, and occasionally yelling at CUDA error logs.
+        </p>
+        <div class="stack">
+          <span>PyTorch</span>
+          <span>TensorRT</span>
+          <span>Triton</span>
+          <span>CUDA</span>
+          <span>Kubernetes</span>
+          <span>Python</span>
+          <span>C++</span>
+          <span>OpenCV</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

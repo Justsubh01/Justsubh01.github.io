@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Write a Post</title>
+
+  <!-- Quill rich text editor -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet" />
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+
+  <!-- Fonts (matches blog) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #f7f7f5;
+  --surface:  #ffffff;
+  --border:   #e5e7eb;
+  --text:     #1a1a1a;
+  --muted:    #6b7280;
+  --accent:   #2563eb;
+  --accent-s: #dbeafe;
+  --danger:   #ef4444;
+  --success:  #16a34a;
+  --radius:   8px;
+  --sidebar:  300px;
+}
+
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top Nav ── */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 20;
+}
+.top-nav .brand { font-weight: 600; font-size: 0.95rem; color: var(--text); text-decoration: none; }
+.top-nav .back  { font-size: 0.8rem; color: var(--muted); text-decoration: none; margin-left: 1rem; }
+.top-nav .back:hover { color: var(--text); }
+.top-nav .actions { display: flex; gap: 0.5rem; align-items: center; }
+
+/* ── Buttons ── */
+.btn {
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all 0.12s;
+  line-height: 1;
+}
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: #9ca3af; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { background: #15803d; }
+.btn-sm { padding: 0.3rem 0.65rem; font-size: 0.75rem; }
+
+/* ── App Body ── */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-section { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+.sidebar-section:last-child { border-bottom: none; flex: 1; }
+.sidebar-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+/* ── Form inputs ── */
+.field { margin-bottom: 0.75rem; }
+.field label { display: block; font-size: 0.78rem; font-weight: 500; color: var(--muted); margin-bottom: 0.3rem; }
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  transition: border-color 0.12s;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus { border-color: var(--accent); }
+.field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+.field-row { display: flex; gap: 0.5rem; }
+.field-row .field { flex: 1; margin-bottom: 0; }
+
+.word-count { font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; }
+
+/* ── Main Area ── */
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0 1.25rem;
+  flex-shrink: 0;
+}
+.tab {
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
+  user-select: none;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Tab Panels ── */
+.tab-panels { flex: 1; overflow: hidden; position: relative; }
+.tab-panel { position: absolute; inset: 0; display: none; overflow: auto; }
+.tab-panel.active { display: flex; flex-direction: column; }
+
+/* ── Write Tab ── */
+#write-panel {
+  flex-direction: column;
+}
+/* Override Quill styles to match blog */
+.ql-container.ql-snow {
+  flex: 1;
+  border: none !important;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.75;
+  overflow-y: auto;
+}
+.ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 0.6rem 1rem;
+  background: var(--bg);
+}
+.ql-editor {
+  padding: 2rem !important;
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+}
+.ql-editor h2 { font-family: 'Lora', serif; }
+.ql-editor h3 { font-family: 'Inter', sans-serif; }
+.ql-editor pre.ql-syntax {
+  background: #1e1e2e !important;
+  color: #cdd6f4 !important;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  font-size: 0.85em;
+}
+.ql-editor blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  color: var(--muted);
+  font-style: italic;
+}
+#write-panel .quill-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Draw Tab ── */
+#draw-panel { flex-direction: row; }
+.draw-tools {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+}
+.tool-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.tool-group-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.tool-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+.tool-btn {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+  transition: all 0.12s;
+}
+.tool-btn:hover { color: var(--text); border-color: #9ca3af; }
+.tool-btn.active { background: var(--accent-s); color: var(--accent); border-color: var(--accent); }
+.color-palette { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.color-swatch {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.color-swatch:hover, .color-swatch.active { transform: scale(1.2); border-color: var(--text); }
+.range-input { width: 100%; accent-color: var(--accent); }
+.range-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.25rem; }
+.draw-action-btns { display: flex; flex-direction: column; gap: 0.4rem; }
+.canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0ef;
+  overflow: auto;
+  padding: 1.5rem;
+}
+#draw-canvas {
+  background: #ffffff;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* ── Images Tab ── */
+#images-panel { flex-direction: column; }
+.images-content {
+  flex: 1;
+  padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg);
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-s);
+}
+.upload-zone .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.upload-zone p { font-size: 0.875rem; color: var(--muted); }
+.upload-zone strong { color: var(--accent); }
+#file-input { display: none; }
+.url-section { display: flex; flex-direction: column; gap: 0.5rem; }
+.url-row { display: flex; gap: 0.5rem; }
+.url-row input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+}
+.url-row input:focus { border-color: var(--accent); }
+.inserted-notice {
+  display: none;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: var(--radius);
+  padding: 0.65rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--success);
+}
+
+/* ── Preview Tab (modal-style) ── */
+.preview-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  overflow-y: auto;
+  padding: 2rem;
+}
+.preview-modal.open { display: flex; align-items: flex-start; justify-content: center; }
+.preview-inner {
+  background: #fafaf8;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 760px;
+  min-height: 80vh;
+  padding: 2rem;
+  position: relative;
+}
+.preview-close {
+  position: absolute;
+  top: 1rem; right: 1rem;
+  background: var(--border);
+  border: none;
+  border-radius: 50%;
+  width: 30px; height: 30px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.preview-close:hover { background: #d1d5db; }
+#preview-content { font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.75; }
+#preview-content h1 { font-family: 'Lora', serif; font-size: 2rem; margin-bottom: 1rem; }
+#preview-content h2 { font-family: 'Lora', serif; font-size: 1.4rem; margin: 2rem 0 0.75rem; }
+#preview-content h3 { font-size: 1.1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+#preview-content p  { margin-bottom: 1rem; }
+#preview-content pre { background: #1e1e2e; color: #cdd6f4; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; overflow-x: auto; }
+#preview-content code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.85em; }
+#preview-content pre code { background: none; color: inherit; }
+#preview-content blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; color: #6b7280; font-style: italic; margin: 1.5rem 0; }
+#preview-content ul, #preview-content ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+#preview-content img { max-width: 100%; border-radius: 8px; margin: 0.5rem 0; }
+
+/* ── Save Modal ── */
+.save-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.save-modal.open { display: flex; }
+.save-inner {
+  background: var(--surface);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 580px;
+  padding: 1.75rem;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.save-inner h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; }
+.save-step {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.save-step-title { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.save-step p { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.75rem; }
+.code-snippet {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.copy-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+
+<!-- ── Top Nav ── -->
+<nav class="top-nav">
+  <div style="display:flex;align-items:center;gap:0.25rem">
+    <span class="brand">⚡ admin</span>
+    <a href="index.html" class="back">← back to blog</a>
+  </div>
+  <div class="actions">
+    <span class="word-count" id="nav-wc">0 words</span>
+    <button class="btn btn-ghost" onclick="openPreview()">👁 Preview</button>
+    <button class="btn btn-primary" onclick="openSave()">💾 Save Post</button>
+  </div>
+</nav>
+
+<!-- ── App Body ── -->
+<div class="app-body">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Post Metadata</div>
+
+      <div class="field">
+        <label>Title *</label>
+        <input id="meta-title" type="text" placeholder="Your post title" oninput="onTitleChange()" />
+      </div>
+
+      <div class="field">
+        <label>Slug (filename)</label>
+        <input id="meta-slug" type="text" placeholder="my-post-title" />
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Date</label>
+          <input id="meta-date" type="month" />
+        </div>
+        <div class="field">
+          <label>Read time</label>
+          <input id="meta-readtime" type="number" value="5" min="1" max="120" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Tag</label>
+        <select id="meta-tag">
+          <option value="inference">inference</option>
+          <option value="infrastructure">infrastructure</option>
+          <option value="deployment">deployment</option>
+          <option value="training">training</option>
+          <option value="research">research</option>
+          <option value="tools">tools</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Excerpt (for homepage card)</label>
+        <textarea id="meta-excerpt" placeholder="2-3 sentences describing the post. This appears on the homepage."></textarea>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Stats</div>
+      <div class="word-count" id="stats-wc">0 words · 0 min read</div>
+    </div>
+  </aside>
+
+  <!-- Main Area -->
+  <div class="main-area">
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('write')">✍️ Write</div>
+      <div class="tab" onclick="switchTab('draw')">🎨 Draw</div>
+      <div class="tab" onclick="switchTab('images')">🖼 Images</div>
+    </div>
+
+    <!-- Tab Panels -->
+    <div class="tab-panels">
+
+      <!-- Write Tab -->
+      <div class="tab-panel active" id="write-panel">
+        <div class="quill-wrap" id="quill-wrap">
+          <div id="quill-editor"></div>
+        </div>
+      </div>
+
+      <!-- Draw Tab -->
+      <div class="tab-panel" id="draw-panel">
+
+        <!-- Tools Sidebar -->
+        <div class="draw-tools">
+
+          <div class="tool-group">
+            <div class="tool-group-label">Tool</div>
+            <div class="tool-buttons">
+              <button class="tool-btn active" id="tool-pen"   onclick="setTool('pen')">✏️ Pen</button>
+              <button class="tool-btn"         id="tool-eraser" onclick="setTool('eraser')">🧹 Erase</button>
+              <button class="tool-btn"         id="tool-line"  onclick="setTool('line')">╱ Line</button>
+              <button class="tool-btn"         id="tool-rect"  onclick="setTool('rect')">▭ Rect</button>
+              <button class="tool-btn"         id="tool-circle" onclick="setTool('circle')">◯ Circle</button>
+              <button class="tool-btn"         id="tool-text"  onclick="setTool('text')">T Text</button>
+            </div>
+          </div>
+
+          <div class="tool-group">
+            <div class="tool-group-label">Color</div>
+            <div class="color-palette" id="color-palette">
+              <div class="color-swatch active" style="background:#1a1a1a" data-color="#1a1a1a" onclick="setColor(this)"></div>
+              <div class="color-swatch" style="background:#2563eb" data-color="#2563eb" onclick="setColor(this)"></div>
+              <div class="color-swatch" style="background:#ef4444" data-color="#ef4444" onclick="setColor(this)"></div>
+              <div class="color-swatch" style="background:#16a34a" data-color="#16a34a" onclick="setColor(this)"></div>
+              <div class="color-swatch" style="background:#f59e0b" data-color="#f59e0b" onclick="setColor(this)"></div>
+              <div class="color-swatch" style="background:#8b5cf6" data-color="#8b5cf6" onclick="setColor(this)"></div>
+              <div class="color-swatch" style="background:#ec4899" data-color="#ec4899" onclick="setColor(this)"></div>
+              <div class="color-swatch" style="background:#ffffff;border:1px solid #e5e7eb" data-color="#ffffff" onclick="setColor(this)"></div>
+            </div>
+            <div style="margin-top:0.5rem">
+              <input type="color" id="custom-color" value="#1a1a1a" onchange="setCustomColor(this.value)"
+                style="width:100%;height:30px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;" />
+            </div>
+          </div>
+
+          <div class="tool-group">
+            <div class="tool-group-label">Size</div>
+            <div class="range-label">
+              <span>Brush</span><span id="size-val">4px</span>
+            </div>
+            <input type="range" class="range-input" id="brush-size" min="1" max="40" value="4" oninput="updateSize(this.value)" />
+          </div>
+
+          <div class="tool-group">
+            <div class="tool-group-label">Opacity</div>
+            <div class="range-label">
+              <span>Alpha</span><span id="opacity-val">100%</span>
+            </div>
+            <input type="range" class="range-input" id="brush-opacity" min="10" max="100" value="100" oninput="updateOpacity(this.value)" />
+          </div>
+
+          <div class="tool-group">
+            <div class="tool-group-label">Canvas</div>
+            <div class="draw-action-btns">
+              <button class="btn btn-ghost btn-sm" onclick="undoDraw()">↩ Undo</button>
+              <button class="btn btn-ghost btn-sm" onclick="clearCanvas()">🗑 Clear</button>
+              <button class="btn btn-ghost btn-sm" onclick="downloadCanvas()">⬇ Download PNG</button>
+              <button class="btn btn-success btn-sm" onclick="insertDrawing()">➕ Insert into Post</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-wrap" id="canvas-wrap">
+          <canvas id="draw-canvas" width="720" height="480"></canvas>
+        </div>
+      </div>
+
+      <!-- Images Tab -->
+      <div class="tab-panel" id="images-panel">
+        <div class="images-content">
+          <h3 style="font-size:1rem;font-weight:600;">Insert Image into Post</h3>
+
+          <!-- Upload zone -->
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+               ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragleave="onDragLeave(event)">
+            <div class="upload-icon">📁</div>
+            <p><strong>Click to upload</strong> or drag & drop an image here</p>
+            <p style="margin-top:0.25rem;font-size:0.75rem;">PNG, JPG, GIF, WebP — embedded directly into post</p>
+          </div>
+          <input type="file" id="file-input" accept="image/*" onchange="onFileSelect(event)" />
+
+          <!-- URL insert -->
+          <div class="url-section">
+            <label style="font-size:0.82rem;font-weight:500;color:var(--muted)">Or insert by URL</label>
+            <div class="url-row">
+              <input id="image-url" type="url" placeholder="https://example.com/image.png" />
+              <button class="btn btn-primary" onclick="insertImageUrl()">Insert</button>
+            </div>
+            <p style="font-size:0.75rem;color:var(--muted)">
+              Tip: for GitHub Pages, save images to an <code>images/</code> folder and use a relative path like <code>../images/myimage.png</code>
+            </p>
+          </div>
+
+          <div class="inserted-notice" id="insert-notice">✓ Image inserted into post at cursor position</div>
+        </div>
+      </div>
+
+    </div><!-- /tab-panels -->
+  </div><!-- /main-area -->
+</div><!-- /app-body -->
+
+<!-- ── Preview Modal ── -->
+<div class="preview-modal" id="preview-modal" onclick="closePreviewOnBg(event)">
+  <div class="preview-inner">
+    <button class="preview-close" onclick="closePreview()">✕</button>
+    <div id="preview-content"></div>
+  </div>
+</div>
+
+<!-- ── Save Modal ── -->
+<div class="save-modal" id="save-modal" onclick="closeSaveOnBg(event)">
+  <div class="save-inner">
+    <button class="preview-close" onclick="closeSave()" style="position:absolute;top:1rem;right:1rem">✕</button>
+    <h3>💾 Save Your Post</h3>
+
+    <div class="save-step">
+      <div class="save-step-title">Step 1 — Download the post file</div>
+      <p>This generates a ready-to-use HTML file. Save it in your <code>posts/</code> folder.</p>
+      <button class="btn btn-primary" onclick="downloadPost()">⬇ Download <span id="download-slug">post.html</span></button>
+    </div>
+
+    <div class="save-step">
+      <div class="save-step-title">Step 2 — Copy this card into <code>index.html</code></div>
+      <p>Paste this at the <strong>top</strong> of the <code>.post-list</code> div in <code>index.html</code>:</p>
+      <div class="code-snippet" id="card-snippet"><!-- card will be generated here --></div>
+      <div class="copy-row">
+        <button class="btn btn-ghost btn-sm" onclick="copyCardSnippet()">📋 Copy</button>
+      </div>
+    </div>
+
+    <div class="save-step">
+      <div class="save-step-title">Step 3 — Push to GitHub</div>
+      <p>Then run in your terminal:</p>
+      <div class="code-snippet" id="git-snippet">git add .
+git commit -m "add: new post"
+git push</div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ─────────────────────────────────────────────────────────
+//  QUILL SETUP
+// ─────────────────────────────────────────────────────────
+const quill = new Quill('#quill-editor', {
+  theme: 'snow',
+  placeholder: 'Start writing your post here...\n\nUse the toolbar for formatting. Switch to Draw tab to sketch diagrams and insert them here.',
+  modules: {
+    toolbar: [
+      [{ header: 2 }, { header: 3 }],
+      ['bold', 'italic', 'underline', 'strike'],
+      ['code', 'blockquote'],
+      ['code-block'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['link', 'image'],
+      ['clean']
+    ]
+  }
+});
+
+// Word count
+quill.on('text-change', updateWordCount);
+
+function updateWordCount() {
+  const text = quill.getText().trim();
+  const words = text ? text.split(/\s+/).filter(w => w.length > 0).length : 0;
+  const mins  = Math.max(1, Math.round(words / 200));
+  document.getElementById('stats-wc').textContent   = `${words.toLocaleString()} words · ${mins} min read`;
+  document.getElementById('nav-wc').textContent     = `${words.toLocaleString()} words`;
+  document.getElementById('meta-readtime').value    = mins;
+}
+
+// ─────────────────────────────────────────────────────────
+//  METADATA
+// ─────────────────────────────────────────────────────────
+// Set default date to current month
+(function() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  document.getElementById('meta-date').value = `${y}-${m}`;
+})();
+
+function onTitleChange() {
+  const title = document.getElementById('meta-title').value;
+  const slug  = title.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  document.getElementById('meta-slug').value = slug;
+}
+
+function getMonthLabel(value) {
+  if (!value) return '';
+  const [y, m] = value.split('-');
+  const months = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  return `${months[parseInt(m) - 1]} ${y}`;
+}
+
+// ─────────────────────────────────────────────────────────
+//  TABS
+// ─────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['write', 'draw', 'images'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`${name}-panel`).classList.add('active');
+  if (name === 'draw') initCanvas();
+}
+
+// ─────────────────────────────────────────────────────────
+//  DRAWING CANVAS
+// ─────────────────────────────────────────────────────────
+let canvas, ctx;
+let drawing = false;
+let currentTool = 'pen';
+let currentColor = '#1a1a1a';
+let brushSize = 4;
+let opacity = 1;
+let startX, startY;
+let undoStack = [];
+let canvasReady = false;
+let snapshot; // for shape preview
+
+function initCanvas() {
+  if (canvasReady) return;
+  canvas = document.getElementById('draw-canvas');
+  ctx    = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  saveUndo();
+  canvasReady = true;
+
+  canvas.addEventListener('mousedown',  startDraw);
+  canvas.addEventListener('mousemove',  moveDraw);
+  canvas.addEventListener('mouseup',    endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e.touches[0]); }, { passive: false });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); moveDraw(e.touches[0]); },  { passive: false });
+  canvas.addEventListener('touchend',   e => { e.preventDefault(); endDraw(); },                { passive: false });
+}
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (canvas.width  / r.width),
+    y: (e.clientY - r.top)  * (canvas.height / r.height)
+  };
+}
+
+function startDraw(e) {
+  drawing = true;
+  const pos = getPos(e);
+  startX = pos.x; startY = pos.y;
+
+  ctx.strokeStyle = currentColor;
+  ctx.lineWidth   = currentTool === 'eraser' ? brushSize * 3 : brushSize;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.globalAlpha = currentTool === 'eraser' ? 1 : opacity;
+
+  if (currentTool === 'pen') {
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+  } else if (currentTool === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+  } else if (currentTool === 'text') {
+    const text = prompt('Enter text:');
+    if (text) {
+      ctx.font = `${brushSize * 4}px Inter, sans-serif`;
+      ctx.fillStyle = currentColor;
+      ctx.globalAlpha = opacity;
+      ctx.fillText(text, startX, startY);
+      saveUndo();
+    }
+    drawing = false;
+  } else {
+    // For shapes: capture snapshot for preview
+    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function moveDraw(e) {
+  if (!drawing) return;
+  const pos = getPos(e);
+
+  if (currentTool === 'pen') {
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  } else if (currentTool === 'eraser') {
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  } else if (currentTool === 'line' || currentTool === 'rect' || currentTool === 'circle') {
+    ctx.putImageData(snapshot, 0, 0);
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth   = brushSize;
+    ctx.globalAlpha = opacity;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.beginPath();
+    if (currentTool === 'line') {
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    } else if (currentTool === 'rect') {
+      ctx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
+    } else if (currentTool === 'circle') {
+      const rx = (pos.x - startX) / 2;
+      const ry = (pos.y - startY) / 2;
+      ctx.ellipse(startX + rx, startY + ry, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+}
+
+function endDraw() {
+  if (!drawing) return;
+  drawing = false;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  saveUndo();
+}
+
+function saveUndo() {
+  if (!canvas) return;
+  undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  if (undoStack.length > 20) undoStack.shift();
+}
+
+function undoDraw() {
+  if (undoStack.length < 2) return;
+  undoStack.pop();
+  ctx.putImageData(undoStack[undoStack.length - 1], 0, 0);
+}
+
+function clearCanvas() {
+  if (!confirm('Clear the canvas?')) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  undoStack = [];
+  saveUndo();
+}
+
+function downloadCanvas() {
+  const a = document.createElement('a');
+  a.download = 'drawing.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+function insertDrawing() {
+  const dataUrl = canvas.toDataURL('image/png');
+  const range   = quill.getSelection(true);
+  quill.insertEmbed(range.index, 'image', dataUrl);
+  quill.setSelection(range.index + 1);
+  switchTab('write');
+  showNotice('✓ Drawing inserted into post');
+}
+
+function setTool(tool) {
+  currentTool = tool;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tool-${tool}`).classList.add('active');
+  if (canvas) {
+    canvas.style.cursor = tool === 'text' ? 'text' : 'crosshair';
+  }
+}
+
+function setColor(el) {
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  currentColor = el.dataset.color;
+  document.getElementById('custom-color').value = currentColor;
+}
+
+function setCustomColor(val) {
+  currentColor = val;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+}
+
+function updateSize(val) {
+  brushSize = parseInt(val);
+  document.getElementById('size-val').textContent = `${val}px`;
+}
+
+function updateOpacity(val) {
+  opacity = parseInt(val) / 100;
+  document.getElementById('opacity-val').textContent = `${val}%`;
+}
+
+// ─────────────────────────────────────────────────────────
+//  IMAGES
+// ─────────────────────────────────────────────────────────
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => insertImageIntoQuill(ev.target.result);
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  document.getElementById('upload-zone').classList.remove('drag-over');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ev => insertImageIntoQuill(ev.target.result);
+  reader.readAsDataURL(file);
+}
+
+function insertImageUrl() {
+  const url = document.getElementById('image-url').value.trim();
+  if (!url) return;
+  insertImageIntoQuill(url);
+  document.getElementById('image-url').value = '';
+}
+
+function insertImageIntoQuill(src) {
+  const range = quill.getSelection(true) || { index: quill.getLength() };
+  quill.insertEmbed(range.index, 'image', src);
+  quill.setSelection(range.index + 1);
+  document.getElementById('insert-notice').style.display = 'block';
+  setTimeout(() => document.getElementById('insert-notice').style.display = 'none', 3000);
+  switchTab('write');
+}
+
+function showNotice(msg) {
+  // flash notice in nav
+}
+
+// ─────────────────────────────────────────────────────────
+//  PREVIEW
+// ─────────────────────────────────────────────────────────
+function openPreview() {
+  const title   = document.getElementById('meta-title').value || 'Untitled Post';
+  const date    = getMonthLabel(document.getElementById('meta-date').value);
+  const tag     = document.getElementById('meta-tag').value;
+  const rt      = document.getElementById('meta-readtime').value;
+  const desc    = document.getElementById('meta-excerpt').value;
+  const html    = quill.root.innerHTML;
+
+  document.getElementById('preview-content').innerHTML = `
+    <div style="margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid #e5e7eb">
+      <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:0.75rem">
+        <span style="font-size:0.8rem;color:#6b7280">${date}</span>
+        <span style="font-size:0.7rem;font-weight:600;background:#dbeafe;color:#2563eb;padding:0.15rem 0.5rem;border-radius:99px;text-transform:uppercase;letter-spacing:0.04em">${tag}</span>
+        <span style="font-size:0.8rem;color:#6b7280">· ${rt} min read</span>
+      </div>
+      <h1>${title}</h1>
+      ${desc ? `<p style="font-size:1.05rem;color:#6b7280;margin-top:0.5rem">${desc}</p>` : ''}
+    </div>
+    ${html}
+  `;
+  document.getElementById('preview-modal').classList.add('open');
+}
+
+function closePreview()        { document.getElementById('preview-modal').classList.remove('open'); }
+function closePreviewOnBg(e)   { if (e.target === document.getElementById('preview-modal')) closePreview(); }
+
+// ─────────────────────────────────────────────────────────
+//  SAVE / EXPORT
+// ─────────────────────────────────────────────────────────
+function openSave() {
+  const slug = document.getElementById('meta-slug').value || 'my-post';
+  document.getElementById('download-slug').textContent = `${slug}.html`;
+
+  // Generate card snippet
+  const title   = document.getElementById('meta-title').value || 'Untitled Post';
+  const tag     = document.getElementById('meta-tag').value;
+  const date    = getMonthLabel(document.getElementById('meta-date').value);
+  const rt      = document.getElementById('meta-readtime').value;
+  const excerpt = document.getElementById('meta-excerpt').value || '';
+
+  const card = `<a href="posts/${slug}.html" class="post-card">
+  <div class="post-meta">
+    <span class="post-date">${date}</span>
+    <span class="post-tag">${tag}</span>
+  </div>
+  <h3 class="post-title">${title}</h3>
+  <p class="post-excerpt">
+    ${excerpt}
+  </p>
+  <span class="read-time">${rt} min read</span>
+</a>`;
+
+  document.getElementById('card-snippet').textContent = card;
+  document.getElementById('save-modal').classList.add('open');
+}
+
+function closeSave()        { document.getElementById('save-modal').classList.remove('open'); }
+function closeSaveOnBg(e)   { if (e.target === document.getElementById('save-modal')) closeSave(); }
+
+function downloadPost() {
+  const title   = document.getElementById('meta-title').value || 'Untitled Post';
+  const slug    = document.getElementById('meta-slug').value  || 'my-post';
+  const tag     = document.getElementById('meta-tag').value;
+  const date    = getMonthLabel(document.getElementById('meta-date').value);
+  const rt      = document.getElementById('meta-readtime').value;
+  const desc    = document.getElementById('meta-excerpt').value;
+  const bodyHtml = quill.root.innerHTML;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escHtml(title)} — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">${escHtml(date)}</span>
+        <span class="post-tag">${escHtml(tag)}</span>
+        <span class="read-time">· ${escHtml(rt)} min read</span>
+      </div>
+      <h1>${escHtml(title)}</h1>
+      ${desc ? `<p class="post-description">${escHtml(desc)}</p>` : ''}
+    </div>
+
+    <div class="post-body">
+${quillHtmlToPostHtml(bodyHtml)}
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const a    = document.createElement('a');
+  a.download = `${slug}.html`;
+  a.href     = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Convert Quill HTML to clean post-body HTML
+function quillHtmlToPostHtml(html) {
+  // Quill produces clean semantic HTML; we just need to
+  // convert its class names to our post-body conventions
+  return html
+    .replace(/<p class="ql-indent-\d+">/g, '<p style="padding-left:2rem">')
+    .replace(/class="ql-[^"]*"/g, '')   // strip quill classes
+    .replace(/ class=""/g, '')           // remove empty class attrs
+    .trim();
+}
+
+function copyCardSnippet() {
+  const text = document.getElementById('card-snippet').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 2000);
+  });
+}
+</script>
+
+</body>
+</html>

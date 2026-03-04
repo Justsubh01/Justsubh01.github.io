@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TensorRT in the Real World — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">inference</span>
+        <span class="read-time">· 12 min read</span>
+      </div>
+      <h1>TensorRT in the Real World: Lessons from Optimizing 15+ Production Models</h1>
+      <p class="post-description">
+        Everything I wish I knew before spending three months squeezing latency out of
+        detection models — precision calibration, layer fusion pitfalls, and when FP16
+        is lying to you.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        I've been optimizing models with TensorRT for about two years now. In that time I've
+        taken 15+ PyTorch models through the full pipeline: ONNX export, engine build, validation,
+        and production deployment. Here's what I actually learned — not the happy-path tutorial
+        stuff, but the things that bit me.
+      </p>
+
+      <h2>The Baseline Before You Touch Anything</h2>
+
+      <p>
+        Before you start any optimization, instrument your pipeline end-to-end and record
+        baseline numbers you trust. Not "roughly 80ms" — exact P50/P95/P99 latencies under
+        your production load profile. You'd be surprised how many teams skip this and then
+        can't tell if their optimization actually helped.
+      </p>
+
+      <pre><code># Minimal profiling harness
+import time
+import numpy as np
+
+latencies = []
+for _ in range(500):  # warm-up first 50, measure next 450
+    t0 = time.perf_counter()
+    output = model.infer(sample_input)
+    t1 = time.perf_counter()
+    latencies.append((t1 - t0) * 1000)
+
+latencies = latencies[50:]
+print(f"P50: {np.percentile(latencies, 50):.2f}ms")
+print(f"P95: {np.percentile(latencies, 95):.2f}ms")
+print(f"P99: {np.percentile(latencies, 99):.2f}ms")</code></pre>
+
+      <h2>FP16: Not Always a Free Speedup</h2>
+
+      <p>
+        The standard advice is "enable FP16, get ~2x speedup for free." This is mostly true —
+        on Tensor Core hardware. But I've seen cases where FP16 gives you degraded accuracy
+        that only shows up weeks later in production, when your detection rate quietly drops
+        2-3% on specific vehicle classes.
+      </p>
+
+      <p>
+        The culprit is usually normalization layers. BatchNorm with small epsilon values (1e-5)
+        can underflow in FP16. TensorRT has an option to force specific layers to FP32:
+      </p>
+
+      <pre><code># Force BN layers to FP32
+for layer in network:
+    if "batch_norm" in layer.name.lower():
+        layer.precision = trt.DataType.FLOAT
+        layer.set_output_type(0, trt.DataType.FLOAT)</code></pre>
+
+      <h2>Calibration Matters More Than You Think</h2>
+
+      <p>
+        INT8 calibration is where most people give up because it's finicky. The calibration
+        dataset has to actually represent your production distribution. For traffic cameras,
+        this means: night footage, rainy conditions, partial occlusions, wide-angle distortion.
+        If you calibrate only on daytime highway footage, your INT8 model will fall apart
+        at night.
+      </p>
+
+      <blockquote>
+        Calibration is not a formality. It's a mini-training run that decides where you're
+        allowed to throw away precision. Feed it garbage, get garbage.
+      </blockquote>
+
+      <h2>Layer Fusion: Trust but Verify</h2>
+
+      <p>
+        TensorRT's layer fusion is aggressive and usually correct, but I've hit two production
+        bugs caused by fused ops behaving differently than the unfused equivalents at edge cases:
+        very large input values and NaN propagation. Enable the engine inspector and sanity-check
+        your fusion groups:
+      </p>
+
+      <pre><code>inspector = engine.create_engine_inspector()
+print(inspector.get_engine_information(trt.LayerInformationFormat.JSON))</code></pre>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>Measure first, optimize second. Never guess where your latency is.</li>
+        <li>Validate FP16/INT8 on hard examples, not just average accuracy metrics.</li>
+        <li>Your calibration dataset is as important as your training dataset.</li>
+        <li>Keep the FP32 engine around for debugging — not just the optimized one.</li>
+        <li>Build your validation suite before you deploy any engine to production.</li>
+      </ul>
+
+      <p>
+        TensorRT is genuinely powerful. With care, we've gotten 4-6x speedups on detection
+        models while holding accuracy within 0.1% mAP. But it rewards patience and
+        methodical validation over quick iteration.
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Triton at Scale — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">February 2026</span>
+        <span class="post-tag">infrastructure</span>
+        <span class="read-time">· 18 min read</span>
+      </div>
+      <h1>Triton Inference Server: Serving 100+ Camera Streams Without Losing Your Mind</h1>
+      <p class="post-description">
+        A deep dive into dynamic batching, model pipelines, and the config knobs that
+        actually matter when you need sub-100ms end-to-end latency across a city-scale
+        deployment.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        When we decided to move from a custom serving stack to Triton Inference Server,
+        the pitch was simple: stop reinventing the wheel, get dynamic batching for free,
+        and gain access to the NVIDIA profiling ecosystem. Six months later, the pitch
+        was vindicated — but not without pain. Here's the unfiltered version.
+      </p>
+
+      <h2>Why Triton (and When Not to Use It)</h2>
+
+      <p>
+        Triton is excellent when you have multiple models, need fine-grained batching control,
+        or want to serve TensorRT engines alongside ONNX and PyTorch models. It's overkill
+        if you have a single small model with simple batching requirements. We had 6 models
+        in our pipeline (detection, tracking, classification, plate recognition, quality filter,
+        anomaly detection), so Triton was the right call.
+      </p>
+
+      <h2>Dynamic Batching: The Config That Actually Matters</h2>
+
+      <p>
+        Dynamic batching is Triton's killer feature. It queues incoming requests and batches
+        them together up to a configured max size — dramatically improving GPU utilization
+        when you have many concurrent streams. The key configs:
+      </p>
+
+      <pre><code># config.pbtxt for detection model
+name: "vehicle_detector"
+backend: "tensorrt"
+max_batch_size: 32
+
+dynamic_batching {
+  preferred_batch_size: [ 8, 16, 32 ]
+  max_queue_delay_microseconds: 5000  # wait up to 5ms to form a batch
+}
+
+instance_group [
+  {
+    count: 2       # two model instances per GPU
+    kind: KIND_GPU
+    gpus: [ 0, 1 ] # spread across two GPUs
+  }
+]</code></pre>
+
+      <p>
+        The <code>max_queue_delay_microseconds</code> knob is critical. Set it too low:
+        you get small batches and poor GPU utilization. Set it too high: latency spikes
+        under bursty load. For 100 camera streams at 10fps each (1000 req/s), 5ms gave
+        us batch sizes of 16-24 in steady state — good utilization without latency blowup.
+      </p>
+
+      <h2>Model Pipelines for End-to-End Inference</h2>
+
+      <p>
+        Triton's ensemble models let you chain multiple models into a pipeline that Triton
+        manages internally — no round-trips through your application code. This cut our
+        end-to-end latency by ~30% by eliminating Python overhead between model calls.
+      </p>
+
+      <pre><code># ensemble config.pbtxt
+name: "detection_pipeline"
+platform: "ensemble"
+max_batch_size: 32
+
+ensemble_scheduling {
+  step [
+    {
+      model_name: "preprocessor"
+      model_version: -1
+      input_map { key: "raw_image" value: "raw_image" }
+      output_map { key: "normalized" value: "preprocessed" }
+    },
+    {
+      model_name: "vehicle_detector"
+      model_version: -1
+      input_map { key: "input" value: "preprocessed" }
+      output_map { key: "detections" value: "detections" }
+    }
+  ]
+}</code></pre>
+
+      <h2>Monitoring: Don't Skip This</h2>
+
+      <p>
+        Triton exposes Prometheus metrics out of the box. Wire them up from day one.
+        The metrics that saved us multiple times:
+      </p>
+
+      <ul>
+        <li><code>nv_inference_queue_duration_us</code> — queue time, your batching health indicator</li>
+        <li><code>nv_inference_compute_infer_duration_us</code> — actual GPU time per request</li>
+        <li><code>nv_gpu_utilization</code> — per-GPU utilization</li>
+        <li><code>nv_inference_request_failure</code> — silent failures you'd otherwise miss</li>
+      </ul>
+
+      <h2>What We'd Do Differently</h2>
+
+      <p>
+        Start with the Triton performance analyzer (<code>perf_analyzer</code>) before
+        writing any client code. It simulates load and tells you exactly how your config
+        behaves before you wire up production traffic. We wasted two weeks of debugging
+        that perf_analyzer would have caught in an afternoon.
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>
