@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>C Memory Internals #3: Call Stack, Buffer Bounds &amp; Leak Detection — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    .gif-wrap {
+      text-align: center;
+      margin: 2rem 0;
+    }
+    .gif-wrap img {
+      max-width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    .gif-caption {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+    .concept-box {
+      background: var(--accent-soft);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      font-size: 0.95rem;
+    }
+    .warning-box {
+      background: #fff7ed;
+      border-left: 3px solid #f97316;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      font-size: 0.95rem;
+    }
+    .danger-box {
+      background: #fff1f2;
+      border-left: 3px solid #ef4444;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      font-size: 0.95rem;
+    }
+    .series-nav {
+      display: flex;
+      justify-content: space-between;
+      margin: 2.5rem 0 0;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .series-nav a { color: var(--accent); text-decoration: none; }
+    .series-nav a:hover { text-decoration: underline; }
+    .tool-list {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+    }
+    .tool-list code {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· 17 min read</span>
+      </div>
+      <h1>C Memory Internals #3: Call Stack, Buffer Bounds &amp; Leak Detection</h1>
+      <p class="post-description">
+        The final part of the C memory series. We cover recursive call stack frames —
+        how each function call consumes stack space, what stack overflow really means,
+        and how the stack grows with real address evidence. Then: why C doesn't protect
+        you from out-of-bounds access, and how to build a malloc/free tracker that
+        catches memory leaks before they ship.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        <a href="c-memory-part1.html">Part 1</a> built the foundation. <a href="c-memory-part2.html">Part 2</a>
+        went into heap mechanics. This final part covers three concepts that protect you:
+        understanding the call stack so you can avoid stack overflows, understanding
+        buffer bounds so you don't silently corrupt memory, and building your own
+        memory leak detector using macros so you always know what you've allocated
+        and what you've forgotten to free.
+      </p>
+
+      <h2>Program 8 — Recursive Call Stack Frames</h2>
+
+      <p>
+        Every time a function is called, the CPU pushes a <strong>stack frame</strong>
+        onto the stack. This frame holds the function's local variables, its return
+        address (where to jump back to when it returns), and saved register values.
+        When the function returns, the frame is popped and all that memory is instantly
+        reclaimed.
+      </p>
+
+      <div class="gif-wrap">
+        <img src="assets/gif_call_stack.gif" alt="Recursive call stack pushing and popping frames" />
+        <p class="gif-caption">Each call to factorial() pushes a new frame downward (lower address). The yellow frame is the current active one. On the way back up, frames are popped — the stack shrinks as each function returns its result.</p>
+      </div>
+
+<pre><code>#include &lt;stdio.h&gt;
+
+// Track where the stack started so we can measure depth
+static void *stack_base = NULL;
+
+long factorial(int n) {
+    int local_n = n;   // this local variable lives on THIS frame
+
+    // Print the frame address — watch it decrease (stack grows downward)
+    if (!stack_base) stack_base = (void*)&amp;local_n;
+    long depth = (long)stack_base - (long)&amp;local_n;
+    printf("factorial(%d)  &amp;local_n=%p  depth=%ld bytes\n",
+           n, (void*)&amp;local_n, depth);
+
+    if (n &lt;= 1) return 1;
+    return (long)local_n * factorial(n - 1);
+    // Each recursive call adds another frame ~below~ this one
+}
+
+int main() {
+    stack_base = (void*)&amp;stack_base;
+    printf("Result: %ld\n", factorial(5));
+    return 0;
+    // When factorial(1) returns, all 5 frames are popped in reverse
+}</code></pre>
+
+      <p>
+        Run this and watch the addresses. Each recursive call produces a lower address
+        for <code>&amp;local_n</code> — the stack genuinely grows downward in memory.
+        You can measure exactly how many bytes each frame consumes.
+      </p>
+
+      <div class="danger-box">
+        <strong>Stack overflow:</strong> The stack is only ~1–8 MB. Deep recursion
+        (or large local arrays) fills it up. The OS has no way to grow the stack —
+        it just segfaults. Rule: if your recursion depth could be proportional to
+        input size, consider iteration or heap allocation instead.
+      </div>
+
+      <p>The anatomy of a stack frame:</p>
+      <ul>
+        <li><strong>Return address</strong> — where the CPU jumps back to after <code>return</code></li>
+        <li><strong>Saved registers</strong> — the caller's register state, preserved so it can resume</li>
+        <li><strong>Parameters</strong> — function arguments passed by value</li>
+        <li><strong>Local variables</strong> — all <code>int x = 5;</code> declarations inside the function</li>
+      </ul>
+
+      <blockquote>
+        The stack frame is created in a single CPU instruction (<code>PUSH rbp / SUB rsp, N</code>)
+        and destroyed in another (<code>POP rbp / RET</code>). That's why local variable
+        allocation is "free" — it's just a register decrement.
+      </blockquote>
+
+      <div class="concept-box">
+        <strong>Critical mistake to avoid:</strong> Never return a pointer to a local variable.
+        <code>int *bad() { int x = 5; return &amp;x; }</code> — when <code>bad()</code> returns,
+        the frame is gone. The pointer now points to garbage (or the next function's frame).
+        This is undefined behaviour and causes the most baffling bugs.
+      </div>
+
+      <h2>Program 9 — Array Bounds &amp; Safe Buffer</h2>
+
+      <p>
+        C has no runtime bounds checking. When you write <code>arr[10]</code> on an
+        array of size 5, the compiler does not stop you. It generates the pointer
+        arithmetic, reads or writes whatever is at that address, and moves on. The
+        result might be a crash, silent data corruption, or — in security contexts —
+        an exploitable vulnerability.
+      </p>
+
+      <div class="gif-wrap">
+        <img src="assets/gif_buffer_bounds.gif" alt="Array bounds animation showing safe and OOB accesses" />
+        <p class="gif-caption">Green accesses (arr[0], arr[2], arr[4]) are within bounds — safe. Red accesses show out-of-bounds indices overwriting the canary values placed next to the array. arr[100] would hit random memory or cause a segfault.</p>
+      </div>
+
+<pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+// ---- Safe Buffer: a struct that wraps an array with bounds checking ----
+typedef struct {
+    int *data;
+    int  capacity;
+    int  size;
+} SafeBuffer;
+
+int sb_set(SafeBuffer *sb, int index, int value) {
+    if (index &lt; 0 || index &gt;= sb-&gt;capacity) {
+        printf("BOUNDS ERROR: index %d out of [0, %d)\n", index, sb-&gt;capacity);
+        return 0;  // failure
+    }
+    sb-&gt;data[index] = value;
+    return 1;
+}
+
+int main() {
+    // Unsafe: raw array — no protection
+    int arr[5] = {10, 20, 30, 40, 50};
+    int canary = 0xDEAD;  // placed right after arr on the stack
+
+    printf("arr[4]  = %d  (safe)\n",  arr[4]);    // fine
+    // arr[5] would read/write canary — silent corruption
+    // arr[-1] would read/write whatever is below arr on the stack
+    // arr[100] would crash (or worse, corrupt something important)
+
+    printf("canary before any OOB: 0x%X\n", canary);
+
+    // Safe: wrapped buffer with bounds check
+    SafeBuffer sb;
+    sb.data     = (int *)malloc(5 * sizeof(int));
+    sb.capacity = 5;
+    sb.size     = 0;
+
+    sb_set(&amp;sb, 0, 100);   // OK
+    sb_set(&amp;sb, 4, 500);   // OK
+    sb_set(&amp;sb, 5, 999);   // BOUNDS ERROR caught and reported, not executed
+    sb_set(&amp;sb, -1, 999);  // BOUNDS ERROR caught
+
+    free(sb.data);
+    return 0;
+}</code></pre>
+
+      <div class="warning-box">
+        <strong>Why does this matter for CUDA?</strong> GPU kernels are launched with
+        thousands of threads. A common bug: the last thread's index exceeds the array
+        size. Always guard: <code>if (idx &lt; N) { arr[idx] = ...; }</code>. Without
+        this guard, out-of-bounds GPU writes corrupt device memory silently — no
+        segfault, just wrong results.
+      </div>
+
+      <p>How to catch bounds errors automatically in development:</p>
+      <div class="tool-list">
+        <p><strong>AddressSanitizer</strong> (fastest, catches most bugs):</p>
+        <code>gcc -fsanitize=address -g your_file.c &amp;&amp; ./a.out</code>
+        <br/><br/>
+        <p><strong>Valgrind</strong> (thorough, slower, also catches leaks):</p>
+        <code>valgrind --track-origins=yes ./a.out</code>
+        <br/><br/>
+        <p><strong>UBSan</strong> (undefined behaviour sanitizer):</p>
+        <code>gcc -fsanitize=undefined -g your_file.c</code>
+      </div>
+
+      <h2>Program 10 — malloc/free Tracker: Build Your Own Leak Detector</h2>
+
+      <p>
+        A memory leak is when you <code>malloc()</code> memory and never
+        <code>free()</code> it. The program keeps running, the memory is never returned
+        to the OS, and over time the process eats all available RAM. Long-running servers
+        (and GPU inference workers) die from memory leaks.
+      </p>
+
+      <p>
+        Instead of using an external tool, we can build our own tracker using a classic
+        C technique: <strong>macros that intercept every malloc and free call</strong>
+        and log them to a table. At program end, any entry that was never freed is a leak.
+      </p>
+
+      <div class="gif-wrap">
+        <img src="assets/gif_malloc_tracker.gif" alt="Malloc tracker table filling up with allocations and leak detection" />
+        <p class="gif-caption">Each MALLOC call adds a row to the table marked LIVE. FREE calls flip the status to FREE. At program end, any row still marked LIVE is reported as a leak — including the exact source line where it was allocated.</p>
+      </div>
+
+<pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+// --- The tracking table ---
+typedef struct {
+    void  *ptr;
+    size_t size;
+    int    line;
+    int    freed;
+} AllocRecord;
+
+static AllocRecord g_allocs[64];
+static int g_count = 0;
+
+void *tracked_malloc(size_t size, int line) {
+    void *ptr = malloc(size);
+    if (ptr &amp;&amp; g_count &lt; 64) {
+        g_allocs[g_count++] = (AllocRecord){ ptr, size, line, 0 };
+    }
+    printf("[ALLOC] %p  %4zu bytes  (line %d)\n", ptr, size, line);
+    return ptr;
+}
+
+void tracked_free(void *ptr, int line) {
+    for (int i = 0; i &lt; g_count; i++) {
+        if (g_allocs[i].ptr == ptr &amp;&amp; !g_allocs[i].freed) {
+            g_allocs[i].freed = 1;
+            printf("[FREE ] %p  %4zu bytes  (line %d)\n",
+                   ptr, g_allocs[i].size, line);
+            free(ptr);
+            return;
+        }
+    }
+}
+
+// The key: macros that auto-inject __LINE__ at the call site
+#define MALLOC(sz)  tracked_malloc((sz), __LINE__)
+#define FREE(ptr)   tracked_free((ptr),  __LINE__)
+
+void leak_report() {
+    printf("\n--- LEAK REPORT ---\n");
+    int leaks = 0;
+    for (int i = 0; i &lt; g_count; i++) {
+        if (!g_allocs[i].freed) {
+            printf("LEAK: %zu bytes at %p (allocated line %d)\n",
+                   g_allocs[i].size, g_allocs[i].ptr, g_allocs[i].line);
+            leaks++;
+        }
+    }
+    if (!leaks) printf("No leaks. All allocations freed.\n");
+}
+
+int main() {
+    int   *arr  = MALLOC(10 * sizeof(int));   // line logged automatically
+    char  *name = MALLOC(32);
+    float *vec  = MALLOC(3 * sizeof(float));
+    char  *buf  = MALLOC(1024);               // intentionally NOT freed
+
+    FREE(arr);
+    FREE(name);
+    FREE(vec);
+    // buf: forgotten!
+
+    leak_report();
+    // Output: LEAK: 1024 bytes at 0x... (allocated line N)
+    free(buf);  // clean up for real
+    return 0;
+}</code></pre>
+
+      <div class="concept-box">
+        <strong>How the line tracking works:</strong> <code>__LINE__</code> is a
+        built-in C preprocessor macro that expands to the current line number
+        <em>at compile time</em>. When you write <code>MALLOC(40)</code>, the
+        preprocessor replaces it with <code>tracked_malloc(40, 141)</code> — the
+        actual line number is baked in. This is how real leak detectors like
+        AddressSanitizer track allocation sites.
+      </div>
+
+      <p>
+        This technique generalises. You can log timestamps, call stacks, thread IDs,
+        or any other context. Production-grade allocators like jemalloc and tcmalloc
+        use the same interception pattern, just much more sophisticated.
+      </p>
+
+      <h2>Putting It All Together</h2>
+
+      <p>
+        These ten programs form a complete picture of how C manages memory — from the
+        moment a variable is declared to the moment it's freed. Before writing a single
+        CUDA kernel, you should be comfortable with:
+      </p>
+
+      <ol>
+        <li>Where every variable lives (stack vs heap vs BSS vs data)</li>
+        <li>What a pointer is and how arithmetic on it works</li>
+        <li>How to grow and shrink heap allocations safely with realloc</li>
+        <li>Why struct layout matters for both memory usage and performance</li>
+        <li>How the call stack grows with each function call</li>
+        <li>Why C won't protect you from out-of-bounds — you have to</li>
+        <li>How to detect memory leaks before they become production bugs</li>
+      </ol>
+
+      <blockquote>
+        CUDA doesn't hide these concepts — it exposes more of them.
+        Host memory, device memory, pinned memory, unified memory —
+        all are variations on the same heap abstraction you learned here.
+      </blockquote>
+
+      <p>
+        The next post in this series: writing the GPU version of the CPU baseline from
+        <a href="cuda-cpu-baseline.html">CUDA Journey #1</a> — allocating device memory
+        with <code>cudaMalloc</code>, copying data with <code>cudaMemcpy</code>, and
+        summing 1 million floats across thousands of parallel threads.
+      </p>
+
+      <div class="series-nav">
+        <a href="c-memory-part2.html">← Part 2: Realloc, Linked Lists &amp; Struct Padding</a>
+        <span></span>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>
