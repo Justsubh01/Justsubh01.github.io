@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUDA Journey #1: Building a CPU Baseline Before You GPU — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· 15 min read</span>
+      </div>
+      <h1>CUDA Journey #1: Building a CPU Baseline Before You GPU</h1>
+      <p class="post-description">
+        Before you write a single line of CUDA, you need something to beat. Here's how to build
+        a proper CPU baseline — summing 1 million floats, timing it with <code>clock()</code>,
+        and understanding exactly what's happening under the hood at every line.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Every CUDA tutorial I've seen skips straight to the GPU kernel. Launch some threads,
+        run the reduction, print the speedup number — impressive. But speedup over <em>what</em>?
+        If your baseline is bad C code, your CUDA looks like a miracle. If your baseline is
+        reasonable, the CUDA win is still real, but honest.
+      </p>
+
+      <p>
+        This post is about the baseline. We're going to write a C program that allocates
+        1 million floats, fills them with random values, sums them with a for loop, and
+        times the whole thing with <code>clock()</code>. That's it. But we're going to
+        understand <em>every single line</em> — the memory model, the timing API, the
+        randomness, the float arithmetic, all of it. Because when you later parallelize
+        this on the GPU, you need to know what you're comparing against and why.
+      </p>
+
+      <h2>The Full Program</h2>
+
+      <p>Here's the complete code. We'll dissect it piece by piece below.</p>
+
+<pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;time.h&gt;
+
+#define N 1000000
+
+int main() {
+    // Step 1: Allocate memory on the heap
+    float *arr = (float *)malloc(N * sizeof(float));
+    if (arr == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return 1;
+    }
+
+    // Step 2: Seed the random number generator
+    srand(42);
+
+    // Step 3: Fill the array with random float values
+    for (int i = 0; i &lt; N; i++) {
+        arr[i] = (float)rand() / RAND_MAX;
+    }
+
+    // Step 4: Start the timer
+    clock_t start = clock();
+
+    // Step 5: Compute the sum
+    float sum = 0.0f;
+    for (int i = 0; i &lt; N; i++) {
+        sum += arr[i];
+    }
+
+    // Step 6: Stop the timer
+    clock_t end = clock();
+
+    // Step 7: Compute elapsed time in milliseconds
+    double elapsed_ms = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;
+
+    // Step 8: Print results
+    printf("Sum      = %.2f\n", sum);
+    printf("Time     = %.3f ms\n", elapsed_ms);
+
+    // Step 9: Free memory
+    free(arr);
+
+    return 0;
+}</code></pre>
+
+      <p>Compile and run it like this:</p>
+
+<pre><code>gcc -O2 -o cpu_sum cpu_sum.c
+./cpu_sum</code></pre>
+
+      <p>You'll see something like:</p>
+
+<pre><code>Sum      = 500042.78
+Time     = 1.243 ms</code></pre>
+
+      <p>
+        That's your baseline. Now let's understand every decision that went into it.
+      </p>
+
+      <h2>The Headers: What You're Pulling In</h2>
+
+<pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;time.h&gt;</code></pre>
+
+      <p>
+        These three headers give you access to the C standard library functions used in this program.
+        They're not optional — without them, the compiler doesn't know what <code>malloc</code>,
+        <code>rand</code>, or <code>clock</code> are.
+      </p>
+
+      <ul>
+        <li>
+          <strong><code>stdio.h</code></strong> — Standard Input/Output. This gives you
+          <code>printf</code> and <code>fprintf</code>. <code>printf</code> writes to stdout
+          (your terminal). <code>fprintf(stderr, ...)</code> writes to stderr — the error stream —
+          which is useful because stdout and stderr can be redirected independently in a shell.
+          If you redirect your program's output to a file (<code>./cpu_sum &gt; out.txt</code>),
+          error messages still appear in the terminal because they go to stderr, not stdout.
+        </li>
+        <li>
+          <strong><code>stdlib.h</code></strong> — Standard Library. Gives you memory management
+          (<code>malloc</code>, <code>free</code>) and random number generation (<code>rand</code>,
+          <code>srand</code>). This header is the gateway to heap memory in C — without it,
+          you're stuck on the stack.
+        </li>
+        <li>
+          <strong><code>time.h</code></strong> — Time utilities. Gives you <code>clock()</code>
+          and the <code>clock_t</code> type and the <code>CLOCKS_PER_SEC</code> constant.
+          These are the primitives we'll use to measure execution time.
+        </li>
+      </ul>
+
+      <h2>The #define: Your Array Size</h2>
+
+<pre><code>#define N 1000000</code></pre>
+
+      <p>
+        This is a preprocessor macro. Before the compiler even sees your code, the C preprocessor
+        does a text substitution — every occurrence of <code>N</code> in your source file is
+        replaced with <code>1000000</code>. The compiler never sees the name <code>N</code>,
+        only the literal number.
+      </p>
+
+      <p>
+        Why a macro instead of <code>const int N = 1000000;</code>? In this case, either works.
+        But macros are zero-cost — there's no variable, no memory address, no potential
+        for the value to be modified at runtime. It's a compile-time constant in the
+        truest sense.
+      </p>
+
+      <p>
+        One million floats. At 4 bytes each, that's exactly 4 MB of data. This is a meaningful
+        size: large enough to see real timing differences, small enough to fit comfortably in
+        RAM and even in L3 cache on modern CPUs (which are typically 8–32 MB). When you move
+        to CUDA, you'll feel the PCIe transfer cost of these 4 MB going to the GPU.
+      </p>
+
+      <h2>Step 1: Heap Allocation with malloc</h2>
+
+<pre><code>float *arr = (float *)malloc(N * sizeof(float));
+if (arr == NULL) {
+    fprintf(stderr, "Memory allocation failed\n");
+    return 1;
+}</code></pre>
+
+      <p>
+        This is the first and most important decision in the program: putting the array on the
+        <em>heap</em> rather than the stack.
+      </p>
+
+      <blockquote>
+        The stack is fast but small (typically 1–8 MB). The heap is large but requires
+        explicit management. Four megabytes on the stack would likely cause a stack overflow.
+      </blockquote>
+
+      <p>
+        Let's break down the malloc call:
+      </p>
+
+      <ul>
+        <li>
+          <strong><code>N * sizeof(float)</code></strong> — We need <code>N</code> floats,
+          and each float is <code>sizeof(float)</code> bytes. On every modern platform,
+          <code>sizeof(float)</code> is 4 (IEEE 754 single-precision). So we're requesting
+          4,000,000 bytes = 4 MB.
+          Always use <code>sizeof(type)</code> rather than hardcoding a number —
+          it makes your code portable and self-documenting.
+        </li>
+        <li>
+          <strong><code>(float *)</code> cast</strong> — <code>malloc</code> returns
+          <code>void *</code>, a generic pointer with no type information. We cast it to
+          <code>float *</code> so the compiler knows each element is a float and can
+          do correct pointer arithmetic. In C++ this cast is mandatory; in C it's technically
+          optional but good practice.
+        </li>
+        <li>
+          <strong>NULL check</strong> — <code>malloc</code> returns <code>NULL</code> if the
+          allocation fails (out of memory, or you asked for a nonsensical size). Always check.
+          Dereferencing a NULL pointer is undefined behavior — on most systems it immediately
+          crashes with a segfault, but you can't rely on that. The check costs nothing and
+          saves you from mysterious failures.
+        </li>
+      </ul>
+
+      <p>
+        After <code>malloc</code>, <code>arr</code> is a pointer to the beginning of a
+        contiguous block of 4 MB in heap memory. The memory is <em>uninitialized</em> —
+        it contains whatever bytes happened to be there. That's why we fill it next.
+      </p>
+
+      <h2>Step 2: Seeding the Random Number Generator</h2>
+
+<pre><code>srand(42);</code></pre>
+
+      <p>
+        C's <code>rand()</code> function is a pseudorandom number generator (PRNG) — it
+        produces a deterministic sequence of integers that <em>looks</em> random.
+        The sequence is determined entirely by the initial <em>seed</em> value.
+      </p>
+
+      <p>
+        <code>srand(42)</code> sets the seed to 42. Every time you run the program with this
+        seed, you get the exact same sequence of random numbers. This is intentional for a
+        baseline: <strong>reproducibility</strong>. When you later run this on the GPU,
+        you want to be summing the same numbers so you can verify correctness by comparing
+        the sums.
+      </p>
+
+      <p>
+        In production code where you want different random data each run, you'd seed with
+        <code>srand(time(NULL))</code> — using the current time as the seed so it differs
+        between runs. For benchmarking, a fixed seed is better.
+      </p>
+
+      <blockquote>
+        The quality of C's rand() is not great — it's not suitable for cryptography or
+        serious statistical work. For scientific computing, you'd use something like the
+        Mersenne Twister. But for filling a benchmark array, it's perfectly fine.
+      </blockquote>
+
+      <h2>Step 3: Filling the Array with Random Floats</h2>
+
+<pre><code>for (int i = 0; i &lt; N; i++) {
+    arr[i] = (float)rand() / RAND_MAX;
+}</code></pre>
+
+      <p>
+        This loop runs one million times, setting each element to a float in the range [0.0, 1.0].
+        Let's unpack it:
+      </p>
+
+      <ul>
+        <li>
+          <strong><code>rand()</code></strong> — returns a pseudorandom integer in the range
+          [0, <code>RAND_MAX</code>]. <code>RAND_MAX</code> is at least 32767, and on most
+          modern Linux systems it's 2,147,483,647 (2^31 - 1, i.e., <code>INT_MAX</code>).
+        </li>
+        <li>
+          <strong><code>(float)rand()</code></strong> — cast the integer to float before dividing.
+          If you wrote <code>rand() / RAND_MAX</code> without the cast, you'd get integer
+          division — the result would always be 0 (since rand() &lt; RAND_MAX). The cast forces
+          floating-point division.
+        </li>
+        <li>
+          <strong><code>/ RAND_MAX</code></strong> — divides by the maximum possible value,
+          normalizing the result to [0.0, 1.0]. When <code>rand()</code> returns 0, you get 0.0.
+          When it returns <code>RAND_MAX</code>, you get exactly 1.0.
+        </li>
+        <li>
+          <strong><code>arr[i] = ...</code></strong> — array subscript notation. This is
+          equivalent to <code>*(arr + i) = ...</code>. The compiler computes the address as
+          <code>arr</code> (base pointer) + <code>i * sizeof(float)</code> bytes, then writes
+          the float value there.
+        </li>
+      </ul>
+
+      <p>
+        With 1 million values uniformly distributed in [0, 1], the expected sum is 500,000.
+        The actual sum will be close — typically within a few hundred of 500,000. You can see
+        this in the output: <code>Sum = 500042.78</code>.
+      </p>
+
+      <p>
+        Note that this initialization loop is <em>not</em> timed. We only want to measure
+        the summation, not the data setup. In real CUDA benchmarks, you'll similarly separate
+        data preparation from the kernel you're actually measuring.
+      </p>
+
+      <h2>Step 4 & 6: The Timer — clock()</h2>
+
+<pre><code>clock_t start = clock();
+// ... work ...
+clock_t end = clock();</code></pre>
+
+      <p>
+        <code>clock()</code> returns the amount of processor time used by the program since
+        it started, measured in "clock ticks". The type <code>clock_t</code> is typically a
+        <code>long</code> or <code>long long</code>.
+      </p>
+
+      <p>
+        Key things to understand about <code>clock()</code>:
+      </p>
+
+      <ul>
+        <li>
+          <strong>It measures CPU time, not wall time.</strong> If your process sleeps or
+          waits for I/O, that time is not counted. For pure compute (which this is),
+          CPU time ≈ wall time, so this is fine.
+        </li>
+        <li>
+          <strong>Resolution varies.</strong> <code>CLOCKS_PER_SEC</code> is 1,000,000 on
+          Linux (microsecond resolution). On Windows it's only 1,000. For very fast operations,
+          this matters.
+        </li>
+        <li>
+          <strong>It can overflow.</strong> On 32-bit systems with <code>clock_t</code> as
+          a 32-bit type, it wraps after about 72 minutes. For a sub-millisecond benchmark
+          this is irrelevant, but worth knowing.
+        </li>
+        <li>
+          <strong>It's not the most precise option.</strong> For very fine-grained benchmarking
+          in production, you'd use <code>clock_gettime(CLOCK_MONOTONIC, ...)</code> on Linux,
+          which gives nanosecond resolution and doesn't have the CPU-vs-wall-time ambiguity.
+          But for our purposes, <code>clock()</code> is clear and portable.
+        </li>
+      </ul>
+
+      <p>
+        We take the timestamp <em>immediately before</em> the summation loop and
+        <em>immediately after</em>. Nothing else happens between them. This is deliberate:
+        you want to measure only the work you care about.
+      </p>
+
+      <h2>Step 5: The Summation Loop</h2>
+
+<pre><code>float sum = 0.0f;
+for (int i = 0; i &lt; N; i++) {
+    sum += arr[i];
+}</code></pre>
+
+      <p>
+        The simplest possible reduction: a sequential accumulation. Let's think carefully
+        about what's happening.
+      </p>
+
+      <p><strong>The accumulator: <code>float sum = 0.0f</code></strong></p>
+
+      <p>
+        We use <code>float</code> (not <code>double</code>) to match the array element type.
+        The <code>f</code> suffix on <code>0.0f</code> makes it a float literal — without it,
+        <code>0.0</code> is a double, and the assignment would involve an implicit narrowing
+        conversion. It's a minor detail but good practice.
+      </p>
+
+      <p>
+        There's a subtle numerical issue here. Adding 1 million floats sequentially accumulates
+        floating-point rounding errors. Each <code>+=</code> operation rounds the result to
+        the nearest representable float. After a million such operations, the accumulated
+        error can be significant — potentially hundreds of ULPs (Units in the Last Place) off
+        from the true sum. If you needed high-precision summation, you'd use
+        <a href="https://en.wikipedia.org/wiki/Kahan_summation_algorithm">Kahan summation</a>
+        or switch to <code>double</code>. For our baseline purposes, the naive approach is fine
+        and matches what a naive GPU kernel would do.
+      </p>
+
+      <p><strong>The memory access pattern</strong></p>
+
+      <p>
+        The loop accesses memory sequentially: <code>arr[0]</code>, <code>arr[1]</code>,
+        <code>arr[2]</code>, ... This is the best possible pattern for a CPU cache. The CPU's
+        hardware prefetcher will detect the stride-1 access pattern immediately and start
+        loading cache lines ahead of the loop. With a 64-byte cache line holding 16 floats,
+        the CPU fetches data in bursts of 16 elements. The entire 4 MB array fits in L3 cache
+        on most modern CPUs, so after the first pass, repeat runs would be even faster
+        (served from cache, not DRAM).
+      </p>
+
+      <blockquote>
+        Sequential memory access + cache-resident data = this loop is essentially running
+        at memory bandwidth speed. The compute (one addition per element) is trivial;
+        the bottleneck is feeding data to the CPU fast enough.
+      </blockquote>
+
+      <p><strong>Loop overhead</strong></p>
+
+      <p>
+        With <code>-O2</code> optimization, the compiler will vectorize this loop automatically.
+        It'll use SIMD instructions (SSE/AVX on x86) to add 4, 8, or even 16 floats per
+        clock cycle rather than one. The <code>-O2</code> flag in our compile command is
+        important — without it, the loop runs scalar and is significantly slower.
+        Always benchmark with optimizations enabled, because your GPU will be competing
+        against optimized CPU code, not naive scalar loops.
+      </p>
+
+      <h2>Step 7: Converting Clock Ticks to Milliseconds</h2>
+
+<pre><code>double elapsed_ms = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;</code></pre>
+
+      <p>
+        Let's walk through the arithmetic:
+      </p>
+
+      <ul>
+        <li>
+          <strong><code>end - start</code></strong> — the number of clock ticks elapsed.
+          Since both are <code>clock_t</code>, this subtraction gives a <code>clock_t</code>
+          value representing elapsed ticks.
+        </li>
+        <li>
+          <strong><code>(double)(...)</code></strong> — cast to double before dividing.
+          <code>clock_t</code> is an integer type. If you wrote
+          <code>(end - start) / CLOCKS_PER_SEC</code> without casting, you'd get integer
+          division and lose all sub-second precision. The cast ensures floating-point division.
+        </li>
+        <li>
+          <strong><code>/ CLOCKS_PER_SEC</code></strong> — converts ticks to seconds.
+          On Linux, <code>CLOCKS_PER_SEC</code> is 1,000,000, so if you observed 1,243 ticks,
+          you get <code>1243 / 1000000 = 0.001243</code> seconds.
+        </li>
+        <li>
+          <strong><code>* 1000.0</code></strong> — converts seconds to milliseconds.
+          <code>0.001243 * 1000 = 1.243 ms</code>.
+        </li>
+      </ul>
+
+      <p>
+        We store the result as <code>double</code> (not <code>float</code>) because timing
+        values need enough precision to represent fractional milliseconds accurately.
+        A float has about 7 significant decimal digits; a double has about 15.
+        For a 1.243 ms measurement, float is fine, but for a 0.001 ms measurement
+        (which you'll see with GPU kernels), you want the extra precision.
+      </p>
+
+      <h2>Step 8: Printing the Results</h2>
+
+<pre><code>printf("Sum      = %.2f\n", sum);
+printf("Time     = %.3f ms\n", elapsed_ms);</code></pre>
+
+      <p>
+        <code>printf</code> format specifiers:
+      </p>
+
+      <ul>
+        <li>
+          <strong><code>%.2f</code></strong> — print a floating-point number with 2 decimal
+          places. The <code>%f</code> format works for both <code>float</code> and
+          <code>double</code> (floats are promoted to double when passed to variadic
+          functions like <code>printf</code>).
+        </li>
+        <li>
+          <strong><code>%.3f</code></strong> — print with 3 decimal places. This gives us
+          microsecond-level precision in our millisecond timing: 1.243 ms.
+        </li>
+        <li>
+          <strong><code>\n</code></strong> — newline character. Also flushes the stdout buffer
+          on most terminal configurations, so you see output immediately.
+        </li>
+      </ul>
+
+      <h2>Step 9: Freeing Memory</h2>
+
+<pre><code>free(arr);</code></pre>
+
+      <p>
+        Every <code>malloc</code> must be paired with a <code>free</code>. This returns the
+        allocated memory to the heap for reuse.
+      </p>
+
+      <p>
+        In this specific program, <code>free</code> happens right before the process exits,
+        and the OS will reclaim all memory anyway when the process terminates. So technically,
+        this <code>free</code> does nothing observable. But you should <em>always</em> write
+        it anyway, for two reasons:
+      </p>
+
+      <ul>
+        <li>
+          <strong>Habit.</strong> In larger programs, forgetting to free memory causes leaks.
+          The habit of always pairing malloc with free prevents this class of bugs.
+        </li>
+        <li>
+          <strong>Tools.</strong> Memory checkers like Valgrind will flag the missing free
+          as a leak. Keeping your code clean makes these tools more useful for finding
+          real leaks.
+        </li>
+      </ul>
+
+      <p>
+        When you move to CUDA, you'll use <code>cudaMalloc</code> and <code>cudaFree</code>
+        for GPU memory — the same pattern, different functions.
+      </p>
+
+      <h2>What the Numbers Tell You</h2>
+
+      <p>
+        On a typical modern CPU (Intel Core i7, AMD Ryzen 7), summing 1 million floats
+        takes roughly 0.5–3 ms depending on:
+      </p>
+
+      <ul>
+        <li>Whether the data is hot in cache (first run vs. repeated runs)</li>
+        <li>Compiler optimization level (-O0 vs -O2 vs -O3)</li>
+        <li>SIMD vectorization (AVX-512 vs AVX2 vs SSE4)</li>
+        <li>CPU frequency scaling (power management)</li>
+      </ul>
+
+      <p>
+        The theoretical peak: 4 MB of data divided by memory bandwidth. If your CPU has
+        40 GB/s memory bandwidth, the minimum possible time is 4 MB / 40 GB/s = 0.1 ms.
+        The actual time is higher because of loop overhead and the accumulator dependency
+        chain (each addition depends on the previous result, limiting instruction-level
+        parallelism).
+      </p>
+
+      <blockquote>
+        The CPU is bottlenecked on memory bandwidth, not compute. This is exactly why
+        GPU parallelism wins here — massively higher memory bandwidth, not just more cores.
+      </blockquote>
+
+      <h2>What Changes When You Go to CUDA</h2>
+
+      <p>
+        When we rewrite this for the GPU (the next post), every single component has a parallel:
+      </p>
+
+      <ul>
+        <li><code>malloc</code> → <code>cudaMalloc</code> (allocate GPU memory)</li>
+        <li><code>srand + rand loop</code> → <code>cuRAND</code> or CPU-generated data copied with <code>cudaMemcpy</code></li>
+        <li><code>for loop</code> → parallel reduction kernel with thousands of threads</li>
+        <li><code>clock()</code> → <code>cudaEvent_t</code> for GPU-side timing</li>
+        <li><code>free</code> → <code>cudaFree</code></li>
+      </ul>
+
+      <p>
+        And there's a new cost that doesn't exist in the CPU version: copying the data
+        from host (CPU) RAM to device (GPU) VRAM over the PCIe bus. At ~16 GB/s PCIe bandwidth,
+        transferring 4 MB takes ~0.25 ms. Whether the GPU's faster compute can overcome
+        this transfer overhead is the core question of GPU programming — and why having
+        an honest CPU baseline matters.
+      </p>
+
+      <h2>Run It Yourself: Compile Flags Matter</h2>
+
+      <p>Try these variants to see the impact of optimization:</p>
+
+<pre><code># No optimization (scalar, no vectorization)
+gcc -O0 -o cpu_sum_O0 cpu_sum.c && ./cpu_sum_O0
+
+# Standard optimization (auto-vectorization, common baseline)
+gcc -O2 -o cpu_sum_O2 cpu_sum.c && ./cpu_sum_O2
+
+# Aggressive + native SIMD (use CPU's best vector instructions)
+gcc -O3 -march=native -o cpu_sum_O3 cpu_sum.c && ./cpu_sum_O3</code></pre>
+
+      <p>
+        You'll likely see -O3 be 2–5x faster than -O0 for this workload.
+        This is a good reminder: when you benchmark GPU speedup, always compare against
+        the best CPU you can run, not the worst.
+      </p>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>
+          <strong>Measure before you optimize.</strong> This CPU baseline is the reference
+          point. Without it, your GPU speedup numbers are meaningless.
+        </li>
+        <li>
+          <strong>Heap allocation with malloc is mandatory for large arrays.</strong>
+          4 MB on the stack will crash. Always check the return value for NULL.
+        </li>
+        <li>
+          <strong>Seed your PRNG for reproducibility.</strong> Fixed seed = same data
+          every run = comparable results across CPU and GPU implementations.
+        </li>
+        <li>
+          <strong>clock() measures CPU time, not wall time.</strong> For pure compute
+          without I/O or sleeping, this is what you want. Cast to double before converting.
+        </li>
+        <li>
+          <strong>Compile with -O2 at minimum.</strong> The CPU will auto-vectorize the
+          sum loop. Your baseline should be competitive, not deliberately handicapped.
+        </li>
+        <li>
+          <strong>This loop is memory-bandwidth bound, not compute-bound.</strong>
+          The GPU wins here because of bandwidth, not just core count.
+        </li>
+      </ul>
+
+      <p>
+        In the next post, we'll write the CUDA version of this — the exact same computation,
+        parallelized across thousands of GPU threads using a parallel reduction pattern.
+        We'll compare timings, talk about what the speedup actually means, and look at
+        where CUDA's overhead (PCIe transfer, kernel launch latency) shows up in the numbers.
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>
