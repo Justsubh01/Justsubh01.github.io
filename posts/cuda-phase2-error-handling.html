@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUDA Mastery Phase 2.3 — Error Handling — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· 15 min read</span>
+      </div>
+      <h1>CUDA Mastery Phase 2.3 — Error Handling in CUDA: Never Ignore cudaSuccess</h1>
+      <p class="post-description">
+        Why CUDA errors are silent by default and how that destroys debugging sessions,
+        how to write bulletproof error-checking macros, and the complete toolkit for
+        catching every type of CUDA error before it bites you in production.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        I've watched engineers spend days debugging a subtle GPU bug that a single
+        <code>cudaGetLastError()</code> call would have caught in minutes. CUDA's asynchronous
+        execution model means errors can appear far from their source. If you don't check
+        every API call, you're flying blind.
+      </p>
+
+      <h2>Why CUDA Errors Are Silent</h2>
+
+      <pre><code>  // DANGEROUS — no error checking:
+  cudaMalloc(&amp;d_ptr, bytes);        // returns cudaErrorMemoryAllocation?
+  cudaMemcpy(d_ptr, h_ptr, bytes,   // using invalid d_ptr — undefined behavior!
+             cudaMemcpyHostToDevice);
+  kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_ptr);  // kernel gets garbage input
+  cudaMemcpy(h_result, d_out, ...); // copies garbage result
+
+  // You see wrong numbers. You have no idea why.
+  // CUDA didn't crash — it just silently failed upstream.</code></pre>
+
+      <p>
+        Almost all CUDA runtime API functions return a <code>cudaError_t</code>.
+        If you don't capture and check that return value, errors are silently ignored.
+        This is C — no exceptions, no automatic error propagation.
+      </p>
+
+      <h2>The Standard CUDA_CHECK Macro</h2>
+
+      <pre><code>#define CUDA_CHECK(call) do {                                         \
+    cudaError_t _err = (call);                                        \
+    if (_err != cudaSuccess) {                                        \
+        fprintf(stderr,                                               \
+                "CUDA error at %s:%d — %s\n",                        \
+                __FILE__, __LINE__,                                   \
+                cudaGetErrorString(_err));                            \
+        exit(EXIT_FAILURE);                                           \
+    }                                                                 \
+} while (0)
+
+// Usage — wrap every CUDA call:
+CUDA_CHECK(cudaMalloc(&amp;d_a, bytes));
+CUDA_CHECK(cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice));
+CUDA_CHECK(cudaDeviceSynchronize());
+CUDA_CHECK(cudaFree(d_a));</code></pre>
+
+      <p>
+        The <code>do { ... } while(0)</code> wrapping is important. Without it,
+        <code>if (condition) CUDA_CHECK(call); else something();</code> breaks because
+        the macro expands to two statements and the <code>else</code> binds to the wrong <code>if</code>.
+      </p>
+
+      <h2>Checking Kernel Launches</h2>
+
+      <p>
+        The <code>&lt;&lt;&lt;...&gt;&gt;&gt;</code> launch syntax returns <code>void</code> — you
+        cannot assign its return value. Use <code>cudaGetLastError()</code> immediately after:
+      </p>
+
+      <pre><code>// Kernel launch:
+myKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(args);
+
+// Check for launch configuration errors (synchronous):
+cudaError_t launchErr = cudaGetLastError();
+if (launchErr != cudaSuccess) {
+    fprintf(stderr, "Kernel launch failed: %s\n",
+            cudaGetErrorString(launchErr));
+    exit(EXIT_FAILURE);
+}
+
+// Check for kernel EXECUTION errors (asynchronous — must synchronize first):
+cudaError_t execErr = cudaDeviceSynchronize();
+if (execErr != cudaSuccess) {
+    fprintf(stderr, "Kernel execution failed: %s\n",
+            cudaGetErrorString(execErr));
+    exit(EXIT_FAILURE);
+}
+
+// Or combine:
+#define CUDA_KERNEL_CHECK() do {                                      \
+    CUDA_CHECK(cudaGetLastError());                                   \
+    CUDA_CHECK(cudaDeviceSynchronize());                              \
+} while(0)
+
+myKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(args);
+CUDA_KERNEL_CHECK();</code></pre>
+
+      <h2>Synchronous vs Asynchronous Errors</h2>
+
+      <pre><code>  Two classes of CUDA errors:
+
+  SYNCHRONOUS (detected immediately):
+  ─────────────────────────────────────────────────────────
+  • Invalid launch parameters: negative block size, too many threads
+  • cudaMalloc with size 0 (on some versions)
+  • Calling CUDA API before cudaInit
+  → Returned directly by the API function call
+
+  Example:
+  cudaError_t err = cudaMalloc(&amp;ptr, -1);  // invalid size
+  // err == cudaErrorInvalidValue immediately
+
+  ASYNCHRONOUS (detected after kernel runs):
+  ─────────────────────────────────────────────────────────
+  • Out-of-bounds memory access inside kernel
+  • Stack overflow in device code
+  • Division by zero (on some hardware)
+  → Returned by next synchronizing call (Memcpy, Synchronize)
+  → cudaGetLastError() sticky: error persists until cleared
+
+  Danger: an async error from kernel K may appear as an error
+  in cudaMemcpy called much later!
+
+  Solution: cudaDeviceSynchronize() right after kernels in debug builds.</code></pre>
+
+      <h2>Common CUDA Errors and Their Meanings</h2>
+
+      <pre><code>  cudaSuccess (0)
+    Everything is fine.
+
+  cudaErrorMemoryAllocation
+    cudaMalloc failed — not enough GPU memory.
+    Fix: reduce allocation size, free unused memory first,
+         check nvidia-smi for memory usage.
+
+  cudaErrorInvalidValue
+    Wrong argument (NULL pointer, zero size, invalid enum).
+    Fix: check all arguments to the failing call.
+
+  cudaErrorInvalidDevicePointer
+    Passing a HOST pointer where a DEVICE pointer is expected.
+    Classic bug: accidentally using h_ptr instead of d_ptr.
+
+  cudaErrorLaunchFailure
+    Kernel crashed — illegal memory access, stack overflow.
+    Use compute-sanitizer for details.
+
+  cudaErrorNoDevice
+    No CUDA GPU found. Check nvidia-smi.
+
+  cudaErrorCudartUnloading
+    Using CUDA after the runtime has shut down (after main() returns).
+    Fix: call cudaDeviceReset() before exit, or restructure code.
+
+  cudaErrorIllegalAddress
+    Out-of-bounds memory access in kernel. The most common serious error.
+    Fix: check index calculations and bounds guards.</code></pre>
+
+      <h2>compute-sanitizer — The Valgrind for CUDA</h2>
+
+      <pre><code>  # Run memcheck (catches illegal memory accesses):
+  compute-sanitizer --tool memcheck ./my_cuda_program
+
+  # Run racecheck (catches shared memory race conditions):
+  compute-sanitizer --tool racecheck ./my_cuda_program
+
+  # Run synccheck (catches __syncthreads() issues):
+  compute-sanitizer --tool synccheck ./my_cuda_program
+
+  # Run initcheck (catches uninitialized device memory reads):
+  compute-sanitizer --tool initcheck ./my_cuda_program
+
+  # Run all checks:
+  compute-sanitizer ./my_cuda_program
+
+  Example output for an illegal memory access:
+  ========= COMPUTE-SANITIZER
+  ========= Invalid __global__ read of size 4
+  =========     at 0x... in vectorAdd(float*, float*, float*, int)
+  =========     by thread (128,0,0) in block (3,0,0)
+  =========     Address 0x7f3400000500 is out of bounds
+  =========     Saved host backtrace up to driver entry point at kernel launch time
+  =========   cudaLaunchKernel
+  =========   main.cu:42</code></pre>
+
+      <h2>Debug Build Flags</h2>
+
+      <pre><code>  # Debug build: adds line number info to device code, disables optimizations
+  nvcc -g -G -O0 -o my_program my_program.cu
+  #    -g  = host debug symbols (for gdb)
+  #    -G  = device debug symbols (for cuda-gdb, compute-sanitizer)
+  #    -O0 = no optimization (makes stepping in debugger sane)
+
+  # WARNING: -G drastically slows down GPU code (10-100x)
+  # Only use for debugging, never for benchmarking!
+
+  # For production:
+  nvcc -O3 -use_fast_math -o my_program my_program.cu</code></pre>
+
+      <h2>A Production-Ready Error Handling Template</h2>
+
+      <pre><code>#include &lt;cuda_runtime.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+// ─────────────────────────────────────────────────────────────────
+// Error checking macros
+// ─────────────────────────────────────────────────────────────────
+
+#define CUDA_CHECK(call) do {                                         \
+    cudaError_t _e = (call);                                          \
+    if (_e != cudaSuccess) {                                          \
+        fprintf(stderr, "[CUDA ERROR] %s:%d\n  %s\n",                \
+                __FILE__, __LINE__, cudaGetErrorString(_e));          \
+        exit(EXIT_FAILURE);                                           \
+    }                                                                 \
+} while(0)
+
+// Use this after every kernel launch:
+#define CUDA_KERNEL_CHECK() do {                                      \
+    cudaError_t _e = cudaGetLastError();                              \
+    if (_e != cudaSuccess) {                                          \
+        fprintf(stderr, "[KERNEL LAUNCH ERROR] %s:%d\n  %s\n",       \
+                __FILE__, __LINE__, cudaGetErrorString(_e));          \
+        exit(EXIT_FAILURE);                                           \
+    }                                                                 \
+    _e = cudaDeviceSynchronize();                                     \
+    if (_e != cudaSuccess) {                                          \
+        fprintf(stderr, "[KERNEL EXEC ERROR] %s:%d\n  %s\n",         \
+                __FILE__, __LINE__, cudaGetErrorString(_e));          \
+        exit(EXIT_FAILURE);                                           \
+    }                                                                 \
+} while(0)
+
+// ─────────────────────────────────────────────────────────────────
+// Safe CUDA allocation helpers
+// ─────────────────────────────────────────────────────────────────
+
+static inline float* cuda_alloc_float(int n) {
+    float *ptr = NULL;
+    CUDA_CHECK(cudaMalloc(&amp;ptr, n * sizeof(float)));
+    return ptr;
+}
+
+static inline void cuda_upload(void *d, const void *h, size_t bytes) {
+    CUDA_CHECK(cudaMemcpy(d, h, bytes, cudaMemcpyHostToDevice));
+}
+
+static inline void cuda_download(void *h, const void *d, size_t bytes) {
+    CUDA_CHECK(cudaMemcpy(h, d, bytes, cudaMemcpyDeviceToHost));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Example usage
+// ─────────────────────────────────────────────────────────────────
+int main() {
+    const int N = 1 &lt;&lt; 20;
+
+    float *d_a = cuda_alloc_float(N);
+    float *d_b = cuda_alloc_float(N);
+    float *d_c = cuda_alloc_float(N);
+
+    // ... initialize h_a, h_b
+    cuda_upload(d_a, h_a, N * sizeof(float));
+    cuda_upload(d_b, h_b, N * sizeof(float));
+
+    vectorAdd&lt;&lt;&lt;(N+255)/256, 256&gt;&gt;&gt;(d_a, d_b, d_c, N);
+    CUDA_KERNEL_CHECK();   // catches both launch and execution errors
+
+    cuda_download(h_c, d_c, N * sizeof(float));
+
+    CUDA_CHECK(cudaFree(d_a));
+    CUDA_CHECK(cudaFree(d_b));
+    CUDA_CHECK(cudaFree(d_c));
+    return 0;
+}</code></pre>
+
+      <h2>Error Handling in Production vs Development</h2>
+
+      <pre><code>  Development:
+  ─────────────────────────────────────────────
+  • Check EVERY call — CUDA_CHECK on everything
+  • Add CUDA_KERNEL_CHECK() after every kernel launch
+  • Build with -g -G for compute-sanitizer
+  • Run compute-sanitizer regularly
+  • Test with invalid inputs intentionally
+
+  Production:
+  ─────────────────────────────────────────────
+  • Keep CUDA_CHECK on allocations (OOM is real in production)
+  • Remove CUDA_KERNEL_CHECK() synchronize (performance cost)
+  • Use async error checking only at pipeline boundaries
+  • Log errors, don't crash (return error code, retry, fallback)
+  • Build with -O3 -use_fast_math (no -G)</code></pre>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>Every CUDA API call returns <code>cudaError_t</code>. Ignoring it means silent failures.</li>
+        <li>Kernel launches return <code>void</code> — use <code>cudaGetLastError()</code> immediately after.</li>
+        <li>Asynchronous errors appear at the next synchronizing call — synchronize early in debug builds.</li>
+        <li><code>compute-sanitizer --tool memcheck</code> catches illegal memory accesses in kernels.</li>
+        <li>Build with <code>-g -G</code> for debugging; never benchmark with these flags.</li>
+        <li>The CUDA_CHECK macro pattern is the industry standard — use it everywhere.</li>
+        <li>Next: <a href="cuda-phase3-memory-hierarchy.html">Phase 3.1 — GPU Memory Hierarchy</a></li>
+      </ul>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

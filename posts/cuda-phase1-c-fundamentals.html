@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUDA Mastery Phase 1.1 — C/C++ Fundamentals — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· 22 min read</span>
+      </div>
+      <h1>CUDA Mastery Phase 1.1 — C/C++ Fundamentals Every CUDA Developer Must Know</h1>
+      <p class="post-description">
+        The C and C++ foundations you absolutely need before writing your first kernel —
+        pointers, memory layout, structs, function qualifiers, and the mental models
+        that make CUDA's execution and memory model make intuitive sense.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        You can copy-paste a CUDA vector addition kernel and get it to compile on day one.
+        But when you hit a segfault in device code, a subtle race condition in shared memory,
+        or a 10x performance drop you can't explain — that's when shallow C knowledge
+        kills you. Every confusing CUDA concept maps back to something C does first.
+        This post is that map.
+      </p>
+
+      <p>
+        I'm writing this as Phase 1.1 of a full CUDA mastery series. We're going to cover
+        the C/C++ fundamentals that show up directly in CUDA kernels, with explicit
+        "CUDA connection" notes for each concept. No filler — every section earns its place.
+      </p>
+
+      <h2>1. Pointers and Memory Addresses</h2>
+
+      <p>
+        A pointer is just a variable that stores a memory address. That's it. The type tells
+        the compiler how to interpret the bytes at that address.
+      </p>
+
+      <pre><code>int   x = 42;
+int  *p = &amp;x;     // p holds the address of x
+
+printf("value:   %d\n",  x);    // 42
+printf("address: %p\n",  &amp;x);   // 0x7ffd4a2b3c10  (some address)
+printf("via ptr: %d\n",  *p);   // 42  (dereference: read value at address)</code></pre>
+
+      <p>
+        Pointer arithmetic adds/subtracts in units of the pointed-to type's size. If
+        <code>p</code> is an <code>int*</code> and <code>sizeof(int) == 4</code>, then
+        <code>p + 1</code> advances by 4 bytes.
+      </p>
+
+      <pre><code>int arr[5] = {10, 20, 30, 40, 50};
+int *p = arr;      // p points to arr[0]
+
+printf("%d\n", *p);       // 10
+printf("%d\n", *(p+1));   // 20
+printf("%d\n", *(p+4));   // 50
+
+// These are identical:
+printf("%d\n", arr[3]);    // 40
+printf("%d\n", *(arr+3));  // 40  -- subscript IS pointer arithmetic</code></pre>
+
+      <pre><code>  Memory layout:
+  Index:   [0]  [1]  [2]  [3]  [4]
+  Value:    10   20   30   40   50
+  Address: 100  104  108  112  116   (each int = 4 bytes)
+            ^
+            p (points here initially)</code></pre>
+
+      <blockquote>
+        CUDA connection: Every kernel parameter that points to GPU memory is a device pointer.
+        When you write <code>float *d_array</code> as a kernel argument, that's a pointer to
+        an address in GPU DRAM. The same pointer arithmetic applies — <code>d_array[idx]</code>
+        and <code>*(d_array + idx)</code> are identical.
+      </blockquote>
+
+      <h2>2. Stack vs Heap — When to Use Which</h2>
+
+      <p>
+        C has two main regions for allocating data: the <strong>stack</strong> (automatic,
+        function-scoped, fast) and the <strong>heap</strong> (manual, program-lifetime,
+        flexible size).
+      </p>
+
+      <pre><code>void stack_example() {
+    int x = 5;          // lives on the stack
+    int arr[100];       // 100 * 4 = 400 bytes on the stack
+    // both are gone when this function returns
+}
+
+void heap_example() {
+    int *arr = malloc(1000000 * sizeof(int));  // 4MB on the heap
+    if (!arr) { /* handle OOM */ }
+    arr[0] = 42;
+    free(arr);    // YOU must free this — no garbage collector
+}</code></pre>
+
+      <pre><code>  Virtual address space (high address at top):
+
+  +----------------------+  0xFFFFFFFF
+  |      STACK           |  &lt;-- grows downward
+  |  (local variables)   |
+  +----------------------+
+  |         ↓            |
+  |    (unmapped gap)    |
+  |         ↑            |
+  +----------------------+
+  |       HEAP           |  &lt;-- grows upward (malloc/free)
+  +----------------------+
+  |   BSS (zero-init)    |  uninitialized globals
+  +----------------------+
+  |   DATA (init'd)      |  initialized globals/statics
+  +----------------------+
+  |   TEXT (code)        |  &lt;-- your compiled instructions
+  +----------------------+  0x00000000</code></pre>
+
+      <blockquote>
+        CUDA connection: In CUDA, <code>cudaMalloc()</code> allocates on the GPU heap (device
+        global memory). <code>malloc()</code> on the host allocates CPU heap. They are
+        completely separate address spaces — a CPU pointer is invalid on the GPU and vice versa.
+        This is why you explicitly copy data with <code>cudaMemcpy()</code>.
+      </blockquote>
+
+      <h2>3. Arrays and Pointer Equivalence</h2>
+
+      <p>
+        In C, an array name decays to a pointer to its first element in most contexts.
+        This means array indexing is syntactic sugar for pointer arithmetic.
+      </p>
+
+      <pre><code>int arr[4] = {1, 2, 3, 4};
+
+// These four expressions all read the same element:
+int a = arr[2];        // standard subscript
+int b = *(arr + 2);    // pointer arithmetic
+int c = 2[arr];        // legal C! (commutative: a[b] == *(a+b) == *(b+a) == b[a])
+int d = *(2 + arr);    // same thing
+
+printf("%d %d %d %d\n", a, b, c, d);  // 3 3 3 3</code></pre>
+
+      <p>
+        For multi-dimensional arrays in C, elements are stored in <strong>row-major order</strong>:
+        all elements of row 0 come first, then row 1, etc.
+      </p>
+
+      <pre><code>int matrix[3][4];  // 3 rows, 4 columns
+
+// Row-major layout in memory:
+// [0][0] [0][1] [0][2] [0][3] | [1][0] [1][1] ... | [2][0] ...
+//  row 0 (4 ints)              row 1 (4 ints)         row 2
+
+// matrix[r][c] == *(matrix_ptr + r * 4 + c)</code></pre>
+
+      <blockquote>
+        CUDA connection: Memory coalescing requires consecutive threads to access consecutive
+        memory addresses. For a 2D matrix stored row-major, threads iterating over a row
+        (varying column index) get coalesced access. Threads iterating over a column get
+        strided access — a performance killer we'll detail in Phase 3.
+      </blockquote>
+
+      <h2>4. Structs, Alignment, and Padding</h2>
+
+      <p>
+        Struct members are not necessarily packed tightly in memory. The compiler inserts
+        <strong>padding bytes</strong> to ensure each member is aligned to its natural
+        alignment (typically its size).
+      </p>
+
+      <pre><code>struct Padded {
+    char  a;   // 1 byte
+               // 3 bytes padding
+    int   b;   // 4 bytes (must start at address divisible by 4)
+    char  c;   // 1 byte
+               // 7 bytes padding
+    double d;  // 8 bytes (must start at address divisible by 8)
+};
+// sizeof(Padded) == 24, not 14!
+
+struct Efficient {
+    double d;  // 8 bytes
+    int    b;  // 4 bytes
+    char   a;  // 1 byte
+    char   c;  // 1 byte
+               // 2 bytes padding (to make total divisible by 8)
+};
+// sizeof(Efficient) == 16  -- same members, better order!</code></pre>
+
+      <pre><code>  Padded layout:
+  Offset: 0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  ...
+          [a] [.] [.] [.] [b  b   b   b] [c] [.] [.] [.] [.] [.] [.] [.] [d d d d d d d d]
+               padding          int              padding                         double</code></pre>
+
+      <p>
+        You can force tight packing with <code>__attribute__((packed))</code> (GCC) but
+        this causes unaligned accesses which are slow or illegal on some architectures.
+      </p>
+
+      <blockquote>
+        CUDA connection: Struct padding directly impacts GPU memory bandwidth. When threads
+        access a struct array (Array of Structures), padding bytes waste bandwidth. The
+        Structure of Arrays pattern — separate arrays for each field — often achieves
+        better coalescing. GPU also has alignment requirements: 128-byte alignment for
+        optimal global memory transactions.
+      </blockquote>
+
+      <h2>5. Function Pointers and Callbacks</h2>
+
+      <p>
+        A function pointer stores the address of a function in the text segment. This
+        enables callbacks, dispatch tables, and polymorphism in C.
+      </p>
+
+      <pre><code>// Function pointer type: takes int, returns int
+typedef int (*transform_fn)(int);
+
+int double_it(int x) { return x * 2; }
+int square_it(int x) { return x * x; }
+
+void apply(int *arr, int n, transform_fn fn) {
+    for (int i = 0; i &lt; n; i++)
+        arr[i] = fn(arr[i]);
+}
+
+int main() {
+    int data[5] = {1, 2, 3, 4, 5};
+    apply(data, 5, double_it);   // {2, 4, 6, 8, 10}
+    apply(data, 5, square_it);   // {4, 16, 36, 64, 100}
+}</code></pre>
+
+      <blockquote>
+        CUDA connection: CUDA kernel launches (<code>kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(args)</code>) are
+        conceptually similar to calling a function pointer — you're dispatching execution
+        to a function that runs on the GPU. Device function pointers actually exist in CUDA
+        but are rarely used directly; instead, you call <code>__device__</code> functions
+        which get inlined by nvcc.
+      </blockquote>
+
+      <h2>6. Pass by Value vs Pass by Reference</h2>
+
+      <p>
+        C is always pass-by-value. When you pass a pointer, you're passing the address
+        value — the pointer itself is copied, not the data it points to.
+      </p>
+
+      <pre><code>void modify_value(int x) {
+    x = 100;        // modifies local copy only
+}
+
+void modify_via_ptr(int *p) {
+    *p = 100;       // dereferences pointer, modifies original
+}
+
+int main() {
+    int a = 42;
+    modify_value(a);      // a still 42
+    modify_via_ptr(&amp;a);   // a now 100
+}</code></pre>
+
+      <p>
+        C++ adds true references (<code>int&amp;</code>), which are essentially non-nullable
+        pointers with cleaner syntax. Under the hood they're the same — an address.
+      </p>
+
+      <pre><code>// C++ reference
+void add_one(int &amp;x) {
+    x++;  // modifies original, no dereference syntax needed
+}
+
+int n = 5;
+add_one(n);   // n is now 6</code></pre>
+
+      <blockquote>
+        CUDA connection: Kernel arguments are always passed by value. When you pass
+        <code>float *d_array</code> to a kernel, the pointer value (the address) is copied
+        to the GPU. The pointed-to data stays in GPU global memory. This is why you
+        <em>cannot</em> pass a host pointer to a kernel — the GPU doesn't know how to
+        interpret a CPU virtual address.
+      </blockquote>
+
+      <h2>7. const Correctness</h2>
+
+      <p>
+        <code>const</code> has three distinct placements for pointer declarations, each
+        meaning something different:
+      </p>
+
+      <pre><code>int x = 10, y = 20;
+
+const int *p1 = &amp;x;    // pointer to const int
+                        // can't do: *p1 = 5;
+                        // CAN do:  p1 = &amp;y;  (change where it points)
+
+int * const p2 = &amp;x;   // const pointer to int
+                        // CAN do:  *p2 = 5;  (modify value)
+                        // can't do: p2 = &amp;y; (can't re-point)
+
+const int * const p3 = &amp;x;  // const pointer to const int
+                             // can't modify value OR re-point</code></pre>
+
+      <p>A mnemonic: read right-to-left past the asterisk.</p>
+      <ul>
+        <li><code>const int *p</code> → "p is a pointer to int that is const" → value is const</li>
+        <li><code>int * const p</code> → "p is a const pointer to int" → pointer is const</li>
+      </ul>
+
+      <blockquote>
+        CUDA connection: CUDA's <code>__constant__</code> memory is read-only from device
+        code — semantically similar to <code>const</code>. Kernel parameters that are
+        read-only inputs are best declared <code>const float *__restrict__ d_input</code>.
+        The <code>__restrict__</code> hint tells the compiler the pointers don't alias,
+        enabling additional optimizations.
+      </blockquote>
+
+      <h2>8. Preprocessor Macros and Inline Functions</h2>
+
+      <p>
+        Macros do text substitution before compilation. They're powerful but dangerous
+        because they have no type safety.
+      </p>
+
+      <pre><code>// Simple constant macro
+#define PI 3.14159265358979f
+
+// Function-like macro (fragile — multiple evaluation!)
+#define MAX(a, b) ((a) &gt; (b) ? (a) : (b))
+
+// Problem:
+int i = 0;
+MAX(i++, 5);   // i gets incremented TWICE — undefined behavior!
+
+// Better: inline function (type-safe, no double evaluation)
+static inline int max_int(int a, int b) { return a &gt; b ? a : b; }</code></pre>
+
+      <p>
+        The standard CUDA error-checking macro is a great example of safe macro usage
+        that captures <code>__FILE__</code> and <code>__LINE__</code>:
+      </p>
+
+      <pre><code>#define CUDA_CHECK(call) do {                                          \
+    cudaError_t _err = (call);                                         \
+    if (_err != cudaSuccess) {                                         \
+        fprintf(stderr, "CUDA error at %s:%d — %s\n",                 \
+                __FILE__, __LINE__, cudaGetErrorString(_err));         \
+        exit(EXIT_FAILURE);                                            \
+    }                                                                  \
+} while (0)
+
+// Usage:
+CUDA_CHECK(cudaMalloc(&amp;d_ptr, size));
+CUDA_CHECK(cudaMemcpy(d_ptr, h_ptr, size, cudaMemcpyHostToDevice));</code></pre>
+
+      <p>The <code>do { ... } while(0)</code> wrapping ensures the macro behaves correctly
+      when used in an <code>if</code> statement without braces.</p>
+
+      <blockquote>
+        CUDA connection: CUDA uses function qualifiers implemented as macros/attributes:
+        <code>__global__</code> (kernel, called from host, runs on device),
+        <code>__device__</code> (device function, called from device only),
+        <code>__host__</code> (host function, default),
+        <code>__host__ __device__</code> (compiled for both). These are parsed by nvcc.
+      </blockquote>
+
+      <h2>9. Storage Classes: static, extern, register</h2>
+
+      <p>
+        Storage class specifiers control where a variable lives and how long it lives.
+      </p>
+
+      <pre><code>// static local: persists across function calls (lives in BSS/DATA, not stack)
+void count_calls() {
+    static int count = 0;   // initialized once, not on stack
+    count++;
+    printf("Called %d times\n", count);
+}
+
+// static global: file-scope only (not visible in other .c files)
+static int file_private = 42;
+
+// extern: declaration without definition (defined in another translation unit)
+extern int shared_counter;  // defined somewhere else, used here</code></pre>
+
+      <pre><code>  Storage class summary:
+  +-----------+---------------+----------+------------------+
+  | Keyword   | Scope         | Lifetime | Location         |
+  +-----------+---------------+----------+------------------+
+  | auto      | block         | block    | stack            |
+  | static    | block/file    | program  | BSS/DATA         |
+  | extern    | file/global   | program  | BSS/DATA         |
+  | register  | block         | block    | register (hint)  |
+  +-----------+---------------+----------+------------------+</code></pre>
+
+      <blockquote>
+        CUDA connection: CUDA has its own storage qualifiers:
+        <code>__shared__</code> (block-scoped, lives in SM shared memory),
+        <code>__constant__</code> (program-lifetime, in constant memory cache),
+        <code>__device__</code> (program-lifetime, in global memory).
+        The mental model is the same as C storage classes — lifetime and scope —
+        just mapped to GPU memory spaces instead of CPU memory segments.
+      </blockquote>
+
+      <h2>10. Common C Patterns in CUDA Code</h2>
+
+      <p>
+        Certain C idioms appear over and over in CUDA kernels. Learn to recognize them.
+      </p>
+
+      <h3>Grid-stride loop</h3>
+      <p>
+        Instead of one thread per element (which limits problem size to grid size),
+        each thread processes multiple elements:
+      </p>
+
+      <pre><code>__global__ void process(float *data, int n) {
+    // Grid-stride loop: thread handles elements 0, gridDim.x, 2*gridDim.x, ...
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x;
+         i &lt; n;
+         i += blockDim.x * gridDim.x) {
+        data[i] = sqrtf(data[i]);
+    }
+}</code></pre>
+
+      <h3>Ceiling division</h3>
+      <p>Computing how many blocks to launch for N elements with blockSize threads per block:</p>
+
+      <pre><code>// Wrong: integer division truncates
+int blocks = N / blockSize;      // misses last partial block!
+
+// Correct ceiling division (no floating point needed):
+int blocks = (N + blockSize - 1) / blockSize;
+
+// Example: N=1000, blockSize=256
+// (1000 + 255) / 256 = 1255 / 256 = 4  (ceil(1000/256) = 4) ✓</code></pre>
+
+      <h3>Double-pointer pattern for cudaMalloc</h3>
+      <pre><code>float *d_array;
+// cudaMalloc needs a pointer to the pointer it will fill in:
+cudaMalloc((void**)&amp;d_array, N * sizeof(float));
+// Now d_array holds the device address</code></pre>
+
+      <h3>Warp-level utility macros</h3>
+      <pre><code>#define WARP_SIZE 32
+#define FULL_MASK 0xffffffff
+
+// Warp shuffle: thread 0 broadcasts its value to all threads in warp
+float val = __shfl_sync(FULL_MASK, src_val, 0);
+
+// Warp reduction using shuffle:
+for (int offset = WARP_SIZE / 2; offset &gt; 0; offset /= 2)
+    val += __shfl_down_sync(FULL_MASK, val, offset);</code></pre>
+
+      <h2>Checklist Before Writing Your First Kernel</h2>
+
+      <ul>
+        <li>Do you understand what a pointer IS and what dereferencing does?</li>
+        <li>Can you explain why a host pointer is invalid on the device?</li>
+        <li>Do you know where padding bytes come from in structs?</li>
+        <li>Can you write the ceiling division formula from memory?</li>
+        <li>Do you understand what <code>__global__</code> means vs <code>__device__</code>?</li>
+        <li>Can you write the CUDA_CHECK macro?</li>
+      </ul>
+
+      <p>
+        If yes to all of these, you have the C foundation to write real CUDA. Let's
+        move to <a href="cuda-phase1-architecture.html">Phase 1.2 — CPU vs GPU Architecture</a>.
+      </p>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>Pointers are addresses. Pointer arithmetic advances by <code>sizeof(type)</code> per step.</li>
+        <li>Stack is automatic and fast but limited; heap is manual and flexible but needs free().</li>
+        <li><code>arr[i]</code> and <code>*(arr + i)</code> are identical — array indexing IS pointer arithmetic.</li>
+        <li>Struct padding can double your struct size; order members largest-first to minimize waste.</li>
+        <li><code>const int *p</code> (value const) ≠ <code>int * const p</code> (pointer const).</li>
+        <li>The <code>__global__</code>, <code>__device__</code>, <code>__host__</code> qualifiers tell nvcc where code runs.</li>
+        <li>Learn the ceiling division idiom: <code>(N + blockSize - 1) / blockSize</code>.</li>
+        <li>Write CUDA_CHECK macros for every CUDA API call — silent errors will destroy you.</li>
+      </ul>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

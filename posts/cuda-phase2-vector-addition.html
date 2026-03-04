@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUDA Mastery Phase 2.2 — Vector Addition — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· 25 min read</span>
+      </div>
+      <h1>CUDA Mastery Phase 2.2 — Your First CUDA Kernel: Vector Addition from Scratch</h1>
+      <p class="post-description">
+        A complete walkthrough of the canonical "Hello CUDA" program — every cudaMalloc, cudaMemcpy,
+        kernel launch, and cudaFree explained line by line, with the mental model to generalize
+        to any embarrassingly parallel problem.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Vector addition is to CUDA what "Hello World" is to C. It's trivially simple, but it
+        contains every essential pattern: allocating device memory, copying data to the GPU,
+        launching a kernel, and retrieving results. Once you understand this inside-out,
+        you understand the structure of every CUDA program.
+      </p>
+
+      <h2>The Complete Program — Read It First</h2>
+
+      <pre><code>#include &lt;cuda_runtime.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+// ── Error check macro ───────────────────────────────────────────
+#define CUDA_CHECK(call) do {                                       \
+    cudaError_t err = (call);                                       \
+    if (err != cudaSuccess) {                                       \
+        fprintf(stderr, "CUDA error %s:%d — %s\n",                 \
+                __FILE__, __LINE__, cudaGetErrorString(err));       \
+        exit(EXIT_FAILURE);                                         \
+    }                                                               \
+} while(0)
+
+// ── The kernel ──────────────────────────────────────────────────
+__global__ void vectorAdd(const float *a, const float *b,
+                          float *c, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx &lt; n)
+        c[idx] = a[idx] + b[idx];
+}
+
+// ── Host code ───────────────────────────────────────────────────
+int main() {
+    const int N = 1 &lt;&lt; 20;   // 1M elements = 2^20
+    size_t bytes = N * sizeof(float);
+
+    // 1. Allocate host memory
+    float *h_a = (float*)malloc(bytes);
+    float *h_b = (float*)malloc(bytes);
+    float *h_c = (float*)malloc(bytes);
+
+    // 2. Initialize host data
+    for (int i = 0; i &lt; N; i++) {
+        h_a[i] = (float)i;
+        h_b[i] = (float)(N - i);
+    }
+
+    // 3. Allocate device memory
+    float *d_a, *d_b, *d_c;
+    CUDA_CHECK(cudaMalloc(&amp;d_a, bytes));
+    CUDA_CHECK(cudaMalloc(&amp;d_b, bytes));
+    CUDA_CHECK(cudaMalloc(&amp;d_c, bytes));
+
+    // 4. Copy host → device
+    CUDA_CHECK(cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice));
+
+    // 5. Launch kernel
+    int blockSize = 256;
+    int gridSize  = (N + blockSize - 1) / blockSize;
+    vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_a, d_b, d_c, N);
+
+    // 6. Check for kernel errors
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    // 7. Copy device → host
+    CUDA_CHECK(cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost));
+
+    // 8. Verify result
+    for (int i = 0; i &lt; N; i++) {
+        if (fabsf(h_c[i] - (float)N) &gt; 1e-3f) {
+            printf("MISMATCH at %d: got %f, expected %f\n",
+                   i, h_c[i], (float)N);
+            break;
+        }
+    }
+    printf("Vector addition PASSED! (%d elements)\n", N);
+
+    // 9. Free memory
+    CUDA_CHECK(cudaFree(d_a));
+    CUDA_CHECK(cudaFree(d_b));
+    CUDA_CHECK(cudaFree(d_c));
+    free(h_a); free(h_b); free(h_c);
+
+    return 0;
+}</code></pre>
+
+      <p>Compile and run:</p>
+      <pre><code>nvcc -O2 -o vecadd vecadd.cu
+./vecadd
+# Vector addition PASSED! (1048576 elements)</code></pre>
+
+      <h2>Step 1 — cudaMalloc: Allocating GPU Memory</h2>
+
+      <pre><code>float *d_a;
+cudaMalloc(&amp;d_a, bytes);
+//          ↑
+//  Takes a pointer-to-pointer: &amp;d_a is float**
+//  cudaMalloc fills in the value of d_a with a DEVICE address
+//  After this call: d_a holds an address in GPU global memory</code></pre>
+
+      <pre><code>  Memory state after cudaMalloc:
+
+  HOST memory:                    DEVICE memory (GPU DRAM):
+  ┌──────────────────┐            ┌──────────────────────────────┐
+  │ d_a = 0xFE200000 │ ─────────► │ [    4MB uninitialized    ]  │
+  │ (a pointer var)  │            │  at GPU address 0xFE200000   │
+  └──────────────────┘            └──────────────────────────────┘
+
+  IMPORTANT: 0xFE200000 is a GPU virtual address.
+  If you try to dereference d_a on the CPU → SEGFAULT (invalid address).</code></pre>
+
+      <h2>Step 2 — cudaMemcpy: Transferring Data</h2>
+
+      <pre><code>cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice);
+//         dst  src  size   direction
+
+// Direction enum:
+//   cudaMemcpyHostToDevice   (H→D): upload
+//   cudaMemcpyDeviceToHost   (D→H): download
+//   cudaMemcpyDeviceToDevice (D→D): GPU-to-GPU copy
+//   cudaMemcpyHostToHost     (H→H): CPU memcpy (rarely used directly)</code></pre>
+
+      <pre><code>  After H→D transfer:
+
+  HOST:           h_a = [0.0, 1.0, 2.0, ..., 1048575.0]
+                         copied via PCIe ↓
+  DEVICE:         d_a = [0.0, 1.0, 2.0, ..., 1048575.0]
+
+  PCIe bandwidth: ~32 GB/s
+  Time to copy 4MB: 4MB / 32GB/s ≈ 0.125 ms
+  (Small! But for GBs of data, transfer dominates total time)</code></pre>
+
+      <h2>Step 3 — The Kernel Function</h2>
+
+      <pre><code>__global__ void vectorAdd(const float *a, const float *b,
+                          float *c, int n) {
+    // Compute unique global index for THIS thread:
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Bounds check: last block may have idle threads
+    if (idx &lt; n)
+        c[idx] = a[idx] + b[idx];
+}</code></pre>
+
+      <pre><code>  With N=1M, blockSize=256, gridSize=4096:
+
+  Block 0 (threads 0–255):    c[0..255]   = a[0..255]   + b[0..255]
+  Block 1 (threads 256–511):  c[256..511] = a[256..511] + b[256..511]
+  ...
+  Block 4095 (last block):    c[1048320..1048575] = a[...] + b[...]
+  (all 256 threads in this block are valid: 4095*256=1048320, 1048320+256=1048576=N ✓)
+
+  If N were 1000001:
+    gridSize = (1000001 + 255) / 256 = 3907
+    Last block: threads 0..255 → global idx 999936..1000191
+    Threads 1000001..1000191 → idx >= N → if(idx &lt; n) skips them ✓</code></pre>
+
+      <h2>Step 4 — Kernel Launch Details</h2>
+
+      <pre><code>  vectorAdd &lt;&lt;&lt; gridSize, blockSize &gt;&gt;&gt; (d_a, d_b, d_c, N);
+                  │           │
+                  │           └── 256 threads per block
+                  └── 4096 blocks in the grid
+                      (4096 × 256 = 1,048,576 = exactly N threads)
+
+  The &lt;&lt;&lt;...&gt;&gt;&gt; returns VOID — you cannot check it directly for errors!
+  Instead, call cudaGetLastError() immediately after to catch launch errors.</code></pre>
+
+      <h2>Step 5 — Synchronization</h2>
+
+      <pre><code>  // After kernel launch, CPU continues immediately (async!)
+  vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_a, d_b, d_c, N);
+  // ← CPU is here while GPU is running ↑
+
+  // To wait for kernel to finish:
+  cudaDeviceSynchronize();
+  // ← blocks CPU until ALL GPU work in default stream completes
+
+  // cudaMemcpy (synchronous form) also implicitly synchronizes:
+  cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost);
+  // ← this blocks until the copy completes, which waits for pending kernels</code></pre>
+
+      <h2>Step 6 — Verifying Results</h2>
+
+      <pre><code>  // Our data: a[i] = i, b[i] = N - i
+  // So c[i] = a[i] + b[i] = i + (N - i) = N for all i
+
+  for (int i = 0; i &lt; N; i++) {
+      if (fabsf(h_c[i] - (float)N) &gt; 1e-3f) {
+          // Floating point: don't use ==, use tolerance comparison
+          printf("ERROR at [%d]: got %f, expected %f\n", i, h_c[i], (float)N);
+          return 1;
+      }
+  }
+  printf("All %d results correct!\n", N);</code></pre>
+
+      <h2>Step 7 — Measuring Performance</h2>
+
+      <pre><code>#include &lt;time.h&gt;
+
+// CPU timing:
+struct timespec t0, t1;
+clock_gettime(CLOCK_MONOTONIC, &amp;t0);
+
+// GPU timing with CUDA events (more accurate for GPU):
+cudaEvent_t start, stop;
+cudaEventCreate(&amp;start);
+cudaEventCreate(&amp;stop);
+
+cudaEventRecord(start);
+vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_a, d_b, d_c, N);
+cudaEventRecord(stop);
+cudaEventSynchronize(stop);
+
+float ms = 0;
+cudaEventElapsedTime(&amp;ms, start, stop);
+printf("Kernel time: %.3f ms\n", ms);
+
+// Effective bandwidth:
+// We read a[] and b[] and write c[] = 3 arrays × 4 bytes × N elements
+float bandwidth_gb = (3.0f * N * sizeof(float)) / (ms * 1e-3f) / 1e9f;
+printf("Effective bandwidth: %.1f GB/s\n", bandwidth_gb);
+
+cudaEventDestroy(start);
+cudaEventDestroy(stop);</code></pre>
+
+      <h2>Memory Lifecycle Diagram</h2>
+
+      <pre><code>  Full memory lifecycle for vectorAdd:
+
+  ┌─────────────────────────────────────────────────────────┐
+  │  HOST                                                    │
+  │  malloc(h_a), malloc(h_b), malloc(h_c)                  │
+  │  Initialize h_a, h_b                                    │
+  └────────────────────┬────────────────────────────────────┘
+                       │ cudaMemcpy H→D (a, b)
+                       ▼ (PCIe, ~0.125ms for 4MB each)
+  ┌─────────────────────────────────────────────────────────┐
+  │  DEVICE                                                  │
+  │  cudaMalloc(d_a), cudaMalloc(d_b), cudaMalloc(d_c)      │
+  │  d_a = copy of h_a                                      │
+  │  d_b = copy of h_b                                      │
+  │  d_c = uninitialized                                    │
+  │                                                          │
+  │  KERNEL: vectorAdd&lt;&lt;&lt;4096, 256&gt;&gt;&gt;(d_a, d_b, d_c, N)    │
+  │    1M threads each compute c[i] = a[i] + b[i]           │
+  │    ~0.3ms total                                          │
+  └────────────────────┬────────────────────────────────────┘
+                       │ cudaMemcpy D→H (c)
+                       ▼ (PCIe, ~0.125ms for 4MB)
+  ┌─────────────────────────────────────────────────────────┐
+  │  HOST                                                    │
+  │  h_c now has results                                     │
+  │  Verify, use results                                     │
+  │  free() and cudaFree() all memory                        │
+  └─────────────────────────────────────────────────────────┘</code></pre>
+
+      <h2>Extending to Other Kernels</h2>
+
+      <p>The vector addition pattern generalizes to any element-wise operation:</p>
+
+      <pre><code>// Apply ReLU activation:
+__global__ void relu(float *x, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &lt; n)
+        x[i] = fmaxf(0.0f, x[i]);
+}
+
+// Scale a vector:
+__global__ void scale(float *x, float alpha, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &lt; n)
+        x[i] *= alpha;
+}
+
+// Element-wise multiply (Hadamard product):
+__global__ void hadamard(const float *a, const float *b, float *c, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &lt; n)
+        c[i] = a[i] * b[i];
+}
+
+// These all follow the same pattern:
+// 1. Compute global index
+// 2. Check bounds
+// 3. Do the work</code></pre>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li><code>cudaMalloc(&amp;ptr, bytes)</code> — allocates device memory, fills <code>ptr</code> with a GPU address.</li>
+        <li><code>cudaMemcpy(dst, src, bytes, dir)</code> — synchronous transfer over PCIe.</li>
+        <li>Kernel launches are asynchronous — call <code>cudaDeviceSynchronize()</code> or <code>cudaMemcpy</code> D→H to wait.</li>
+        <li>Always bounds-check: <code>if (idx &lt; n)</code> — last block's extra threads must be idle, not accessing invalid memory.</li>
+        <li>Grid size = <code>(N + blockSize - 1) / blockSize</code> — ceiling division.</li>
+        <li>Use CUDA events for accurate GPU timing, not CPU wall-clock timers.</li>
+        <li>Measure effective bandwidth: <code>bytes_accessed / time</code> — compare to GPU peak bandwidth.</li>
+        <li>Next: <a href="cuda-phase2-error-handling.html">Phase 2.3 — Error Handling in CUDA</a></li>
+      </ul>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

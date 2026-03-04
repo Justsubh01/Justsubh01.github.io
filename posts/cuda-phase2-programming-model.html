@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUDA Mastery Phase 2.1 — The CUDA Programming Model — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· 22 min read</span>
+      </div>
+      <h1>CUDA Mastery Phase 2.1 — The CUDA Programming Model: Threads, Blocks, and Grids</h1>
+      <p class="post-description">
+        How CUDA organizes thousands of threads into a three-level hierarchy of threads, blocks, and grids —
+        how to compute global thread indices, how to choose block sizes, and how the hardware maps your
+        abstract hierarchy onto physical SMs and CUDA cores.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        CUDA's programming model is elegantly simple. There are three levels: a <strong>thread</strong>
+        does one unit of work, <strong>blocks</strong> group threads that can cooperate via shared memory,
+        and a <strong>grid</strong> is the full collection of blocks for one kernel launch.
+        Everything else — occupancy, coalescing, divergence — is built on top of this foundation.
+      </p>
+
+      <h2>1. The Thread Hierarchy</h2>
+
+      <p>
+        When you launch a CUDA kernel, you create a grid of blocks. Each block contains
+        a fixed number of threads. Every thread runs the same kernel function, but identifies
+        itself using built-in index variables.
+      </p>
+
+      <pre><code>  Grid (the full launch, e.g. gridDim = {4, 2, 1})
+  ┌──────────┬──────────┬──────────┬──────────┐
+  │ Block    │ Block    │ Block    │ Block    │  ← row y=0
+  │ (0,0,0)  │ (1,0,0)  │ (2,0,0)  │ (3,0,0)  │
+  ├──────────┼──────────┼──────────┼──────────┤
+  │ Block    │ Block    │ Block    │ Block    │  ← row y=1
+  │ (0,1,0)  │ (1,1,0)  │ (2,1,0)  │ (3,1,0)  │
+  └──────────┴──────────┴──────────┴──────────┘
+
+  Block (e.g. blockDim = {4, 4, 1} = 16 threads)
+  ┌────┬────┬────┬────┐
+  │T   │T   │T   │T   │  ← threadIdx.y = 0
+  │0,0 │1,0 │2,0 │3,0 │
+  ├────┼────┼────┼────┤
+  │T   │T   │T   │T   │  ← threadIdx.y = 1
+  │0,1 │1,1 │2,1 │3,1 │
+  ├────┼────┼────┼────┤
+  │T   │T   │T   │T   │  ← threadIdx.y = 2
+  ├────┼────┼────┼────┤
+  │T   │T   │T   │T   │  ← threadIdx.y = 3
+  └────┴────┴────┴────┘
+   x=0  x=1  x=2  x=3</code></pre>
+
+      <h2>2. Built-in Variables</h2>
+
+      <p>
+        Inside a kernel, four built-in structs give each thread its identity.
+        All are of type <code>dim3</code> (a struct with x, y, z fields).
+      </p>
+
+      <pre><code>  threadIdx  — thread's index within its block  (0 to blockDim-1)
+  blockIdx   — block's index within the grid    (0 to gridDim-1)
+  blockDim   — dimensions of each block         (constant for a launch)
+  gridDim    — dimensions of the grid           (constant for a launch)
+
+  Example for a 1D launch with blockDim.x=256:
+
+  Thread in block 3, position 7:
+    threadIdx.x = 7
+    blockIdx.x  = 3
+    blockDim.x  = 256
+    gridDim.x   = (N + 255) / 256
+
+  Global index (unique ID for this thread):
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    //      = 3          * 256         + 7
+    //      = 775</code></pre>
+
+      <pre><code>  Visual: 1D grid, blockDim=4, gridDim=3 (12 threads total)
+
+  Block 0         Block 1         Block 2
+  ┌──┬──┬──┬──┐  ┌──┬──┬──┬──┐  ┌──┬──┬──┬──┐
+  │0 │1 │2 │3 │  │4 │5 │6 │7 │  │8 │9 │10│11│
+  └──┴──┴──┴──┘  └──┴──┴──┴──┘  └──┴──┴──┴──┘
+   tIdx: 0 1 2 3   tIdx: 0 1 2 3   tIdx: 0 1 2 3
+   bIdx: 0         bIdx: 1         bIdx: 2
+
+  Global idx = blockIdx.x * 4 + threadIdx.x</code></pre>
+
+      <h2>3. Computing Thread Indices — 1D, 2D, 3D</h2>
+
+      <h3>1D (most common)</h3>
+      <pre><code>__global__ void kernel_1d(float *data, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx &lt; n)
+        data[idx] = process(data[idx]);
+}</code></pre>
+
+      <h3>2D (images, matrices)</h3>
+      <pre><code>__global__ void kernel_2d(float *matrix, int width, int height) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;  // x = column
+    int row = blockIdx.y * blockDim.y + threadIdx.y;  // y = row
+
+    if (col &lt; width &amp;&amp; row &lt; height) {
+        int idx = row * width + col;   // row-major linearization
+        matrix[idx] = process(matrix[idx]);
+    }
+}
+
+// Launch:
+dim3 blockDim(16, 16);   // 16×16 = 256 threads per block
+dim3 gridDim((W + 15) / 16, (H + 15) / 16);
+kernel_2d&lt;&lt;&lt;gridDim, blockDim&gt;&gt;&gt;(d_mat, W, H);</code></pre>
+
+      <h3>3D (volumes, batched ops)</h3>
+      <pre><code>__global__ void kernel_3d(float *volume, int W, int H, int D) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    if (x &lt; W &amp;&amp; y &lt; H &amp;&amp; z &lt; D) {
+        int idx = z * (W * H) + y * W + x;
+        volume[idx] = process(volume[idx]);
+    }
+}</code></pre>
+
+      <h2>4. Kernel Launch Syntax</h2>
+
+      <pre><code>  kernel_name &lt;&lt;&lt; gridDim, blockDim, sharedMemBytes, stream &gt;&gt;&gt; (args...);
+                    │           │           │               │
+                    │           │           │               └── CUDA stream (default: 0)
+                    │           │           └── dynamic shared mem in bytes (default: 0)
+                    │           └── threads per block (dim3 or int)
+                    └── blocks in grid (dim3 or int)
+
+
+  // Simplest 1D launch for N elements:
+  int blockSize = 256;
+  int gridSize  = (N + blockSize - 1) / blockSize;   // ceiling division
+  myKernel&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_data, N);
+
+  // 2D launch for WxH image:
+  dim3 block(16, 16);
+  dim3 grid((W+15)/16, (H+15)/16);
+  imageKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_image, W, H);
+
+  // With dynamic shared memory:
+  int sharedBytes = blockSize * sizeof(float);
+  reductionKernel&lt;&lt;&lt;gridSize, blockSize, sharedBytes&gt;&gt;&gt;(d_data, N);</code></pre>
+
+      <h2>5. Choosing Block Size — The Rules</h2>
+
+      <p>
+        Block size is one of the most impactful tuning parameters. Here are the rules:
+      </p>
+
+      <ul>
+        <li><strong>Always use a multiple of 32</strong> (warp size). Non-multiples waste CUDA cores in the last warp.</li>
+        <li><strong>Common good choices</strong>: 128, 256, 512 threads/block.</li>
+        <li><strong>Maximum</strong>: 1024 threads per block (hardware limit).</li>
+        <li><strong>Minimum practical</strong>: 64 threads (fewer = poor occupancy).</li>
+        <li><strong>Start with 256</strong>; profile and tune from there.</li>
+      </ul>
+
+      <pre><code>  Block size tradeoffs:
+
+  Too small (e.g. 32):
+  ─────────────────────────────────────────────────────
+  + Easy to reason about
+  - Need more blocks (more launch overhead)
+  - Less shared memory reuse within a block
+  - Low occupancy if few blocks fit per SM
+
+  Too large (e.g. 1024):
+  ─────────────────────────────────────────────────────
+  + More threads can share data via __shared__
+  - More register pressure (fewer blocks fit per SM)
+  - Limited flexibility in grid sizing
+
+  Sweet spot: 128–256 for most kernels.
+  Use cudaOccupancyMaxPotentialBlockSize() to find the optimal value.</code></pre>
+
+      <pre><code>  // CUDA helper to find optimal block size:
+  int minGridSize, blockSize;
+  cudaOccupancyMaxPotentialBlockSize(
+      &amp;minGridSize,       // min grid size for full occupancy
+      &amp;blockSize,         // optimal block size
+      myKernel,           // the kernel function
+      0,                  // dynamic shared mem per block
+      0                   // maximum block size (0 = no limit)
+  );
+  int gridSize = (N + blockSize - 1) / blockSize;
+  myKernel&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_data, N);</code></pre>
+
+      <h2>6. Grid Size Calculation</h2>
+
+      <pre><code>  Problem: launch enough threads to cover N elements.
+  Each block has blockSize threads.
+
+  Naive (WRONG — misses last partial block):
+    gridSize = N / blockSize;    // integer truncation!
+    // N=1000, blockSize=256 → gridSize=3 → only 768 threads!
+
+  Correct (ceiling division):
+    gridSize = (N + blockSize - 1) / blockSize;
+    // N=1000, blockSize=256 → (1000+255)/256 = 4 → 1024 threads
+    // elements [768..999] are in block 3, elements [1000..1023] are out-of-bounds
+
+  Always guard in kernel with bounds check:
+    if (idx &lt; N) { ... }
+    // threads 1000-1023 do nothing — wastes 24 threads but avoids memory corruption</code></pre>
+
+      <h2>7. Function Qualifiers</h2>
+
+      <pre><code>  __global__   — kernel function
+                 • Called from HOST, executes on DEVICE
+                 • Returns void (always)
+                 • Launch with &lt;&lt;&lt;grid, block&gt;&gt;&gt;
+
+  __device__   — device function
+                 • Called from DEVICE, executes on DEVICE
+                 • Cannot be called from host
+                 • Gets inlined by nvcc (like inline in C)
+
+  __host__     — host function (default if no qualifier)
+                 • Called from HOST, executes on HOST
+                 • Normal C/C++ function
+
+  __host__ __device__  — compiled for both
+                 • Useful for math helper functions used on both CPU and GPU
+                 • e.g., clamp(), lerp(), vec3 operations
+
+  Examples:
+  __global__ void vectorAdd(float *a, float *b, float *c, int n);
+  __device__ float sigmoid(float x) { return 1.0f / (1.0f + expf(-x)); }
+  __host__ __device__ float clamp(float x, float lo, float hi) {
+      return fmaxf(lo, fminf(x, hi));
+  }</code></pre>
+
+      <h2>8. How Hardware Executes Your Launch</h2>
+
+      <pre><code>  Step 1: You call kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(args)
+  Step 2: CUDA driver packages this as a "task" for the GPU
+  Step 3: GPU Work Distribution unit assigns blocks to SMs
+
+  SM assignment rules:
+  ─────────────────────────────────────────────────────────
+  - Each SM gets blocks assigned one at a time
+  - A SM can hold multiple blocks simultaneously (resource permitting)
+  - Resources that limit blocks per SM:
+      * Registers: 65536 total per SM / (registers_per_thread × block_size)
+      * Shared memory: 48KB total / shared_mem_per_block
+      * Thread limit: 2048 max threads per SM / threads_per_block
+
+  Step 4: Within each SM, threads are organized into warps of 32
+  Step 5: Warp schedulers issue instructions to ready warps each cycle
+  Step 6: When a warp stalls (memory), another warp executes (latency hiding)
+  Step 7: When all threads in a block complete, SM gets a new block</code></pre>
+
+      <h2>9. The Concurrency Illusion</h2>
+
+      <p>
+        A common misconception: "all threads run at exactly the same time."
+      </p>
+
+      <pre><code>  Reality:
+
+  Logical model (what you program):     Hardware reality:
+  ─────────────────────────────────     ─────────────────────────────────
+  All N threads run "simultaneously"    At most: SM_count × warps_per_SM
+                                        × 32 = ~100K threads truly active
+
+  For N = 1 million threads:
+    - ~100K threads truly execute at any moment
+    - GPU schedules the rest in waves
+    - But your code doesn't change — the abstraction holds
+    - Correctness: guaranteed by hardware
+    - Performance: depends on avoiding bottlenecks</code></pre>
+
+      <h2>10. Grid-Stride Loop Pattern</h2>
+
+      <p>
+        When N is larger than the grid size, or when you want to reuse threads, use a
+        grid-stride loop. This is more flexible than one-thread-per-element:
+      </p>
+
+      <pre><code>__global__ void process_large(float *data, int n) {
+    // Each thread starts at its unique global index...
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    // ...and steps by the total grid width each iteration
+    int stride = blockDim.x * gridDim.x;
+
+    for (; idx &lt; n; idx += stride) {
+        data[idx] = sqrtf(data[idx]);
+    }
+}
+
+// Can launch with any grid size (even 1 block!)
+// Still processes all N elements correctly:
+process_large&lt;&lt;&lt;128, 256&gt;&gt;&gt;(d_data, 10000000);
+//  128×256 = 32768 threads, each handles ~305 elements</code></pre>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>CUDA thread hierarchy: thread → block → grid. Block = cooperation unit; grid = full launch.</li>
+        <li>Global index formula: <code>idx = blockIdx.x * blockDim.x + threadIdx.x</code></li>
+        <li>Always guard kernels with <code>if (idx &lt; N)</code> — last block may be partial.</li>
+        <li>Use ceiling division for grid size: <code>(N + blockSize - 1) / blockSize</code></li>
+        <li>Block size should be a multiple of 32. Start with 256; tune with occupancy API.</li>
+        <li><code>__global__</code> = kernel, <code>__device__</code> = device helper, <code>__host__ __device__</code> = both.</li>
+        <li>Blocks are assigned to SMs; register/shared memory limits how many fit simultaneously.</li>
+        <li>Grid-stride loops let one kernel handle any N, regardless of grid size.</li>
+        <li>Next: <a href="cuda-phase2-vector-addition.html">Phase 2.2 — Your First CUDA Kernel: Vector Addition</a></li>
+      </ul>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

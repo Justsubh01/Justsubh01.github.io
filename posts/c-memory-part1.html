@@ -3,45 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>C Memory Internals #1: Stack, Heap, Pointers & Segments — Sudhanshu</title>
+  <title>C Memory Internals #1: Stack, Heap, Pointers &amp; Segments — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
-    .gif-wrap {
-      text-align: center;
-      margin: 2rem 0;
-    }
+    .gif-wrap { text-align: center; margin: 2.5rem 0; }
     .gif-wrap img {
-      max-width: 100%;
-      border-radius: 10px;
+      max-width: 100%; border-radius: 10px;
       border: 1px solid var(--border);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.13);
     }
     .gif-caption {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin-top: 0.5rem;
-      font-style: italic;
+      font-size: 0.82rem; color: var(--text-muted);
+      margin-top: 0.6rem; font-style: italic; line-height: 1.5;
     }
     .concept-box {
       background: var(--accent-soft);
-      border-left: 3px solid var(--accent);
+      border-left: 4px solid var(--accent);
       border-radius: 0 8px 8px 0;
-      padding: 1rem 1.25rem;
-      margin: 1.5rem 0;
-      font-size: 0.95rem;
+      padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem;
     }
+    .warning-box {
+      background: #fff7ed; border-left: 4px solid #f97316;
+      border-radius: 0 8px 8px 0;
+      padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem;
+    }
+    .danger-box {
+      background: #fff1f2; border-left: 4px solid #ef4444;
+      border-radius: 0 8px 8px 0;
+      padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem;
+    }
+    .output-block {
+      background: #0f172a; border-radius: 8px;
+      padding: 1rem 1.25rem; margin: 1.5rem 0;
+      font-family: monospace; font-size: 0.85rem;
+      color: #a3e635; overflow-x: auto;
+      border: 1px solid #1e293b;
+    }
+    .output-block .comment { color: #64748b; }
     .series-nav {
-      display: flex;
-      justify-content: space-between;
-      margin: 2.5rem 0 0;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.9rem;
+      display: flex; justify-content: space-between;
+      margin: 2.5rem 0 0; padding-top: 1.5rem;
+      border-top: 1px solid var(--border); font-size: 0.9rem;
     }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
+    .toc {
+      background: #f8fafc; border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0;
+    }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
+    .tag-stack { color: #4f86c6; font-weight: 600; }
+    .tag-heap  { color: #e07b54; font-weight: 600; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
   </style>
 </head>
 <body>
@@ -62,190 +85,561 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 18 min read</span>
+        <span class="read-time">· 28 min read</span>
       </div>
       <h1>C Memory Internals #1: Stack, Heap, Pointers &amp; Segments</h1>
       <p class="post-description">
-        Before you write CUDA kernels, you need to understand how C manages memory.
-        This is part 1 of 3 — covering stack vs heap, pointer arithmetic, the 5 memory
-        segments, and dynamic 2D arrays. Every concept has a running C program and an
-        animated diagram showing exactly what happens under the hood.
+        Before you write CUDA kernels, you need to understand how C manages memory —
+        not at the "I can copy-paste malloc" level, but at the "I know exactly which
+        byte lives where and why" level. Part 1 of 3: stack vs heap with real addresses,
+        pointer arithmetic from first principles, all 5 memory segments, and the
+        fragmentation trap hidden inside dynamic 2D arrays.
       </p>
     </div>
 
     <div class="post-body">
 
       <p>
-        When I started learning CUDA, I kept hitting a wall. Not with the GPU side — with
-        the C side. Things like <code>float *d_arr</code>, <code>cudaMemcpy</code>,
-        <code>malloc</code>, pointer offsets — I was copying patterns without understanding
-        why they worked. So I went back to basics and wrote 10 small C programs, each one
-        focusing on exactly one memory concept. This is part 1: the four foundational ideas
-        you absolutely must understand before GPU memory makes sense.
+        I spent two weeks confused by CUDA memory management before I realised the problem
+        had nothing to do with CUDA. The problem was that I didn't really understand C memory.
+        I knew the syntax. I could write <code>malloc</code> and <code>free</code>. But I
+        couldn't tell you <em>where</em> memory lived, why pointers worked the way they did,
+        or what the five distinct memory regions of a running process actually were.
       </p>
+
+      <p>
+        So I stopped. I went back to basics and wrote 10 small focused programs — each one
+        designed to make one memory concept completely visible. No handwaving. Real addresses
+        printed to the terminal. Real byte counts. This is the first four of those programs,
+        covering what I now think of as the four prerequisites for GPU programming.
+      </p>
+
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#p1">Program 1 — Stack vs Heap: where variables actually live</a></li>
+          <li><a href="#p2">Program 2 — Pointer Arithmetic: why ptr+1 isn't always +1 byte</a></li>
+          <li><a href="#p3">Program 3 — The 5 Memory Segments: the full picture of process memory</a></li>
+          <li><a href="#p4">Program 4 — Dynamic 2D Arrays: the fragmentation trap</a></li>
+        </ol>
+      </div>
 
       <blockquote>
         GPU memory is just heap memory on a different chip. If you don't understand CPU heap,
-        you won't understand cudaMalloc.
+        you won't understand <code>cudaMalloc</code>. Every concept in this post maps directly
+        to something in CUDA — I'll call those out as we go.
       </blockquote>
 
-      <h2>Program 1 — Stack vs Heap</h2>
+      <hr class="section-divider" />
+
+      <h2 id="p1">Program 1 — Stack vs Heap</h2>
+
+      <h3>The mental model people start with (and why it's incomplete)</h3>
 
       <p>
-        Every C variable lives somewhere in memory. The two most important locations are the
-        <strong>stack</strong> and the <strong>heap</strong>. The stack is automatic — the
-        OS manages it, variables appear when you declare them and vanish when the function
-        returns. The heap is manual — you ask for memory with <code>malloc()</code> and it
-        stays alive until you call <code>free()</code>.
+        Most beginners think of memory as one big box — declare a variable, it goes in the box,
+        use it, done. That model works until you hit <code>malloc</code>, or until you try to
+        return a local variable's address from a function, or until your server starts eating
+        RAM overnight. The real picture is two boxes with very different rules, and understanding
+        which box a variable lives in explains almost every memory bug in C.
+      </p>
+
+      <h3>The Stack</h3>
+
+      <p>
+        Every function call gets a block of memory called a <strong>stack frame</strong>.
+        This frame is reserved the moment the function is entered and destroyed the moment
+        it returns. All local variables you declare inside a function — the <code>int i</code>
+        in your loop, the <code>float temp</code> you compute midway — live in that frame.
+      </p>
+
+      <p>
+        The OS allocates stack space for your process upfront. On Linux it's typically 8 MB.
+        That 8 MB is it — there's no growing it at runtime. Allocation on the stack is
+        essentially free: it's just a register decrement. The CPU keeps a register called
+        <code>rsp</code> (stack pointer) that points to the current top of the stack.
+        "Allocating" a local variable means subtracting its size from <code>rsp</code>.
+        That's one instruction.
+      </p>
+
+      <h3>The Heap</h3>
+
+      <p>
+        The heap is the opposite of the stack in almost every way. It's not bounded at
+        8 MB — it can grow to fill all available RAM. Variables on the heap don't disappear
+        automatically — they live until you explicitly call <code>free()</code>. And
+        allocation isn't free: <code>malloc()</code> has to search for a suitable free
+        block, update bookkeeping data structures, and return you a pointer. It's measurably
+        slower than stack allocation.
+      </p>
+
+      <p>
+        But the heap's lifetime flexibility is what makes it essential. You can allocate
+        memory in one function and return it to be used in another. You can allocate
+        gigabytes. You can resize allocations. None of that is possible on the stack.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_stack_vs_heap.gif" alt="Stack grows downward, heap grows upward animation" />
-        <p class="gif-caption">Stack frames are pushed downward as functions are called. Heap blocks grow upward as malloc() is called. They grow toward each other — in the middle is unmapped space.</p>
+        <img src="assets/gif_stack_vs_heap.gif" alt="Stack grows downward, heap grows upward" />
+        <p class="gif-caption">
+          The stack grows <em>downward</em> in virtual memory — each new function call pushes
+          a frame at a lower address. The heap grows <em>upward</em> — each malloc() gives you
+          a block at a progressively higher address. They grow toward each other; in the middle
+          is unmapped virtual address space that will cause a segfault if accessed.
+        </p>
       </div>
 
-      <div class="concept-box">
-        <strong>Key rule:</strong> Stack variables are cheap but limited (~1–8 MB total).
-        Heap variables are slower to allocate but can be gigabytes. On the GPU,
-        <code>cudaMalloc</code> is exactly like heap malloc — it gives you a pointer
-        to device memory that lives until <code>cudaFree</code>.
-      </div>
-
-      <p>The program below shows real addresses from both regions at runtime:</p>
+      <p>Here's the program. Compile it and look at the actual addresses:</p>
 
 <pre><code>#include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
 
 int main() {
-    // STACK — declared as local variable, exists only inside main()
+    // ── STACK variables ──────────────────────────────
+    // These are declared locally. The OS allocates their
+    // space in main()'s stack frame before main() even runs.
     int   stack_int   = 42;
     float stack_float = 3.14f;
+    char  stack_char  = 'A';
 
-    // HEAP — requested with malloc(), you control when it ends
+    // ── HEAP variables ───────────────────────────────
+    // malloc() asks the OS for a fresh block of memory.
+    // The pointer (heap_arr) is on the STACK.
+    // The data it points to is on the HEAP.
     int *heap_arr = (int *)malloc(5 * sizeof(int));
-    for (int i = 0; i &lt; 5; i++) heap_arr[i] = (i + 1) * 10;
+    if (!heap_arr) { fprintf(stderr, "malloc failed\n"); return 1; }
 
-    printf("stack_int  lives at: %p\n", (void*)&amp;stack_int);
-    printf("stack_flt  lives at: %p\n", (void*)&amp;stack_float);
-    printf("heap_arr   lives at: %p\n", (void*)heap_arr);
-    // Stack addresses will be high (e.g. 0x7fff...)
-    // Heap  addresses will be lower (e.g. 0x562d...)
+    for (int i = 0; i &lt; 5; i++)
+        heap_arr[i] = (i + 1) * 10;  // 10, 20, 30, 40, 50
 
-    free(heap_arr);  // always free what you malloc
-    return 0;
+    // Print both sets of addresses
+    printf("── STACK ──\n");
+    printf("  stack_int   @ %p  value=%d\n",  (void*)&amp;stack_int,   stack_int);
+    printf("  stack_float @ %p  value=%.2f\n",(void*)&amp;stack_float, stack_float);
+    printf("  stack_char  @ %p  value=%c\n",  (void*)&amp;stack_char,  stack_char);
+
+    printf("\n── HEAP ──\n");
+    printf("  heap_arr ptr stored @ %p  (this pointer is ON the stack)\n",
+           (void*)&amp;heap_arr);
+    printf("  heap_arr data starts@ %p  (this block is ON the heap)\n",
+           (void*)heap_arr);
+    for (int i = 0; i &lt; 5; i++)
+        printf("  heap_arr[%d] @ %p  value=%d\n",
+               i, (void*)&amp;heap_arr[i], heap_arr[i]);
+
+    free(heap_arr);  // ALWAYS free what you malloc
+    return 0;        // stack_int, stack_float, stack_char are gone here
+}</code></pre>
+
+      <p>When you run this, you'll see something like:</p>
+
+      <div class="output-block">
+── STACK ──<br/>
+&nbsp;&nbsp;stack_int   @ <span style="color:#f9c74f">0x7ffd8a3c1dfc</span>  value=42<br/>
+&nbsp;&nbsp;stack_float @ <span style="color:#f9c74f">0x7ffd8a3c1e00</span>  value=3.14<br/>
+&nbsp;&nbsp;stack_char  @ <span style="color:#f9c74f">0x7ffd8a3c1dfb</span>  value=A<br/>
+<br/>
+── HEAP ──<br/>
+&nbsp;&nbsp;heap_arr ptr stored @ <span style="color:#f9c74f">0x7ffd8a3c1e08</span>  (this pointer is ON the stack)<br/>
+&nbsp;&nbsp;heap_arr data starts@ <span style="color:#e07b54">0x5631d4a392b0</span>  (this block is ON the heap)<br/>
+&nbsp;&nbsp;heap_arr[0] @ <span style="color:#e07b54">0x5631d4a392b0</span>  value=10<br/>
+&nbsp;&nbsp;heap_arr[1] @ <span style="color:#e07b54">0x5631d4a392b4</span>  value=20<br/>
+&nbsp;&nbsp;<span class="comment">... (each element 4 bytes apart)</span>
+      </div>
+
+      <p>
+        The pattern is unmistakable. Stack addresses all start with <code>0x7fff</code> — they're
+        in the top few gigabytes of virtual address space. Heap addresses start with something like
+        <code>0x563</code> or <code>0x55a</code> — much lower. They genuinely live in different
+        regions. And notice: <code>heap_arr</code> (the pointer variable itself) is on the stack
+        at <code>0x7ffd...</code> — but what it <em>points to</em> is on the heap at
+        <code>0x5631...</code>. Pointers live in one place, their targets in another.
+      </p>
+
+      <div class="concept-box">
+        <strong>Stack variables are close to each other.</strong> Look at the three stack addresses
+        above — they're within a few bytes of each other. That's the stack frame: one contiguous
+        block where all of <code>main()</code>'s locals live. Heap allocations are scattered —
+        each <code>malloc()</code> can land anywhere the allocator finds free space.
+      </div>
+
+      <h3>The critical mistakes to avoid</h3>
+
+      <p>
+        <strong>1. Returning a pointer to a stack variable.</strong> This is one of the most
+        common C bugs and one of the most confusing to debug:
+      </p>
+
+<pre><code>int *bad_function() {
+    int x = 42;
+    return &amp;x;   // x lives on this function's stack frame
+}                // frame is DESTROYED when we return
+                 // the pointer now points to garbage
+
+int main() {
+    int *p = bad_function();
+    printf("%d\n", *p);  // undefined behaviour — could print 42,
+                          // could print 0, could crash. Anything.
 }</code></pre>
 
       <p>
-        Run this and look at the addresses. Stack addresses start with <code>0x7fff</code>
-        (near the top of virtual memory). Heap addresses look like <code>0x562d</code> or
-        <code>0x55a8</code> — much lower. They really do live in completely different regions.
+        The fix is to either return the value (not a pointer to it), or allocate on the
+        heap and return that pointer — which the caller must then free.
       </p>
 
-      <ul>
-        <li><strong>Stack overflow</strong> happens when you recursively call functions so deep the stack runs out of space</li>
-        <li><strong>Memory leak</strong> happens when you malloc() but never free() — the heap block stays alive forever</li>
-        <li>Never return a pointer to a local (stack) variable — the stack frame is gone when the function returns</li>
-      </ul>
+      <p>
+        <strong>2. Forgetting to free.</strong> Every <code>malloc</code> must have a matching
+        <code>free</code>. If you lose the pointer before calling free, that memory is gone
+        for the lifetime of the process. Run this in a loop and your process bloats:
+      </p>
 
-      <h2>Program 2 — Pointer Arithmetic</h2>
+<pre><code>while (1) {
+    char *buf = malloc(1024 * 1024);  // allocate 1 MB
+    do_work(buf);
+    // forgot free(buf) ← memory leak: 1 MB lost per iteration
+}</code></pre>
 
       <p>
-        A pointer is a variable that holds a memory <em>address</em>, not a value.
-        When you write <code>int *ptr = arr</code>, <code>ptr</code> holds the address of
-        <code>arr[0]</code>. And here's the crucial bit: <code>ptr + 1</code> does
-        <strong>not</strong> add 1 byte — it adds <code>sizeof(int)</code> = 4 bytes.
-        The compiler scales pointer arithmetic by the size of the pointed-to type.
+        <strong>3. Double free.</strong> Calling <code>free(ptr)</code> twice on the same
+        pointer corrupts the allocator's internal data structures and typically causes
+        a crash or exploitable behaviour:
+      </p>
+
+<pre><code>int *p = malloc(40);
+free(p);
+free(p);  // CRASH or heap corruption
+// Fix: set p = NULL after free
+free(p);  // free(NULL) is always safe — it does nothing</code></pre>
+
+      <div class="concept-box">
+        <strong>CUDA parallel:</strong> <code>cudaMalloc(&amp;d_ptr, size)</code> is heap
+        allocation on the GPU. <code>cudaFree(d_ptr)</code> is the free. The same rules apply:
+        every cudaMalloc needs a cudaFree, and losing the pointer means a GPU memory leak.
+        Unlike CPU leaks, GPU memory is far scarcer — a 16 GB GPU with a leak in a
+        long-running inference loop will run out of VRAM much sooner than you'd expect.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="p2">Program 2 — Pointer Arithmetic</h2>
+
+      <h3>What a pointer actually is</h3>
+
+      <p>
+        A pointer is a variable that holds a memory address. That's it. When you write
+        <code>int *ptr = arr</code>, the variable <code>ptr</code> contains the number
+        <code>0x7ffd8a3c1e00</code> (or whatever the address of <code>arr[0]</code> is).
+        The <code>*</code> in the type declaration doesn't mean ptr contains a special value —
+        it just tells the compiler "treat the value stored in ptr as a memory address,
+        and know that at that address you'll find an <code>int</code>."
+      </p>
+
+      <p>
+        On a 64-bit machine, a pointer is always 8 bytes — regardless of what it points to.
+        <code>sizeof(int*)</code> == <code>sizeof(double*)</code> == <code>sizeof(char*)</code>
+        == 8. All of them just hold an address.
+      </p>
+
+      <h3>Why ptr+1 isn't always +1 byte</h3>
+
+      <p>
+        This is the part that trips people up. When you increment a pointer by 1, the compiler
+        doesn't add 1 to the stored address. It adds <code>sizeof(pointed-to type)</code>.
+        This is called <strong>pointer scaling</strong>, and the compiler does it automatically.
+      </p>
+
+<pre><code>#include &lt;stdio.h&gt;
+
+int main() {
+    // Demonstrate pointer scaling for different types
+    char   c_arr[4] = {1, 2, 3, 4};
+    short  s_arr[4] = {10, 20, 30, 40};
+    int    i_arr[4] = {100, 200, 300, 400};
+    double d_arr[4] = {1.1, 2.2, 3.3, 4.4};
+
+    char   *cp = c_arr;
+    short  *sp = s_arr;
+    int    *ip = i_arr;
+    double *dp = d_arr;
+
+    printf("sizeof char  = %zu  |  cp+1 jump = %ld bytes\n",
+           sizeof(char),  (long)(cp+1) - (long)cp);
+    printf("sizeof short = %zu  |  sp+1 jump = %ld bytes\n",
+           sizeof(short), (long)(sp+1) - (long)sp);
+    printf("sizeof int   = %zu  |  ip+1 jump = %ld bytes\n",
+           sizeof(int),   (long)(ip+1) - (long)ip);
+    printf("sizeof double= %zu  |  dp+1 jump = %ld bytes\n",
+           sizeof(double),(long)(dp+1) - (long)dp);
+
+    return 0;
+}</code></pre>
+
+      <div class="output-block">
+sizeof char  = 1  |  cp+1 jump = <span style="color:#f9c74f">1</span> bytes<br/>
+sizeof short = 2  |  sp+1 jump = <span style="color:#f9c74f">2</span> bytes<br/>
+sizeof int   = 4  |  ip+1 jump = <span style="color:#f9c74f">4</span> bytes<br/>
+sizeof double= 8  |  dp+1 jump = <span style="color:#f9c74f">8</span> bytes
+      </div>
+
+      <p>
+        The jump is always exactly <code>sizeof(type)</code>. The compiler guarantees this.
+        It's not magic — the CPU instruction uses a scaled index under the hood. But from
+        your perspective as the programmer, pointer arithmetic always moves in units of
+        the pointed-to type, never in bytes.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_pointer_arithmetic.gif" alt="Pointer walking through array animation" />
-        <p class="gif-caption">The pointer steps right, one element at a time. Each step is sizeof(int) = 4 bytes. The yellow highlight shows the currently-accessed element. arr[i] and *(arr+i) produce identical machine code.</p>
+        <img src="assets/gif_pointer_arithmetic.gif" alt="Pointer walking through an int array one element at a time" />
+        <p class="gif-caption">
+          ptr starts at arr[0]. Each step advances the pointer by sizeof(int) = 4 bytes,
+          landing on the next element. The yellow highlight shows the current element.
+          Note the hex addresses in the bottom row — they increment by 4 each time.
+          arr[i] and *(arr+i) are identical — the compiler generates the exact same
+          machine instruction for both.
+        </p>
       </div>
+
+      <h3>The full pointer program</h3>
 
 <pre><code>#include &lt;stdio.h&gt;
 
 int main() {
     int arr[6] = {10, 20, 30, 40, 50, 60};
-    int *ptr   = arr;   // ptr holds address of arr[0]
+    int *ptr   = arr;  // ptr = address of arr[0]
 
+    printf("arr name  = %p\n", (void*)arr);    // address of first element
+    printf("&amp;arr[0]   = %p\n", (void*)&amp;arr[0]);// same thing
+    printf("ptr       = %p\n", (void*)ptr);    // also the same
+
+    printf("\nWalking with ptr+i:\n");
     for (int i = 0; i &lt; 6; i++) {
-        printf("ptr+%d  address=%p  value=%d\n",
-               i, (void*)(ptr + i), *(ptr + i));
+        printf("  ptr+%d  addr=%-14p  *(ptr+%d)=%-4d  arr[%d]=%d\n",
+               i, (void*)(ptr+i), i, *(ptr+i), i, arr[i]);
     }
-    // arr[i]  and  *(arr+i)  are IDENTICAL — the compiler generates
-    // the same machine instruction for both
+    // *(ptr+i) and arr[i] always give the same result
+    // because arr[i] IS defined as *(arr+i) — they are literally
+    // the same expression, just written differently
+
+    // You can also do SUBTRACTION to get distance between elements
+    int *first = &amp;arr[0];
+    int *last  = &amp;arr[5];
+    printf("\nDistance from arr[0] to arr[5]:\n");
+    printf("  in elements: %ld\n",  last - first);  // = 5
+    printf("  in bytes:    %ld\n",  (long)last - (long)first);  // = 20
+
     return 0;
 }</code></pre>
 
-      <p>
-        This matters enormously in CUDA. When you launch a kernel with thousands of threads,
-        each thread uses its thread ID as an offset: <code>arr[threadIdx.x]</code> is
-        exactly <code>*(arr + threadIdx.x)</code>. Understanding pointer arithmetic is
-        understanding how GPU threads access memory.
-      </p>
-
-      <blockquote>
-        ptr+1 jumps sizeof(type) bytes — not 1 byte. A double* increments by 8. A char* increments by 1. Always.
-      </blockquote>
-
-      <h2>Program 3 — The 5 Memory Segments</h2>
+      <h3>Pointer arithmetic and array indexing are the same thing</h3>
 
       <p>
-        A running C program has five distinct memory regions. Most tutorials only mention
-        stack and heap. But there are three more, and they explain behaviour that otherwise
-        looks like magic.
+        The C standard defines <code>arr[i]</code> as exactly <code>*(arr + i)</code>.
+        Not "equivalent to" — literally defined as. The compiler never sees <code>arr[i]</code>
+        as a special operation. It sees a pointer, adds <code>i * sizeof(int)</code> to it,
+        then dereferences the result. There is no runtime overhead for the <code>[]</code>
+        syntax vs the <code>*(ptr + i)</code> syntax — they compile to the same instruction.
       </p>
 
-      <div class="gif-wrap">
-        <img src="assets/gif_memory_segments.gif" alt="5 memory segments lighting up one by one" />
-        <p class="gif-caption">The five segments appear from low address (bottom) to high address (top). TEXT is read-only machine code. DATA and BSS hold globals. HEAP and STACK are the dynamic regions you interact with most.</p>
+      <p>
+        This has a fun consequence: <code>arr[i]</code> and <code>i[arr]</code> are both
+        legal C and produce the same result. <code>arr[5]</code> == <code>*(arr + 5)</code>
+        == <code>*(5 + arr)</code> == <code>5[arr]</code>. Don't write it that way. But
+        it reveals the truth about what indexing actually is.
+      </p>
+
+      <div class="concept-box">
+        <strong>CUDA parallel:</strong> Every CUDA kernel does exactly this. The standard
+        kernel pattern is:
+        <code>int idx = blockIdx.x * blockDim.x + threadIdx.x;</code>
+        <code>if (idx &lt; N) output[idx] = input[idx] * 2.0f;</code>
+        <br/><br/>
+        That <code>output[idx]</code> is <code>*(output + idx)</code>, which is
+        <code>*(output + idx * sizeof(float))</code> in bytes. Thread 0 gets element 0,
+        thread 1 gets element 1, etc. Each thread accesses its element by pointer
+        arithmetic — which is exactly what we just learned.
       </div>
 
-<pre><code>// --- DATA segment: globals WITH an initial value
-int global_init = 100;   // stored in the binary on disk
+      <hr class="section-divider" />
 
-// --- BSS segment: globals WITHOUT an initial value (OS zeroes them)
-int global_uninit;       // NOT stored in binary — OS fills with 0 at start
+      <h2 id="p3">Program 3 — The 5 Memory Segments</h2>
 
-// --- TEXT segment: your compiled functions (read-only)
-int add(int a, int b) { return a + b; }
-
-int main() {
-    int   local = 42;             // STACK
-    int  *heap  = malloc(40);     // HEAP
-
-    printf("TEXT  (code):  %p\n", (void*)main);
-    printf("DATA  (global):%p\n", (void*)&amp;global_init);
-    printf("BSS   (uninit):%p\n", (void*)&amp;global_uninit);
-    printf("HEAP  (malloc):%p\n", (void*)heap);
-    printf("STACK (local): %p\n", (void*)&amp;local);
-
-    free(heap);
-    return 0;
-}</code></pre>
-
-      <p>Run it. You'll see five clearly different address ranges, proving these are genuinely separate regions of virtual memory.</p>
-
-      <ul>
-        <li><strong>TEXT</strong> — read-only. Writing to it causes a segfault (good — stops code injection)</li>
-        <li><strong>DATA</strong> — initialised globals like <code>int x = 5;</code> — their values are baked into the ELF binary</li>
-        <li><strong>BSS</strong> — uninitialised globals — the OS zeroes them so you don't get garbage values</li>
-        <li><strong>HEAP</strong> — controlled by malloc/free, grows upward</li>
-        <li><strong>STACK</strong> — automatic locals, grows downward, wiped on return</li>
-      </ul>
-
-      <h2>Program 4 — Dynamic 2D Array</h2>
+      <h3>The full picture of process memory</h3>
 
       <p>
-        Here's a trap beginners fall into: they think a 2D array is a perfect grid in memory.
-        It isn't. When you allocate a 2D array dynamically with malloc, you get an
-        <strong>array of pointers</strong>, and each pointer points to a separate row block
-        somewhere on the heap. The rows can be far apart in memory.
+        Stack and heap are two of five memory regions every running C program has. The other
+        three explain behaviour that otherwise looks inexplicable — like why global variables
+        are automatically zero, or why you get a segfault when you accidentally write to a
+        string literal, or why two different processes running the same binary share the same
+        code in physical RAM.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_dynamic_2d_array.gif" alt="2D array pointer array and scattered row blocks" />
-        <p class="gif-caption">The pointer array (left) holds addresses. Each address points to a row data block (right). The rows can land anywhere in the heap — they are NOT contiguous with each other. This is called heap fragmentation.</p>
+        <img src="assets/gif_memory_segments.gif" alt="Five memory segments appearing from low to high address" />
+        <p class="gif-caption">
+          The five segments arranged from low address (bottom) to high address (top) in
+          virtual memory. They appear in order: TEXT (read-only code), DATA (initialised
+          globals), BSS (zeroed globals), HEAP (grows up), STACK (grows down).
+          Each segment has completely different lifetime and access rules.
+        </p>
+      </div>
+
+<pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+// ── DATA segment ─────────────────────────────────────────────
+// Initialised globals. Their VALUES are stored in the binary file
+// on disk. When the OS loads the program, it maps this data into
+// the process's DATA segment. Size is fixed at compile time.
+int   global_init_int   = 100;
+float global_init_float = 3.14f;
+char  global_init_char  = 'X';
+
+// ── BSS segment ──────────────────────────────────────────────
+// UNinitialised globals (or those explicitly set to 0).
+// These are NOT stored in the binary — only their sizes are.
+// When the program starts, the OS zeroes this entire segment.
+// This is why global variables are always 0 by default.
+int   global_uninit_int;    // = 0 automatically
+float global_uninit_float;  // = 0.0 automatically
+
+// ── TEXT segment ─────────────────────────────────────────────
+// Your compiled machine code. Read-only. If two processes run
+// the same binary, the OS maps the same physical pages into
+// both — only one copy of the code exists in RAM.
+int helper(int x) { return x * 2; }
+
+int main() {
+    // ── STACK ──
+    int   local_int   = 42;
+    float local_float = 1.23f;
+
+    // ── HEAP ──
+    int *heap_ptr = (int *)malloc(4 * sizeof(int));
+    heap_ptr[0] = 9; heap_ptr[1] = 8;
+    heap_ptr[2] = 7; heap_ptr[3] = 6;
+
+    // Print addresses for all 5 segments
+    printf("SEGMENT      VARIABLE              ADDRESS\n");
+    printf("─────────────────────────────────────────────\n");
+    printf("TEXT         main() function      %p\n", (void*)main);
+    printf("TEXT         helper() function    %p\n", (void*)helper);
+    printf("DATA         global_init_int      %p  = %d\n",
+           (void*)&amp;global_init_int, global_init_int);
+    printf("DATA         global_init_float    %p  = %.2f\n",
+           (void*)&amp;global_init_float, global_init_float);
+    printf("BSS          global_uninit_int    %p  = %d\n",
+           (void*)&amp;global_uninit_int, global_uninit_int);
+    printf("BSS          global_uninit_float  %p  = %.1f\n",
+           (void*)&amp;global_uninit_float, global_uninit_float);
+    printf("HEAP         heap_ptr[0]          %p  = %d\n",
+           (void*)&amp;heap_ptr[0], heap_ptr[0]);
+    printf("STACK        local_int            %p  = %d\n",
+           (void*)&amp;local_int, local_int);
+
+    int unused = helper(5);  // keep helper in TEXT
+    (void)unused;
+
+    free(heap_ptr);
+    return 0;
+}</code></pre>
+
+      <p>The output will show five clearly distinct address ranges:</p>
+
+      <div class="output-block">
+SEGMENT      VARIABLE              ADDRESS<br/>
+─────────────────────────────────────────────<br/>
+TEXT         main()               <span style="color:#b07cc6">0x55a3f1201189</span><br/>
+TEXT         helper()             <span style="color:#b07cc6">0x55a3f1201175</span><br/>
+DATA         global_init_int      <span style="color:#c6a84f">0x55a3f1204010</span>  = 100<br/>
+DATA         global_init_float    <span style="color:#c6a84f">0x55a3f1204014</span>  = 3.14<br/>
+BSS          global_uninit_int    <span style="color:#8ecf8e">0x55a3f1204020</span>  = 0<br/>
+BSS          global_uninit_float  <span style="color:#8ecf8e">0x55a3f1204024</span>  = 0.0<br/>
+HEAP         heap_ptr[0]          <span style="color:#e07b54">0x55a3f52392b0</span>  = 9<br/>
+STACK        local_int            <span style="color:#4f86c6">0x7ffcd3a21e3c</span>  = 42
+      </div>
+
+      <h3>Each segment explained in detail</h3>
+
+      <p>
+        <strong>1. TEXT (code segment)</strong> — Your compiled machine instructions.
+        When you call <code>main()</code>, the CPU jumps to this address and starts executing.
+        This segment is mapped read-only: any attempt to write to it causes an immediate
+        segfault. That's intentional — it prevents code injection attacks and ensures
+        that the instructions can't accidentally overwrite themselves. On modern systems,
+        this segment is also marked executable; other segments are not.
+      </p>
+
+      <p>
+        <strong>2. DATA segment</strong> — Global and <code>static</code> variables that
+        have explicit initial values. These are physically stored in the binary file on disk.
+        When you open any compiled ELF binary with a hex editor, you'll find the actual bytes
+        of your initialised globals in there. The OS reads them off disk and maps them into
+        the process's DATA segment at startup. If you have a 1 MB initialised global array,
+        your binary is 1 MB larger.
+      </p>
+
+      <p>
+        <strong>3. BSS segment</strong> — Global and <code>static</code> variables
+        that either have no initialiser or are explicitly zero. These are <em>not</em>
+        stored in the binary — only the total size is recorded. The OS sets aside that much
+        RAM and zeroes it before the program starts. This is the reason <code>int global;</code>
+        (no initialiser) reliably starts at 0 — the OS guarantees it. BSS also explains why
+        a program with a large uninitialised global array doesn't have a proportionally
+        large binary file.
+      </p>
+
+      <p>
+        <strong>4. HEAP</strong> — Runtime-allocated memory. Starts at a base address
+        just above the BSS segment and grows upward. Managed by the C runtime's allocator
+        (<code>malloc/free</code>). The allocator itself requests pages from the OS using
+        the <code>brk()</code> or <code>mmap()</code> syscall and then subdivides them
+        for individual allocations.
+      </p>
+
+      <p>
+        <strong>5. STACK</strong> — Automatic storage for local variables and function
+        call mechanics. Starts near the top of virtual memory and grows downward. Each
+        thread gets its own stack. The main thread's stack is typically 8 MB on Linux;
+        you can check with <code>ulimit -s</code>.
+      </p>
+
+      <div class="warning-box">
+        <strong>String literals live in TEXT, not DATA.</strong>
+        When you write <code>char *s = "hello";</code>, the string <code>"hello"</code>
+        is in the read-only TEXT segment. The pointer <code>s</code> is on the stack.
+        Trying to modify through <code>s</code> — like <code>s[0] = 'H';</code> — is
+        a segfault. To get a modifiable string, write <code>char s[] = "hello";</code>
+        which copies the literal onto the stack as a char array you own.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="p4">Program 4 — Dynamic 2D Array: The Fragmentation Trap</h2>
+
+      <h3>What people expect vs what actually happens</h3>
+
+      <p>
+        Ask a beginner what a 3×4 dynamically allocated matrix looks like in memory
+        and they'll draw a grid: 12 integers, all in a row, nicely contiguous.
+        That's what a <em>static</em> 2D array (<code>int mat[3][4]</code>) looks like.
+        But a <em>dynamic</em> 2D array — allocated with malloc — looks completely different.
+      </p>
+
+      <p>
+        What you actually get is an <strong>array of pointers</strong>, and each pointer
+        points to a <strong>separately allocated row</strong> somewhere else on the heap.
+        The rows can be hundreds or thousands of bytes apart. There is no guarantee of
+        contiguity between rows.
+      </p>
+
+      <div class="gif-wrap">
+        <img src="assets/gif_dynamic_2d_array.gif" alt="Pointer array on left, scattered row data blocks on right" />
+        <p class="gif-caption">
+          Left: the pointer array — <code>mat[0]</code>, <code>mat[1]</code>, <code>mat[2]</code>
+          store addresses. Right: the actual row data, each at a separate heap location.
+          The rows are NOT next to each other in memory. This is heap fragmentation —
+          each malloc can land anywhere in the available heap space.
+        </p>
       </div>
 
 <pre><code>#include &lt;stdio.h&gt;
@@ -254,54 +648,149 @@ int main() {
 int main() {
     int rows = 3, cols = 4;
 
-    // Step 1: allocate the array of row pointers
+    // ── Step 1: allocate the pointer array ───────────────────
+    // This gives you 'rows' pointers, each 8 bytes on 64-bit.
+    // Total: 3 * 8 = 24 bytes on the heap.
     int **mat = (int **)malloc(rows * sizeof(int *));
+    if (!mat) return 1;
 
-    // Step 2: allocate each row separately
+    // ── Step 2: allocate each row separately ─────────────────
+    // Each call to malloc() can return any free address on the heap.
+    // There is NO guarantee that mat[0], mat[1], mat[2]
+    // are adjacent.
     for (int i = 0; i &lt; rows; i++) {
         mat[i] = (int *)malloc(cols * sizeof(int));
-        printf("Row %d lives at: %p\n", i, (void*)mat[i]);
+        if (!mat[i]) return 1;
+        printf("Row %d allocated at: %p\n", i, (void*)mat[i]);
     }
-    // Those three addresses may be 100s of bytes apart!
 
-    // Fill and use
+    // ── Fill the matrix ───────────────────────────────────────
     for (int i = 0; i &lt; rows; i++)
         for (int j = 0; j &lt; cols; j++)
             mat[i][j] = i * cols + j + 1;
 
-    printf("mat[1][2] = %d\n", mat[1][2]);  // = 7
+    // ── Print with addresses ──────────────────────────────────
+    printf("\nMatrix contents and element addresses:\n");
+    for (int i = 0; i &lt; rows; i++) {
+        printf("  Row %d @ %p  | ", i, (void*)mat[i]);
+        for (int j = 0; j &lt; cols; j++)
+            printf("[%d]@%p  ", mat[i][j], (void*)&amp;mat[i][j]);
+        printf("\n");
+    }
 
-    // Free: rows FIRST, then the pointer array
-    for (int i = 0; i &lt; rows; i++) free(mat[i]);
-    free(mat);
+    // ── Show the gap between rows ─────────────────────────────
+    printf("\nGaps between rows:\n");
+    for (int i = 0; i &lt; rows - 1; i++) {
+        long gap = (long)mat[i+1] - (long)mat[i];
+        printf("  Row %d to Row %d: %ld bytes apart\n", i, i+1, gap);
+    }
+
+    // ── Step 3: FREE in the right order ──────────────────────
+    // MUST free each row first, THEN the pointer array.
+    // If you free mat first, you lose all the row pointers
+    // and can never reach the row data to free it.
+    for (int i = 0; i &lt; rows; i++)
+        free(mat[i]);   // free each row
+    free(mat);          // then free the pointer array
     return 0;
 }</code></pre>
 
+      <p>Typical output makes the fragmentation obvious:</p>
+
+      <div class="output-block">
+Row 0 allocated at: <span style="color:#e07b54">0x5631d4a392b0</span><br/>
+Row 1 allocated at: <span style="color:#e07b54">0x5631d4a392e0</span><br/>
+Row 2 allocated at: <span style="color:#e07b54">0x5631d4a39310</span><br/>
+<br/>
+Gaps between rows:<br/>
+&nbsp;&nbsp;Row 0 to Row 1: <span style="color:#f9c74f">48</span> bytes apart<br/>
+&nbsp;&nbsp;Row 1 to Row 2: <span style="color:#f9c74f">48</span> bytes apart<br/>
+<span class="comment">  (in this case adjacent because heap was empty — in a real program
+   with mixed allocations, these gaps can be hundreds of bytes or more)</span>
+      </div>
+
+      <h3>Why this matters for performance</h3>
+
+      <p>
+        Modern CPUs are fast because of caches. When you access <code>mat[0][3]</code>,
+        the CPU doesn't just fetch 4 bytes — it fetches an entire 64-byte cache line.
+        If the next thing you access is <code>mat[1][0]</code>, with a contiguous layout
+        that's right there in the cache. With a pointer-of-pointers layout, it's at a
+        completely different address — the cache line you just loaded is useless, and you
+        pay for another memory fetch.
+      </p>
+
+      <p>
+        For small matrices this is irrelevant. For large matrices in hot inner loops —
+        like the kind you'd write to multiply two 1024×1024 matrices — pointer chasing
+        can cut your throughput by 5–10x compared to a flat contiguous layout.
+      </p>
+
+      <h3>The flat 1D layout: the better alternative</h3>
+
+<pre><code>// Instead of pointer-of-pointers, allocate one flat block:
+int *mat_flat = (int *)malloc(rows * cols * sizeof(int));
+
+// Access element [i][j] as:
+mat_flat[i * cols + j] = value;
+
+// This is:
+//   - A single malloc (one heap allocation, no fragmentation)
+//   - Perfectly contiguous (cache-friendly)
+//   - One free at the end
+free(mat_flat);</code></pre>
+
       <blockquote>
-        This is why CUDA prefers flat 1D arrays for GPU memory. A contiguous
-        <code>float *d_arr = cudaMalloc(rows * cols * sizeof(float))</code>
-        has perfect cache behaviour. Scattered pointers do not.
+        This is exactly why every CUDA matrix example uses the flat layout.
+        <code>cudaMalloc(&amp;d_mat, rows * cols * sizeof(float))</code> gives you one
+        contiguous block on the GPU. Access it as <code>d_mat[row * cols + col]</code>.
+        The GPU's memory subsystem is optimised for coalesced access — consecutive threads
+        reading consecutive addresses — and the flat layout is the only way to get that.
+        A pointer-of-pointers matrix on the GPU is essentially unusable for parallel kernels.
       </blockquote>
 
-      <p>
-        The free order matters: you must free each row first, then free the pointer array.
-        If you free <code>mat</code> first, you lose all the row pointers and can never
-        free the row data — instant memory leak.
-      </p>
+      <hr class="section-divider" />
 
-      <h2>What These Four Programs Build Toward</h2>
+      <h2>What these four programs build toward</h2>
 
       <p>
-        These aren't just C exercises. Every concept maps directly to something you'll
-        encounter in CUDA:
+        These aren't isolated C exercises. They're the vocabulary for understanding GPU
+        programming. Here's exactly how each concept maps forward:
       </p>
 
-      <ul>
-        <li>Stack vs heap → <code>cudaMalloc</code> is heap on the GPU</li>
-        <li>Pointer arithmetic → GPU thread indexing is pointer offset by <code>threadIdx</code></li>
-        <li>Memory segments → CUDA has its own: global, shared, local, constant, texture memory</li>
-        <li>2D array layout → why CUDA examples always flatten 2D grids to 1D: <code>row * cols + col</code></li>
-      </ul>
+      <table class="address-table">
+        <tr>
+          <th>C concept (this post)</th>
+          <th>CUDA equivalent</th>
+        </tr>
+        <tr>
+          <td>Heap allocation with malloc</td>
+          <td><code>cudaMalloc</code> — heap on the GPU device</td>
+        </tr>
+        <tr>
+          <td>Stack lifetime (auto)</td>
+          <td>Kernel local variables — thread-private "stack" on GPU registers</td>
+        </tr>
+        <tr>
+          <td>Pointer arithmetic: <code>arr[i]</code> == <code>*(arr+i)</code></td>
+          <td>GPU thread indexing: <code>arr[blockIdx.x * blockDim.x + threadIdx.x]</code></td>
+        </tr>
+        <tr>
+          <td>5 memory segments</td>
+          <td>CUDA memory spaces: global, shared, local, constant, texture</td>
+        </tr>
+        <tr>
+          <td>Flat 1D array vs pointer-of-pointers</td>
+          <td>Coalesced access vs scattered access — the #1 GPU performance concern</td>
+        </tr>
+      </table>
+
+      <p>
+        In <a href="c-memory-part2.html">Part 2</a> we go deeper into heap mechanics:
+        resizing allocations with <code>realloc</code>, why linked lists scatter nodes
+        across the heap and destroy cache performance, and the invisible padding bytes
+        the compiler hides inside every struct you define.
+      </p>
 
       <div class="series-nav">
         <span></span>

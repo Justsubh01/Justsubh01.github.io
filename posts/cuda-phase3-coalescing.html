@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUDA Mastery Phase 3.3 — Memory Coalescing — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· 20 min read</span>
+      </div>
+      <h1>CUDA Mastery Phase 3.3 — Memory Coalescing: How Access Patterns Make or Break Performance</h1>
+      <p class="post-description">
+        Why the order threads read from global memory determines whether you get 2 TB/s
+        or 200 GB/s, what a coalesced access looks like at the hardware level, and how to
+        restructure data layouts to stop leaving 10× performance on the table.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Memory coalescing is the single most impactful thing you can do for a memory-bound CUDA
+        kernel, and it's often the first thing I check when a kernel is slower than expected.
+        Get it right and you saturate the memory bus. Get it wrong and you throw away 90% of
+        your bandwidth.
+      </p>
+
+      <h2>1. What Coalescing Is — Hardware Perspective</h2>
+
+      <p>
+        GPU global memory is accessed in 128-byte cache lines. When a warp of 32 threads
+        issues memory requests, the hardware checks whether all 32 requests can be served
+        by a small number of contiguous cache lines. If yes — coalesced. If the addresses
+        are scattered — uncoalesced, and you pay for each cache line separately.
+      </p>
+
+      <pre><code>  How a warp memory request is processed:
+
+  Step 1: Warp of 32 threads each issue a load instruction
+          (e.g., float val = arr[idx])
+
+  Step 2: GPU collects all 32 addresses from the warp
+
+  Step 3: Hardware groups addresses into 128-byte cache lines
+          (each cache line covers 32 consecutive floats)
+
+  Step 4:
+    Best case:  all 32 addresses fit in 1 cache line → 1 transaction
+    Typical:    all 32 addresses fit in 2-4 cache lines → 2-4 transactions
+    Worst case: all 32 addresses are in different cache lines → 32 transactions
+
+  Effective bandwidth = peak_bandwidth / num_transactions_per_warp_access</code></pre>
+
+      <h2>2. Coalesced vs Strided Access Patterns</h2>
+
+      <pre><code>  COALESCED (stride 1) — IDEAL:
+  ───────────────────────────────────────────────────────────────
+  Thread:  T0    T1    T2    T3   ...  T30   T31
+  Index:   [0]   [1]   [2]   [3]  ...  [30]  [31]
+  Address: 0x00  0x04  0x08  0x0C ...  0x78  0x7C
+
+  → All 32 addresses in one 128-byte block [0x00..0x7F]
+  → 1 memory transaction ✓
+  → Full bandwidth utilized
+
+
+  STRIDED (stride 2) — 2x SLOWER:
+  ───────────────────────────────────────────────────────────────
+  Thread:  T0    T1    T2    T3   ...  T30   T31
+  Index:   [0]   [2]   [4]   [6]  ...  [60]  [62]
+  Address: 0x00  0x08  0x10  0x18 ...  0xF0  0xF8
+
+  → Addresses span [0x00..0xF8] = 256 bytes = 2 cache lines
+  → 2 memory transactions (but only half the bytes used!)
+  → 2x the transactions, 2x the bandwidth waste
+
+
+  STRIDED (stride 32) — 32x SLOWER:
+  ───────────────────────────────────────────────────────────────
+  Thread:  T0     T1     T2    ...  T31
+  Index:   [0]    [32]   [64]  ...  [992]
+  Address: 0x000  0x080  0x100 ...  0xF80
+
+  → Each address is in a different 128-byte cache line
+  → 32 separate memory transactions!
+  → Only 4 bytes used from each 128-byte cache line (3% efficiency)
+
+
+  RANDOM access — worst case:
+  → Up to 32 transactions per warp
+  → Can reduce effective bandwidth to &lt;10 GB/s (vs 2000 GB/s peak)</code></pre>
+
+      <h2>3. Array of Structures vs Structure of Arrays</h2>
+
+      <p>
+        The most common coalescing problem in real code: AoS vs SoA data layout.
+      </p>
+
+      <pre><code>  Suppose you have particles with position (x, y, z) and velocity (vx, vy, vz).
+
+  ── Array of Structures (AoS) — BAD for GPU ──
+  struct Particle { float x, y, z, vx, vy, vz; };
+  Particle particles[N];
+
+  Memory layout:
+  [x0 y0 z0 vx0 vy0 vz0 | x1 y1 z1 vx1 vy1 vz1 | x2 ...]
+   ←── particle 0 ──────→ ←── particle 1 ──────→
+
+  Kernel: for each thread i, read particles[i].x
+  Thread 0: addr 0,  Thread 1: addr 24, Thread 2: addr 48 ...
+  Stride = sizeof(Particle) = 24 bytes
+  → Strided access → poor coalescing ✗
+
+
+  ── Structure of Arrays (SoA) — GOOD for GPU ──
+  struct Particles {
+      float *x, *y, *z;    // separate arrays for each field
+      float *vx, *vy, *vz;
+  };
+  Particles p;
+  cudaMalloc(&amp;p.x, N * sizeof(float));
+  // ... for each field
+
+  Memory layout for x:
+  [x0 x1 x2 x3 x4 ... xN]
+
+  Kernel: for each thread i, read p.x[i]
+  Thread 0: p.x[0], Thread 1: p.x[1], Thread 2: p.x[2] ...
+  → Stride 1 → perfect coalescing ✓</code></pre>
+
+      <pre><code>  Performance impact (real numbers):
+  ─────────────────────────────────────────────────────
+  N = 1M particles, read x position:
+  AoS: effective bandwidth ~100 GB/s  (many cache lines wasted)
+  SoA: effective bandwidth ~1800 GB/s (near peak for A100)
+  → ~18x difference from layout alone!
+  ─────────────────────────────────────────────────────</code></pre>
+
+      <h2>4. 2D/Imaging: Row-Major vs Column-Major Access</h2>
+
+      <pre><code>  Image stored row-major:
+  Row 0: [p00 p01 p02 ... p0W]
+  Row 1: [p10 p11 p12 ... p1W]
+  ...
+
+  ── Good: process pixels across a row (x varies) ──
+  int x = blockIdx.x * blockDim.x + threadIdx.x;  // consecutive x
+  int y = blockIdx.y;
+  float val = img[y * W + x];   // T0: y*W+0, T1: y*W+1, ... ✓ coalesced
+
+  ── Bad: process pixels down a column (y varies) ──
+  int x = blockIdx.x;
+  int y = blockIdx.y * blockDim.y + threadIdx.y;  // consecutive y
+  float val = img[y * W + x];   // T0: 0*W+x, T1: 1*W+x, ... stride W ✗
+
+  // For column processing: transpose the image first (into shared memory),
+  // then process the transposed rows.</code></pre>
+
+      <h2>5. The 128-Byte Alignment Rule</h2>
+
+      <pre><code>  For maximum coalescing efficiency, the first address in a warp's access
+  should be aligned to a 128-byte boundary.
+
+  cudaMalloc() always returns 256-byte aligned memory ✓
+
+  But if you do pointer arithmetic that offsets from the base:
+  float *d_base;
+  cudaMalloc(&amp;d_base, big_size);
+  float *d_offset = d_base + 33;  // offset by 33 floats = 132 bytes ← misaligned!
+
+  T0 accesses d_offset+0 = d_base+33 (byte 132, inside cache line 1)
+  T31 accesses d_offset+31 = d_base+64 (byte 256, in cache line 2)
+  → Spans 2 cache lines even for a "stride-1" access if misaligned
+
+  Fix: ensure offsets are multiples of 32 floats (128 bytes):
+  float *d_row = d_base + row * (width + padding);
+  // padding added to make each row start at 128-byte boundary</code></pre>
+
+      <h2>6. Measuring Coalescing Efficiency</h2>
+
+      <pre><code>  # With Nsight Compute:
+  ncu --metrics \
+    l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum,\
+    dram__bytes_read.sum \
+    ./my_program
+
+  # Coalescing efficiency = useful bytes / bytes transferred from DRAM
+  # Perfect: every DRAM byte is used = 100% efficiency
+  # AoS pattern: 12.5% efficiency (1/8 of cache line used per float)
+
+  # The "global memory load efficiency" metric in Nsight:
+  ncu --metrics smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct \
+      ./my_program
+  # 100% = perfect coalescing, 3.125% = complete worst-case</code></pre>
+
+      <h2>7. Practical Coalescing Checklist</h2>
+
+      <pre><code>  ✓ Threads in a warp access consecutive addresses (stride 1)
+  ✓ Thread with threadIdx.x=0 accesses the lowest address
+  ✓ First access is aligned to 128 bytes
+  ✓ Using SoA instead of AoS for multi-field data
+  ✓ 2D kernels: threadIdx.x varies along the row dimension
+  ✓ Checked coalescing efficiency in Nsight Compute
+
+  Common anti-patterns that kill coalescing:
+  ✗ Accessing with stride == blockDim.x (shared column access)
+  ✗ AoS layout for per-thread different-field accesses
+  ✗ Pointer offsets that misalign to cache lines
+  ✗ Scatter/gather with random addresses (unavoidable for some algorithms)
+     → Use texture memory or shared memory as intermediate stage</code></pre>
+
+      <h2>8. Fixing a Strided Access With Shared Memory</h2>
+
+      <pre><code>  // Problem: need column-major access for some computation
+  // Solution: use shared memory as a transposition buffer
+
+  #define TILE 32
+
+  __global__ void process_columns(float *data, float *output, int W, int H) {
+      __shared__ float tile[TILE][TILE + 1];  // +1 avoids bank conflicts
+
+      // Load a tile: each thread loads one element, row-major (coalesced)
+      int x = blockIdx.x * TILE + threadIdx.x;
+      int y = blockIdx.y * TILE + threadIdx.y;
+      if (x &lt; W &amp;&amp; y &lt; H)
+          tile[threadIdx.y][threadIdx.x] = data[y * W + x];
+
+      __syncthreads();
+
+      // Process: now access tile column-major (stride 1 in shared memory)
+      // Each warp reads one column of the tile — but in shared memory, not global!
+      // For output, write transposed back to global (now coalesced in new layout)
+      int ox = blockIdx.y * TILE + threadIdx.x;
+      int oy = blockIdx.x * TILE + threadIdx.y;
+      if (ox &lt; H &amp;&amp; oy &lt; W) {
+          float processed = tile[threadIdx.x][threadIdx.y] * 2.0f;
+          output[oy * H + ox] = processed;
+      }
+  }</code></pre>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>Coalescing = consecutive threads accessing consecutive memory addresses = 1 memory transaction.</li>
+        <li>Strided access wastes cache lines: stride-N access is N× slower due to N× more transactions.</li>
+        <li>SoA layout achieves coalescing; AoS causes strided access — restructure your data.</li>
+        <li>For 2D data: let threadIdx.x vary along the "fast" (row) dimension for coalesced reads.</li>
+        <li>Use shared memory as a transpose buffer to convert uncoalesced global reads to coalesced ones.</li>
+        <li>Measure with Nsight Compute: <code>smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct</code></li>
+        <li>Next: <a href="cuda-phase3-unified-memory.html">Phase 3.4 — Unified Memory</a></li>
+      </ul>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

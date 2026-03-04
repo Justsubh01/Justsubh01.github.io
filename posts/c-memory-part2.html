@@ -8,66 +8,73 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
-    .gif-wrap {
-      text-align: center;
-      margin: 2rem 0;
-    }
+    .gif-wrap { text-align: center; margin: 2.5rem 0; }
     .gif-wrap img {
-      max-width: 100%;
-      border-radius: 10px;
+      max-width: 100%; border-radius: 10px;
       border: 1px solid var(--border);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.13);
     }
     .gif-caption {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin-top: 0.5rem;
-      font-style: italic;
+      font-size: 0.82rem; color: var(--text-muted);
+      margin-top: 0.6rem; font-style: italic; line-height: 1.5;
     }
     .concept-box {
-      background: var(--accent-soft);
-      border-left: 3px solid var(--accent);
+      background: var(--accent-soft); border-left: 4px solid var(--accent);
       border-radius: 0 8px 8px 0;
-      padding: 1rem 1.25rem;
-      margin: 1.5rem 0;
-      font-size: 0.95rem;
+      padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem;
     }
     .warning-box {
-      background: #fff7ed;
-      border-left: 3px solid #f97316;
+      background: #fff7ed; border-left: 4px solid #f97316;
       border-radius: 0 8px 8px 0;
-      padding: 1rem 1.25rem;
-      margin: 1.5rem 0;
-      font-size: 0.95rem;
+      padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem;
     }
-    .byte-legend {
-      display: flex;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-      margin: 1rem 0;
-      font-size: 0.85rem;
+    .danger-box {
+      background: #fff1f2; border-left: 4px solid #ef4444;
+      border-radius: 0 8px 8px 0;
+      padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem;
     }
-    .byte-legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
+    .output-block {
+      background: #0f172a; border-radius: 8px;
+      padding: 1rem 1.25rem; margin: 1.5rem 0;
+      font-family: monospace; font-size: 0.85rem;
+      color: #a3e635; overflow-x: auto; border: 1px solid #1e293b;
     }
-    .swatch {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border-radius: 3px;
-    }
+    .output-block .comment { color: #64748b; }
     .series-nav {
-      display: flex;
-      justify-content: space-between;
-      margin: 2.5rem 0 0;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.9rem;
+      display: flex; justify-content: space-between;
+      margin: 2.5rem 0 0; padding-top: 1.5rem;
+      border-top: 1px solid var(--border); font-size: 0.9rem;
     }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
+    .toc {
+      background: #f8fafc; border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0;
+    }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .byte-grid {
+      display: flex; flex-wrap: wrap; gap: 3px;
+      margin: 1rem 0; font-family: monospace; font-size: 0.75rem;
+    }
+    .byte-grid .cell {
+      width: 36px; height: 36px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .cell.member { background: #4f86c6; color: white; }
+    .cell.pad    { background: #f28b82; color: white; }
+    .cell-label  { font-size: 0.6rem; opacity: 0.8; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
+    .compare-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .compare-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .compare-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); }
+    .compare-table tr:nth-child(even) td { background: #f8fafc; }
+    .good { color: #22c55e; font-weight: 600; }
+    .bad  { color: #ef4444; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -88,102 +95,235 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 16 min read</span>
+        <span class="read-time">· 26 min read</span>
       </div>
       <h1>C Memory Internals #2: Realloc, Linked Lists &amp; Struct Padding</h1>
       <p class="post-description">
-        Part 2 of the C memory series. We go deeper into heap mechanics — resizing
-        memory with realloc, building linked lists that scatter nodes across the heap,
-        and the invisible padding bytes the compiler hides inside your structs.
-        Each concept ships with a live C program and an animated diagram.
+        Part 2 of the C memory series. The heap has more to it than malloc and free —
+        you can resize allocations, build pointer chains across it, and pack data into
+        structs that may be secretly larger than you think. Three programs, three concepts
+        that explain bugs you've probably hit without knowing why.
       </p>
     </div>
 
     <div class="post-body">
 
       <p>
-        <a href="c-memory-part1.html">Part 1</a> covered the fundamentals: stack, heap,
-        pointer arithmetic, memory segments, and dynamic 2D arrays. Now we go deeper into
-        how the heap actually behaves when you resize allocations, chain nodes together,
-        and pack data into structs. These are the concepts that explain subtle bugs —
-        the kind where your program "mostly works" until it mysteriously corrupts data
-        or wastes 40% of its memory to padding.
+        <a href="c-memory-part1.html">Part 1</a> built the vocabulary: stack vs heap,
+        pointer arithmetic, the five memory segments, and why dynamic 2D arrays aren't
+        what you picture. This part goes deeper into heap mechanics. We're going to look
+        at three concepts that sit just below the surface — the kind of things that don't
+        bite you in small programs but definitely bite you when you're writing a server,
+        an inference pipeline, or anything that runs for more than a few seconds with
+        real data.
       </p>
 
-      <h2>Program 5 — realloc(): Resizing Heap Memory</h2>
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#p5">Program 5 — realloc(): resizing heap blocks and when your pointer moves</a></li>
+          <li><a href="#p6">Program 6 — Linked List: how pointer-chasing destroys cache performance</a></li>
+          <li><a href="#p7">Program 7 — Struct Padding: the invisible bytes the compiler hides from you</a></li>
+        </ol>
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="p5">Program 5 — realloc(): Resizing Heap Memory</h2>
+
+      <h3>Why realloc exists</h3>
 
       <p>
-        <code>malloc</code> gives you a fixed-size block. But what if you need more space?
-        <code>realloc(ptr, new_size)</code> resizes an existing allocation. The tricky
-        part: it might <strong>move</strong> your data to a completely different address
-        if there isn't enough free space after the current block.
+        <code>malloc()</code> gives you a fixed block. You specify the size upfront and
+        that's what you get. But real programs often don't know how much space they need
+        at the time of allocation — they start with a guess and grow. The naive approach
+        is: malloc a small block, fill it, malloc a bigger block, copy the data, free
+        the small block. <code>realloc()</code> does that for you in one call, and can
+        be smarter about it.
       </p>
 
+      <h3>What realloc actually does under the hood</h3>
+
+      <p>
+        <code>realloc(ptr, new_size)</code> has three possible outcomes depending on the
+        state of the heap:
+      </p>
+
+      <ol>
+        <li>
+          <strong>Extend in place</strong> — If there is enough free memory immediately
+          after the current block, the allocator just extends the block boundary. Same
+          address. No copying. This is fast and is the common case when you grow a block
+          shortly after allocating it before other allocations fill in the gap.
+        </li>
+        <li>
+          <strong>Move to a new location</strong> — If the space after the current block
+          is occupied, the allocator finds a new region big enough, copies all the old data
+          there using an internal <code>memcpy</code>, and frees the old block. The returned
+          pointer is different. Any pointer or reference you held to the old address is now
+          dangling — this is a common source of bugs.
+        </li>
+        <li>
+          <strong>Fail</strong> — If the heap has no block big enough, <code>realloc</code>
+          returns <code>NULL</code>. The original block is <em>not freed</em>. It still
+          exists at the old address. This is the source of the classic realloc bug.
+        </li>
+      </ol>
+
       <div class="gif-wrap">
-        <img src="assets/gif_realloc.gif" alt="realloc growing and moving a heap block" />
-        <p class="gif-caption">Step 1: initial malloc(4 ints). Step 2: realloc grows in place — address unchanged, new slots added. Step 3: no space after the block — realloc allocates a new larger block, copies old data, frees the old block. Step 4: shrinking trims the tail.</p>
+        <img src="assets/gif_realloc.gif" alt="realloc steps: initial malloc, grow in place, move to new location, shrink" />
+        <p class="gif-caption">
+          Step 1: initial malloc(4 ints = 16 bytes). Step 2: realloc to 8 ints —
+          if space is available after the block, it extends in place and the address
+          stays the same. Step 3: if not, the allocator finds a new location, copies
+          old data, and frees the old block — the returned address is different.
+          Step 4: shrinking trims the tail without moving.
+        </p>
       </div>
 
 <pre><code>#include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
 
 int main() {
-    // Start with 4 ints
-    int *arr = (int *)malloc(4 * sizeof(int));
-    arr[0] = 10; arr[1] = 20; arr[2] = 30; arr[3] = 40;
-    printf("Before realloc: arr = %p\n", (void*)arr);
+    // ── Initial allocation ────────────────────────────────────
+    int n = 4;
+    int *arr = (int *)malloc(n * sizeof(int));
+    if (!arr) return 1;
+    arr[0]=10; arr[1]=20; arr[2]=30; arr[3]=40;
+    printf("Initial: arr @ %p  size=%d ints\n", (void*)arr, n);
 
-    // Grow to 8 ints
-    // DANGER: do NOT do:  arr = realloc(arr, 8 * sizeof(int));
-    // If realloc fails and returns NULL, you lose the original pointer!
+    // ── GROW: 4 → 8 ints ─────────────────────────────────────
+    // THE CLASSIC BUG:
+    //   arr = realloc(arr, 8 * sizeof(int));
+    // If realloc returns NULL (out of memory), you've just
+    // overwritten arr (your only pointer to the old data)
+    // with NULL. The old data is leaked and irretrievable.
+    //
+    // SAFE PATTERN: use a temporary
     int *tmp = (int *)realloc(arr, 8 * sizeof(int));
-    if (!tmp) { free(arr); return 1; }  // safe pattern
-    arr = tmp;
-    arr[4]=50; arr[5]=60; arr[6]=70; arr[7]=80;
-    printf("After  realloc: arr = %p\n", (void*)arr);
-    // Address may be the same (grew in place) or different (moved)
+    if (!tmp) {
+        // realloc failed — but arr is still valid!
+        fprintf(stderr, "realloc failed\n");
+        free(arr);   // clean up the original
+        return 1;
+    }
+    arr = tmp;  // only assign after confirming success
 
-    // Shrink back to 3 ints
+    // Fill the new slots (old data preserved automatically)
+    arr[4]=50; arr[5]=60; arr[6]=70; arr[7]=80;
+    n = 8;
+    printf("After grow:  arr @ %p  size=%d ints\n", (void*)arr, n);
+    printf("  Old data preserved: arr[0]=%d arr[3]=%d\n",
+           arr[0], arr[3]);  // still 10 and 40
+
+    // ── SHRINK: 8 → 3 ints ───────────────────────────────────
+    // Shrinking almost always happens in place — no move needed.
+    // Elements beyond the new size are simply inaccessible.
     tmp = (int *)realloc(arr, 3 * sizeof(int));
-    if (tmp) arr = tmp;  // arr[3]..arr[7] are now gone
+    if (tmp) { arr = tmp; n = 3; }
+    printf("After shrink: arr @ %p  size=%d ints\n", (void*)arr, n);
+    printf("  arr[0]=%d arr[1]=%d arr[2]=%d\n",
+           arr[0], arr[1], arr[2]);
+    // arr[3]..arr[7] are gone — accessing them is UB
+
+    // ── Special cases ─────────────────────────────────────────
+    // realloc(NULL, size)  == malloc(size)
+    // realloc(ptr, 0)      == free(ptr)  (implementation-defined, but common)
 
     free(arr);
     return 0;
 }</code></pre>
 
-      <div class="warning-box">
-        <strong>Common bug:</strong> <code>arr = realloc(arr, new_size)</code> is dangerous.
-        If <code>realloc</code> fails it returns <code>NULL</code>, and you've just
-        overwritten your only pointer to the old memory — it's leaked forever.
-        Always use a temporary: <code>tmp = realloc(arr, ...); if (tmp) arr = tmp;</code>
+      <div class="output-block">
+Initial: arr @ <span style="color:#e07b54">0x5631d4a392b0</span>  size=4 ints<br/>
+After grow:  arr @ <span style="color:#e07b54">0x5631d4a392b0</span>  size=8 ints  <span class="comment">← same addr (extended in place)</span><br/>
+  Old data preserved: arr[0]=10 arr[3]=40<br/>
+After shrink: arr @ <span style="color:#e07b54">0x5631d4a392b0</span>  size=3 ints<br/>
+  arr[0]=10 arr[1]=20 arr[2]=30
       </div>
 
-      <p>What realloc does under the hood:</p>
-      <ol>
-        <li>Check if there's free space immediately after the current block</li>
-        <li>If yes — extend in place, same address, no copy needed (fast)</li>
-        <li>If no — allocate a new larger block, <code>memcpy</code> old data into it, free the old block (slow)</li>
-      </ol>
-
-      <div class="concept-box">
-        <strong>Real-world use:</strong> Dynamic arrays (like C++'s <code>std::vector</code>)
-        use realloc internally, doubling size on each growth to amortise the cost.
-        In CUDA, you can't realloc device memory — you must cudaMalloc a new buffer,
-        cudaMemcpy the data, then cudaFree the old one. Same idea, more ceremony.
-      </div>
-
-      <h2>Program 6 — Linked List: Nodes Scattered Across the Heap</h2>
+      <h3>When the address changes — and the subtle bug it creates</h3>
 
       <p>
-        A linked list is a chain of nodes. Each node has two fields: a data value and a
-        <code>next</code> pointer to the next node. Unlike arrays, nodes are
-        <strong>not contiguous</strong> — each one is a separate <code>malloc</code> call,
-        and they can end up anywhere in the heap.
+        The move case is what causes the hard-to-find bugs. Suppose you have a struct with
+        a pointer back into the array:
+      </p>
+
+<pre><code>int *arr = malloc(4 * sizeof(int));
+int *first_elem = &amp;arr[0];   // save a pointer to the first element
+
+arr = realloc(arr, 100 * sizeof(int));  // may move arr
+
+// If realloc moved the array, first_elem is now DANGLING.
+// It points to the old (freed) memory. Using it is UB.
+printf("%d\n", *first_elem);  // ← undefined behaviour if arr moved</code></pre>
+
+      <p>
+        The fix is to never save raw pointers into an array you might realloc. Save
+        indices instead, and re-derive the pointer after the realloc:
+      </p>
+
+<pre><code>int first_idx = 0;   // save the index, not the pointer
+arr = realloc(arr, 100 * sizeof(int));
+int *first_elem = &amp;arr[first_idx];  // re-derive after realloc — always valid</code></pre>
+
+      <div class="concept-box">
+        <strong>How std::vector does it:</strong> C++'s vector uses exactly this pattern.
+        It doubles capacity on each growth (amortised O(1) push_back), calls the equivalent
+        of realloc, and invalidates all iterators when growth moves the buffer. That's why
+        the standard says iterators are invalidated after push_back if it causes reallocation —
+        because realloc may have moved the underlying array, making all old pointers dangle.
+      </div>
+
+      <div class="concept-box">
+        <strong>CUDA note:</strong> There is no <code>cudaRealloc</code>. Device memory
+        cannot be resized in place. If you need a larger GPU buffer, you must:
+        cudaMalloc a new bigger buffer → cudaMemcpy old data into it → cudaFree the old
+        buffer. The same logical steps as a realloc-move, just written manually.
+        This is why pre-allocating a maximum-size buffer and tracking a "used" count
+        is a common GPU pattern — it avoids the copy entirely.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="p6">Program 6 — Linked List: Nodes Scattered Across the Heap</h2>
+
+      <h3>What a linked list actually is in memory</h3>
+
+      <p>
+        A linked list is a data structure where each element (node) explicitly stores
+        a pointer to the next element. There's no contiguous block. Each node is its own
+        malloc call, and can land anywhere on the heap. The only way to get from one node
+        to the next is to follow the <code>next</code> pointer — hence "pointer chasing."
+      </p>
+
+      <p>
+        Here's the node definition we'll use:
+      </p>
+
+<pre><code>typedef struct Node {
+    int         data;        // 4 bytes — the payload
+    struct Node *next;       // 8 bytes — pointer to the next node
+} Node;
+// sizeof(Node) = 16 bytes (4 data + 4 padding + 8 pointer)</code></pre>
+
+      <p>
+        Each node is 16 bytes. Each time we add an element to the list, we call
+        <code>malloc(16)</code>. The OS can return any 16-byte-aligned address on the
+        heap. In a program that has other allocations happening, these addresses can
+        easily be kilobytes apart.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_linked_list.gif" alt="Linked list nodes appearing across heap with arrows" />
-        <p class="gif-caption">Each node is a separate malloc call. The arrows follow the next pointer from node to node. Notice the addresses — they jump around the heap. This is why linked lists have poor cache performance: the CPU has to chase pointers across non-contiguous memory.</p>
+        <img src="assets/gif_linked_list.gif" alt="Linked list nodes appearing at scattered heap addresses with arrows" />
+        <p class="gif-caption">
+          Each node appears at a different heap location. The arrows show the
+          <code>next</code> pointer chain — to traverse the list you must follow
+          each arrow (dereference each pointer), landing at a new, non-predictable
+          address each time. The CPU's prefetcher can't predict these jumps, so
+          every node access is potentially a cache miss.
+        </p>
       </div>
 
 <pre><code>#include &lt;stdio.h&gt;
@@ -191,140 +331,411 @@ int main() {
 
 typedef struct Node {
     int         data;
-    struct Node *next;   // pointer to the next node (or NULL if last)
+    struct Node *next;
 } Node;
 
+// Allocate and initialise a new node
 Node *new_node(int value) {
-    Node *n = (Node *)malloc(sizeof(Node));  // one heap allocation per node
-    n-&gt;data = value;
-    n-&gt;next = NULL;
+    Node *n    = (Node *)malloc(sizeof(Node));
+    n-&gt;data    = value;  // n-&gt;field is shorthand for (*n).field
+    n-&gt;next    = NULL;
     return n;
 }
 
-int main() {
-    // Build: 10 -&gt; 20 -&gt; 30 -&gt; 40 -&gt; NULL
-    Node *head = new_node(10);
-    head-&gt;next = new_node(20);
-    head-&gt;next-&gt;next = new_node(30);
-    head-&gt;next-&gt;next-&gt;next = new_node(40);
+// Append to the tail of the list
+Node *append(Node *head, int value) {
+    Node *nn = new_node(value);
+    if (!head) return nn;  // first node becomes the head
 
-    // Walk the chain and print addresses
+    // Walk to the last node
     Node *cur = head;
+    while (cur-&gt;next) cur = cur-&gt;next;
+    cur-&gt;next = nn;
+    return head;
+}
+
+// Insert at the head — O(1)
+Node *prepend(Node *head, int value) {
+    Node *nn = new_node(value);
+    nn-&gt;next = head;
+    return nn;  // new node is the new head
+}
+
+int main() {
+    Node *head = NULL;
+
+    // Build list: 10 -&gt; 20 -&gt; 30 -&gt; 40 -&gt; 50
+    for (int v = 10; v &lt;= 50; v += 10)
+        head = append(head, v);
+
+    // Print the chain with addresses
+    printf("LINKED LIST — following the next pointer chain:\n\n");
+    Node *cur = head;
+    int idx = 0;
     while (cur) {
-        printf("node(%d) at %p  next-&gt; %p\n",
-               cur-&gt;data, (void*)cur, (void*)cur-&gt;next);
+        printf("  node[%d] @ %p | data=%-3d | next→ %p\n",
+               idx, (void*)cur, cur-&gt;data, (void*)cur-&gt;next);
+        cur = cur-&gt;next;
+        idx++;
+    }
+
+    // Show byte gaps between consecutive nodes
+    printf("\nByte gaps between consecutive nodes:\n");
+    cur = head;
+    while (cur &amp;&amp; cur-&gt;next) {
+        long gap = (long)cur-&gt;next - (long)cur;
+        printf("  %p → %p : %ld bytes\n",
+               (void*)cur, (void*)cur-&gt;next, gap);
         cur = cur-&gt;next;
     }
-    // Addresses will NOT be contiguous — they scatter across the heap
 
-    // Free: walk and free each node individually
+    // Show sizeof
+    printf("\nsizeof(Node) = %zu bytes\n", sizeof(Node));
+    printf("  int data  : %zu bytes\n", sizeof(int));
+    printf("  padding   : %zu bytes  (to align pointer to 8-byte boundary)\n",
+           sizeof(Node) - sizeof(int) - sizeof(Node*));
+    printf("  Node *next: %zu bytes\n", sizeof(Node*));
+
+    // Free — must visit every node; cannot bulk free
+    printf("\nFreeing nodes:\n");
     cur = head;
+    idx = 0;
     while (cur) {
-        Node *tmp = cur-&gt;next;  // save next BEFORE freeing cur
+        Node *tmp = cur-&gt;next;  // MUST save next BEFORE freeing cur
+        printf("  free node[%d] @ %p\n", idx, (void*)cur);
         free(cur);
         cur = tmp;
+        idx++;
     }
     return 0;
 }</code></pre>
 
+      <h3>The cache performance problem, explained</h3>
+
       <p>
-        The node struct uses <code>n-&gt;field</code> syntax (arrow operator) instead of
-        <code>(*n).field</code>. They're identical — the arrow is just shorthand for
-        "dereference the pointer, then access the field".
+        Modern CPUs work in units of <strong>cache lines</strong> — 64 bytes on x86.
+        When you access any byte of memory, the CPU fetches the surrounding 64 bytes
+        into L1 cache. If the next memory access is within those 64 bytes, it's a
+        cache hit — essentially free. If not, it's a cache miss — the CPU stalls
+        for ~100 nanoseconds waiting for the next cache line from RAM.
       </p>
 
-      <ul>
-        <li><strong>O(1) insert at head</strong> — just point new node's next at old head</li>
-        <li><strong>O(n) access by index</strong> — must walk from head every time</li>
-        <li><strong>Poor cache performance</strong> — nodes land at random heap addresses, CPU cache misses on every step</li>
-        <li><strong>Must free one node at a time</strong> — you cannot bulk-free a linked list</li>
-      </ul>
+      <p>
+        An array is cache-friendly. <code>arr[0]</code> through <code>arr[15]</code>
+        (for int) all fit in one 64-byte cache line. Scanning the array is nearly as
+        fast as the hardware can go.
+      </p>
+
+      <p>
+        A linked list is cache-hostile. Each node is a separate malloc. Node addresses
+        are unpredictable — they can be anywhere in the heap. When you follow
+        <code>cur = cur-&gt;next</code>, you're jumping to a random address that almost
+        certainly isn't in any cache. Every single node traversal is a cache miss.
+      </p>
+
+      <div class="output-block">
+<span class="comment">Array scan (5 ints, contiguous):</span><br/>
+  addr[0]=<span style="color:#f9c74f">0x1000</span>, addr[1]=<span style="color:#f9c74f">0x1004</span>, addr[2]=<span style="color:#f9c74f">0x1008</span>... (same cache line)<br/>
+<br/>
+<span class="comment">Linked list traversal (5 nodes, scattered):</span><br/>
+  node[0]@ <span style="color:#e07b54">0x2b0</span> → node[1]@ <span style="color:#e07b54">0x4e0</span> → node[2]@ <span style="color:#e07b54">0x1a30</span> → ...  (cache miss each hop)
+      </div>
+
+      <table class="compare-table">
+        <tr>
+          <th>Operation</th>
+          <th>Array</th>
+          <th>Linked List</th>
+        </tr>
+        <tr>
+          <td>Access by index [i]</td>
+          <td class="good">O(1) — direct address calculation</td>
+          <td class="bad">O(n) — walk from head</td>
+        </tr>
+        <tr>
+          <td>Insert at front</td>
+          <td class="bad">O(n) — shift all elements</td>
+          <td class="good">O(1) — new node points to old head</td>
+        </tr>
+        <tr>
+          <td>Insert in middle</td>
+          <td class="bad">O(n) shift + O(1) write</td>
+          <td class="good">O(n) walk + O(1) pointer update</td>
+        </tr>
+        <tr>
+          <td>Sequential scan</td>
+          <td class="good">Cache-friendly (prefetcher helps)</td>
+          <td class="bad">Cache-hostile (random pointer hops)</td>
+        </tr>
+        <tr>
+          <td>Memory overhead</td>
+          <td class="good">Zero — just the data</td>
+          <td class="bad">+8 bytes per node for next pointer</td>
+        </tr>
+        <tr>
+          <td>Dynamic resize</td>
+          <td>Needs realloc (may copy)</td>
+          <td class="good">O(1) new node, no copying</td>
+        </tr>
+      </table>
 
       <blockquote>
-        This is why GPU algorithms avoid pointer-chasing data structures.
-        A GPU has thousands of threads, each needing to access memory in parallel —
-        random pointer hops destroy memory throughput.
+        Linked lists are essentially unusable on GPUs. A GPU's memory subsystem is
+        designed for coalesced access — hundreds of threads reading consecutive addresses
+        simultaneously. Pointer chasing gives you the exact opposite: each thread follows
+        its own unpredictable pointer, producing hundreds of scattered, uncoalesced
+        memory reads. The throughput collapses. GPU graph algorithms avoid linked lists
+        by representing edges as sorted arrays with offset tables.
       </blockquote>
 
-      <h2>Program 7 — Struct Padding &amp; Memory Alignment</h2>
+      <h3>The arrow operator: what n-&gt;field actually does</h3>
 
       <p>
-        This one surprised me the most. <code>sizeof(struct)</code> is often
-        <strong>larger</strong> than the sum of its member sizes. The compiler
-        inserts invisible <strong>padding bytes</strong> to satisfy the CPU's alignment
-        requirements.
+        When <code>cur</code> is a <code>Node *</code>, writing <code>cur-&gt;data</code>
+        is exactly the same as writing <code>(*cur).data</code>. The arrow operator
+        dereferences the pointer (follows the address to the actual struct in memory)
+        and then accesses the named field. These two are identical in machine code —
+        the arrow is just syntax sugar for the dereference-then-member pattern:
+      </p>
+
+<pre><code>Node *n = new_node(42);
+
+// These three lines do the same thing:
+n-&gt;data = 100;      // arrow: dereference then access
+(*n).data = 100;    // explicit dereference then member access
+(&amp;n-&gt;data)[0] = 100;  // treat as pointer to int — also works</code></pre>
+
+      <hr class="section-divider" />
+
+      <h2 id="p7">Program 7 — Struct Padding &amp; Memory Alignment</h2>
+
+      <h3>The problem: sizeof lies to you</h3>
+
+      <p>
+        Take this struct:
+      </p>
+
+<pre><code>typedef struct {
+    char   a;    // 1 byte
+    int    b;    // 4 bytes
+    char   c;    // 1 byte
+    double d;    // 8 bytes
+    char   e;    // 1 byte
+} Bad;
+// Sum of members: 1 + 4 + 1 + 8 + 1 = 15 bytes
+// sizeof(Bad) = ???</code></pre>
+
+      <p>
+        If you answered 15, run the program. The answer is 32 — more than twice the
+        sum of the members. The extra 17 bytes are invisible padding inserted by the
+        compiler. You didn't ask for them. You can't see them. But they're there, and
+        they cost you memory and cache space on every single instance.
+      </p>
+
+      <h3>Why the CPU needs aligned memory</h3>
+
+      <p>
+        The root cause is hardware. A 64-bit CPU reads data from memory in aligned chunks.
+        To read an <code>int</code> (4 bytes), the CPU requires the starting address to
+        be a multiple of 4. To read a <code>double</code> (8 bytes), it requires the
+        address to be a multiple of 8. This isn't a language rule — it's a CPU hardware
+        constraint.
       </p>
 
       <p>
-        The CPU wants to read an <code>int</code> (4 bytes) from an address divisible
-        by 4. It wants a <code>double</code> (8 bytes) at an address divisible by 8.
-        If the data isn't aligned, the CPU needs two memory reads instead of one.
-        So the compiler adds padding bytes before each field to push it to the right
-        alignment boundary.
+        What happens if data is misaligned? On x86, the CPU can still read it — but it
+        takes two memory operations instead of one, with the two halves fetched separately
+        and assembled. On ARM, misaligned access typically causes a hardware exception
+        (bus error / alignment fault) that kills the process.
+      </p>
+
+      <p>
+        So the compiler, knowing this, inserts invisible padding bytes between struct
+        members to ensure each member starts at its required alignment boundary.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_struct_padding.gif" alt="Struct bytes revealing with padding highlighted in red" />
-        <p class="gif-caption">The 32 bytes of struct Bad are revealed one by one. Red slots are padding — completely wasted. The struct has only 15 bytes of actual data but takes 32 bytes because of poor member ordering.</p>
+        <img src="assets/gif_struct_padding.gif" alt="32 bytes of struct Bad revealed byte by byte, with red padding slots" />
+        <p class="gif-caption">
+          The 32 bytes of <code>struct Bad</code> revealed byte by byte. Blue slots are
+          actual member data. Red slots are padding — wasted. The struct has only 15 bytes
+          of real data but occupies 32 bytes because the poor member ordering forces the
+          compiler to insert 17 padding bytes to keep each member aligned.
+        </p>
       </div>
 
 <pre><code>#include &lt;stdio.h&gt;
-#include &lt;stddef.h&gt;   // offsetof()
+#include &lt;stddef.h&gt;  // offsetof()
 
-// BAD ordering — lots of padding
+// ── BAD ordering (mixing large and small types) ───────────────
 typedef struct {
-    char   a;    //  1 byte  @ offset 0
-                 //  3 bytes PADDING (to align b to a multiple of 4)
-    int    b;    //  4 bytes @ offset 4
-    char   c;    //  1 byte  @ offset 8
-                 //  7 bytes PADDING (to align d to a multiple of 8)
-    double d;    //  8 bytes @ offset 16
-    char   e;    //  1 byte  @ offset 24
-                 //  7 bytes PADDING (struct size must be multiple of largest member=8)
-} Bad;           // Total: 32 bytes.  But members only sum to 15!
+    char   a;    // offset 0, size 1
+                 // [3 bytes PADDING] → to align b to offset 4 (multiple of 4)
+    int    b;    // offset 4, size 4
+    char   c;    // offset 8, size 1
+                 // [7 bytes PADDING] → to align d to offset 16 (multiple of 8)
+    double d;    // offset 16, size 8
+    char   e;    // offset 24, size 1
+                 // [7 bytes TAIL PADDING] → struct size must be multiple of 8
+                 //   (the largest member) so arrays stay aligned
+} Bad;           // sizeof = 32
 
-// GOOD ordering — largest members first
+// ── GOOD ordering (largest to smallest) ──────────────────────
 typedef struct {
-    double d;    //  8 bytes @ offset 0
-    int    b;    //  4 bytes @ offset 8
-    char   a;    //  1 byte  @ offset 12
-    char   c;    //  1 byte  @ offset 13
-    char   e;    //  1 byte  @ offset 14
-                 //  1 byte  tail pad
-} Good;          // Total: 16 bytes.  Same data, half the size!
+    double d;    // offset 0,  size 8  — 8-byte aligned at 0 ✓
+    int    b;    // offset 8,  size 4  — 4-byte aligned at 8 ✓
+    char   a;    // offset 12, size 1  — always aligned ✓
+    char   c;    // offset 13, size 1  — always aligned ✓
+    char   e;    // offset 14, size 1  — always aligned ✓
+                 // [1 byte tail padding] to align struct to 8
+} Good;          // sizeof = 16
+
+// ── PACKED (no padding at all) ────────────────────────────────
+typedef struct {
+    char   a;
+    int    b;
+    char   c;
+    double d;
+    char   e;
+} __attribute__((packed)) Packed;  // sizeof = 15 exactly
 
 int main() {
-    printf("sizeof(Bad)  = %zu\n", sizeof(Bad));   // 32
-    printf("sizeof(Good) = %zu\n", sizeof(Good));  // 16
-    // Same 5 members, different order — 16 bytes saved per struct instance!
+    printf("sizeof(Bad)    = %zu bytes  (members sum to 15, wastes %zu)\n",
+           sizeof(Bad),    sizeof(Bad) - 15);
+    printf("sizeof(Good)   = %zu bytes  (same data, almost no waste)\n",
+           sizeof(Good));
+    printf("sizeof(Packed) = %zu bytes  (no padding — but misaligned!)\n",
+           sizeof(Packed));
 
-    printf("\nBad offsets:\n");
-    printf("  a @ %zu\n", offsetof(Bad, a));   // 0
-    printf("  b @ %zu\n", offsetof(Bad, b));   // 4  (3 bytes wasted)
-    printf("  c @ %zu\n", offsetof(Bad, c));   // 8
-    printf("  d @ %zu\n", offsetof(Bad, d));   // 16 (7 bytes wasted)
-    printf("  e @ %zu\n", offsetof(Bad, e));   // 24
+    // Print every member's offset in Bad
+    printf("\nBad struct layout:\n");
+    printf("  offset of a = %2zu  (1 byte, then 3 padding)\n",  offsetof(Bad, a));
+    printf("  offset of b = %2zu  (4 bytes)\n",                 offsetof(Bad, b));
+    printf("  offset of c = %2zu  (1 byte, then 7 padding)\n",  offsetof(Bad, c));
+    printf("  offset of d = %2zu  (8 bytes)\n",                 offsetof(Bad, d));
+    printf("  offset of e = %2zu  (1 byte, then 7 tail pad)\n", offsetof(Bad, e));
+
+    printf("\nGood struct layout:\n");
+    printf("  offset of d = %2zu  (8 bytes, no padding needed)\n", offsetof(Good, d));
+    printf("  offset of b = %2zu  (4 bytes, no padding needed)\n", offsetof(Good, b));
+    printf("  offset of a = %2zu  (1 byte)\n",                     offsetof(Good, a));
+    printf("  offset of c = %2zu  (1 byte)\n",                     offsetof(Good, c));
+    printf("  offset of e = %2zu  (1 byte, then 1 tail pad)\n",    offsetof(Good, e));
+
+    // Demonstrate with an array — padding cost multiplies
+    int n = 1000000;
+    printf("\nIn an array of %d elements:\n", n);
+    printf("  Bad  uses %zu MB\n",  (sizeof(Bad)  * n) / (1024*1024));
+    printf("  Good uses %zu MB\n",  (sizeof(Good) * n) / (1024*1024));
+    printf("  Saving %zu MB just from reordering members!\n",
+           ((sizeof(Bad) - sizeof(Good)) * n) / (1024*1024));
+
     return 0;
 }</code></pre>
 
-      <div class="concept-box">
-        <strong>The rule:</strong> Order struct members from largest to smallest type:
-        <code>double</code> (8) → <code>int</code> (4) → <code>short</code> (2) → <code>char</code> (1).
-        This eliminates most internal padding. If you store millions of structs in an array,
-        this saves significant memory — and better cache utilisation means better performance.
+      <div class="output-block">
+sizeof(Bad)    = <span style="color:#f28b82">32</span> bytes  (members sum to 15, wastes 17)<br/>
+sizeof(Good)   = <span style="color:#a3e635">16</span> bytes  (same data, almost no waste)<br/>
+sizeof(Packed) = <span style="color:#f9c74f">15</span> bytes  (no padding — but misaligned!)<br/>
+<br/>
+Bad struct layout:<br/>
+&nbsp;&nbsp;offset of a =  <span style="color:#cdd6f4">0</span>  (1 byte, then 3 padding)<br/>
+&nbsp;&nbsp;offset of b =  <span style="color:#cdd6f4">4</span>  (4 bytes)<br/>
+&nbsp;&nbsp;offset of c =  <span style="color:#cdd6f4">8</span>  (1 byte, then 7 padding)<br/>
+&nbsp;&nbsp;offset of d = <span style="color:#cdd6f4">16</span>  (8 bytes)<br/>
+&nbsp;&nbsp;offset of e = <span style="color:#cdd6f4">24</span>  (1 byte, then 7 tail pad)<br/>
+<br/>
+In an array of 1000000 elements:<br/>
+&nbsp;&nbsp;Bad  uses <span style="color:#f28b82">30</span> MB<br/>
+&nbsp;&nbsp;Good uses <span style="color:#a3e635">15</span> MB<br/>
+&nbsp;&nbsp;Saving <span style="color:#f9c74f">15</span> MB just from reordering members!
       </div>
 
-      <p>
-        <code>__attribute__((packed))</code> removes all padding entirely but is
-        dangerous on some CPUs (causes unaligned access faults on ARM) and is always
-        slower on x86. Use it only for network packet headers or binary file formats
-        where the exact byte layout is mandated by an external protocol.
-      </p>
+      <h3>How to read struct layout in your head</h3>
 
       <p>
-        In CUDA, struct layout is even more critical. GPU memory transactions happen in
-        128-byte cache lines. If your struct has 17 bytes of padding, you're wasting
-        that bandwidth on every single thread.
+        Walk through the members in declaration order. For each member:
+      </p>
+
+      <ol>
+        <li>Note its alignment requirement: <code>char</code>→1, <code>short</code>→2, <code>int</code>→4, <code>double</code>→8</li>
+        <li>Round the current offset UP to the next multiple of that alignment</li>
+        <li>Place the member there; advance the offset by the member's size</li>
+        <li>After all members, round the total size up to the largest member's alignment (for array compatibility)</li>
+      </ol>
+
+      <p>Let's trace <code>Bad</code> manually:</p>
+
+<pre><code>offset 0:  char a  (align=1, ok at 0)   → next offset = 1
+offset 1:  need int b (align=4)
+           round up 1 to next multiple of 4 = 4
+           → 3 bytes of padding at offsets 1,2,3
+offset 4:  int b (4 bytes)              → next offset = 8
+offset 8:  char c (align=1, ok at 8)   → next offset = 9
+offset 9:  need double d (align=8)
+           round up 9 to next multiple of 8 = 16
+           → 7 bytes of padding at offsets 9–15
+offset 16: double d (8 bytes)          → next offset = 24
+offset 24: char e (align=1, ok at 24)  → next offset = 25
+           struct size must be multiple of 8 (largest member)
+           round up 25 to 32
+           → 7 bytes of tail padding at offsets 25–31
+Total: 32 bytes</code></pre>
+
+      <h3>The packed struct: when to use it and when not to</h3>
+
+      <p>
+        <code>__attribute__((packed))</code> (GCC/Clang) or <code>#pragma pack(1)</code>
+        (MSVC) tells the compiler: don't insert any padding. The struct will be exactly
+        the sum of its member sizes.
+      </p>
+
+      <p>When to use it:</p>
+      <ul>
+        <li>Network packet headers where exact byte layout is mandated by a protocol (Ethernet, IP, TCP)</li>
+        <li>Binary file formats where you're reading/writing raw structs to disk</li>
+        <li>Communication with external hardware that expects a specific byte layout</li>
+      </ul>
+
+      <p>When NOT to use it:</p>
+      <ul>
+        <li>General application data — you'll pay 30–50% performance overhead from misaligned accesses on x86</li>
+        <li>Any code that runs on ARM — misaligned access causes a hardware exception on most ARM cores</li>
+        <li>Data passed to the GPU — CUDA requires aligned memory for coalesced access</li>
+      </ul>
+
+      <div class="concept-box">
+        <strong>CUDA struct layout:</strong> GPU memory transactions happen in 32-byte
+        segments. For coalesced access (all threads in a warp reading consecutive
+        addresses), your data must be aligned. The best practice: use CUDA's built-in
+        vector types (<code>float4</code>, <code>int2</code>, etc.) which are always
+        aligned. For custom structs, apply the same largest-first ordering rule — and
+        check with <code>__alignof()</code> to verify. A poorly-aligned struct in a
+        GPU kernel that processes millions of elements per second can cost you significant
+        memory bandwidth.
+      </div>
+
+      <h3>Using offsetof() in practice</h3>
+
+      <p>
+        The <code>offsetof(type, member)</code> macro (from <code>&lt;stddef.h&gt;</code>)
+        returns the byte offset of a member within its struct. It's the canonical way
+        to inspect struct layout without guessing:
+      </p>
+
+<pre><code>#include &lt;stddef.h&gt;
+
+// Check if your struct is laid out how you think
+static_assert(offsetof(Good, d) == 0,  "d must be at offset 0");
+static_assert(offsetof(Good, b) == 8,  "b must be at offset 8");
+static_assert(sizeof(Good)      == 16, "Good must be 16 bytes");
+// These fire a compile-time error if the layout doesn't match expectations</code></pre>
+
+      <p>
+        Use <code>static_assert</code> liberally in structs that cross API boundaries,
+        get serialised to disk, or get sent over a network. The compiler will tell you
+        immediately if a platform change (different compiler, different ABI, different
+        architecture) broke your assumptions.
       </p>
 
       <div class="series-nav">

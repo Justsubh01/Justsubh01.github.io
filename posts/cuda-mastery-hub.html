@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUDA Mastery Series — Complete Guide — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    .phase-section {
+      margin: 2.5rem 0;
+    }
+    .phase-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-secondary, #555);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--accent, #2563eb);
+    }
+    .module-grid {
+      display: grid;
+      gap: 1rem;
+    }
+    .module-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--card-bg, #f8f9fa);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .module-card:hover {
+      border-color: var(--accent, #2563eb);
+      box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+    }
+    .module-num {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent, #2563eb);
+      min-width: 3rem;
+      padding-top: 0.1rem;
+    }
+    .module-info h3 {
+      margin: 0 0 0.25rem;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .module-info p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: var(--text-secondary, #666);
+    }
+    .module-meta {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--text-secondary, #888);
+      white-space: nowrap;
+      padding-top: 0.2rem;
+    }
+    .progress-bar {
+      width: 100%;
+      background: var(--border, #e5e7eb);
+      border-radius: 4px;
+      height: 6px;
+      margin: 1rem 0 2rem;
+    }
+    .progress-fill {
+      height: 6px;
+      border-radius: 4px;
+      background: var(--accent, #2563eb);
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· series hub</span>
+      </div>
+      <h1>CUDA Mastery Series — Complete Learning Path</h1>
+      <p class="post-description">
+        A structured, bottom-up journey through CUDA GPU programming — from C fundamentals
+        and CPU/GPU architecture all the way to warp-level optimization, profiling, and
+        NVIDIA interview preparation. 16 in-depth posts, hundreds of code examples,
+        and everything you need to go from zero to production-ready CUDA.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        This series covers everything I studied while going deep on GPU programming.
+        Each post stands alone but they're designed to be read in order — concepts
+        build on each other. Phase 1 establishes foundations, Phases 2–4 are core CUDA,
+        Phase 5 is performance engineering, and Phase 6 is interview prep.
+      </p>
+
+      <p>
+        Total reading: ~6 hours across all posts. Total coding: implement everything
+        yourself as you go — that's where the learning actually happens.
+      </p>
+
+      <pre><code>  Learning path overview:
+
+  Phase 1: Foundations (2 posts)
+    └── C/C++ fundamentals → CPU vs GPU architecture
+
+  Phase 2: Core CUDA (3 posts)
+    └── Programming model → Vector addition → Error handling
+
+  Phase 3: Memory (4 posts)
+    └── Memory hierarchy → Shared memory → Coalescing → Unified memory
+
+  Phase 4: Advanced Patterns (5 posts)
+    └── Warps → Reduction → Streams → Atomics → Dynamic parallelism
+
+  Phase 5: Performance Engineering (1 post)
+    └── Roofline → Profiling → Optimization checklist
+
+  Phase 6: Interview Prep (1 post)
+    └── 25+ Q&amp;As → 6 coding problems → System design</code></pre>
+
+      <!-- ─── PHASE 1 ─────────────────────────────────────────────────── -->
+      <div class="phase-section">
+        <div class="phase-title">Phase 1 — Foundations</div>
+        <div class="module-grid">
+
+          <a href="cuda-phase1-c-fundamentals.html" class="module-card">
+            <span class="module-num">1.1</span>
+            <div class="module-info">
+              <h3>C/C++ Fundamentals Every CUDA Developer Must Know</h3>
+              <p>Pointers, stack vs heap, struct padding, const correctness, storage classes,
+                 the CUDA_CHECK macro pattern, and how every C concept maps to CUDA.</p>
+            </div>
+            <span class="module-meta">22 min</span>
+          </a>
+
+          <a href="cuda-phase1-architecture.html" class="module-card">
+            <span class="module-num">1.2</span>
+            <div class="module-info">
+              <h3>CPU vs GPU Architecture: Why Parallelism Changes Everything</h3>
+              <p>CPU latency vs GPU throughput design philosophy, Streaming Multiprocessors,
+                 memory bandwidth, SIMD vs SIMT, Amdahl's law, and when NOT to use a GPU.</p>
+            </div>
+            <span class="module-meta">20 min</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ─── PHASE 2 ─────────────────────────────────────────────────── -->
+      <div class="phase-section">
+        <div class="phase-title">Phase 2 — Core CUDA</div>
+        <div class="module-grid">
+
+          <a href="cuda-phase2-programming-model.html" class="module-card">
+            <span class="module-num">2.1</span>
+            <div class="module-info">
+              <h3>The CUDA Programming Model: Threads, Blocks, and Grids</h3>
+              <p>The three-level thread hierarchy, built-in variables (threadIdx/blockIdx/blockDim/gridDim),
+                 kernel launch syntax, block size selection, and grid-stride loops.</p>
+            </div>
+            <span class="module-meta">22 min</span>
+          </a>
+
+          <a href="cuda-phase2-vector-addition.html" class="module-card">
+            <span class="module-num">2.2</span>
+            <div class="module-info">
+              <h3>Your First CUDA Kernel: Vector Addition from Scratch</h3>
+              <p>Complete vector addition walkthrough: every cudaMalloc, cudaMemcpy, kernel launch,
+                 cudaFree, timing with CUDA events, and measuring effective bandwidth.</p>
+            </div>
+            <span class="module-meta">25 min</span>
+          </a>
+
+          <a href="cuda-phase2-error-handling.html" class="module-card">
+            <span class="module-num">2.3</span>
+            <div class="module-info">
+              <h3>Error Handling in CUDA: Never Ignore cudaSuccess</h3>
+              <p>Why CUDA errors are silent, the CUDA_CHECK macro pattern, synchronous vs
+                 asynchronous errors, compute-sanitizer, and a production error handling template.</p>
+            </div>
+            <span class="module-meta">15 min</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ─── PHASE 3 ─────────────────────────────────────────────────── -->
+      <div class="phase-section">
+        <div class="phase-title">Phase 3 — GPU Memory</div>
+        <div class="module-grid">
+
+          <a href="cuda-phase3-memory-hierarchy.html" class="module-card">
+            <span class="module-num">3.1</span>
+            <div class="module-info">
+              <h3>GPU Memory Hierarchy: Registers, Shared, Global and More</h3>
+              <p>All 6 CUDA memory types, latency/bandwidth table, register pressure and spilling,
+                 constant and texture memory, and the decision framework for choosing the right type.</p>
+            </div>
+            <span class="module-meta">25 min</span>
+          </a>
+
+          <a href="cuda-phase3-shared-memory.html" class="module-card">
+            <span class="module-num">3.2</span>
+            <div class="module-info">
+              <h3>Shared Memory and Bank Conflicts: The GPU's Secret Weapon</h3>
+              <p>__shared__ declaration, __syncthreads(), the tiling pattern for matrix multiply,
+                 bank conflicts and how to fix them with +1 padding, and detection with Nsight Compute.</p>
+            </div>
+            <span class="module-meta">28 min</span>
+          </a>
+
+          <a href="cuda-phase3-coalescing.html" class="module-card">
+            <span class="module-num">3.3</span>
+            <div class="module-info">
+              <h3>Memory Coalescing: How Access Patterns Make or Break Performance</h3>
+              <p>128-byte cache lines, stride-1 vs strided access, AoS vs SoA layout,
+                 coalescing in 2D kernels, measuring efficiency in Nsight Compute.</p>
+            </div>
+            <span class="module-meta">20 min</span>
+          </a>
+
+          <a href="cuda-phase3-unified-memory.html" class="module-card">
+            <span class="module-num">3.4</span>
+            <div class="module-info">
+              <h3>Unified Memory: When Convenience Beats Manual Transfers</h3>
+              <p>cudaMallocManaged(), page fault migration under the hood, prefetching,
+                 cudaMemAdvise hints, complex data structures, and when to use vs avoid unified memory.</p>
+            </div>
+            <span class="module-meta">16 min</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ─── PHASE 4 ─────────────────────────────────────────────────── -->
+      <div class="phase-section">
+        <div class="phase-title">Phase 4 — Advanced Parallel Patterns</div>
+        <div class="module-grid">
+
+          <a href="cuda-phase4-warps.html" class="module-card">
+            <span class="module-num">4.1</span>
+            <div class="module-info">
+              <h3>Warps, SIMT, and Warp Divergence: Thinking in Groups of 32</h3>
+              <p>Warp scheduling and latency hiding, divergence cost analysis, patterns to eliminate
+                 divergence, and warp-level primitives (__shfl_sync, __ballot_sync, __any_sync).</p>
+            </div>
+            <span class="module-meta">22 min</span>
+          </a>
+
+          <a href="cuda-phase4-reduction.html" class="module-card">
+            <span class="module-num">4.2</span>
+            <div class="module-info">
+              <h3>Parallel Reduction: The Classic Interview Problem, Solved 6 Ways</h3>
+              <p>Six progressively optimized reduction kernels: naive interleaved → sequential
+                 addressing → first-add-during-load → warp unrolling → shuffle intrinsics → CUB.</p>
+            </div>
+            <span class="module-meta">30 min</span>
+          </a>
+
+          <a href="cuda-phase4-streams.html" class="module-card">
+            <span class="module-num">4.3</span>
+            <div class="module-info">
+              <h3>CUDA Streams: Overlap Computation and Data Transfer</h3>
+              <p>Default stream serialization problem, cudaStreamCreate, pinned memory requirements,
+                 the pipeline pattern for overlap, and CUDA events for timing and synchronization.</p>
+            </div>
+            <span class="module-meta">20 min</span>
+          </a>
+
+          <a href="cuda-phase4-atomics.html" class="module-card">
+            <span class="module-num">4.4</span>
+            <div class="module-info">
+              <h3>Atomic Operations: Thread-Safe Updates Without Locks</h3>
+              <p>Race conditions, all CUDA atomic operations, atomicCAS for custom atomics,
+                 the shared memory histogram pattern, and reducing contention with private copies.</p>
+            </div>
+            <span class="module-meta">18 min</span>
+          </a>
+
+          <a href="cuda-phase4-dynamic-parallelism.html" class="module-card">
+            <span class="module-num">4.5</span>
+            <div class="module-info">
+              <h3>Dynamic Parallelism: Kernels Launching Kernels</h3>
+              <p>Device-side kernel launches, parent-child memory visibility and synchronization,
+                 adaptive algorithms, recursive GPU quicksort, and launch overhead considerations.</p>
+            </div>
+            <span class="module-meta">16 min</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ─── PHASE 5 ─────────────────────────────────────────────────── -->
+      <div class="phase-section">
+        <div class="phase-title">Phase 5 — Performance Engineering</div>
+        <div class="module-grid">
+
+          <a href="cuda-phase5-profiling.html" class="module-card">
+            <span class="module-num">5</span>
+            <div class="module-info">
+              <h3>Performance Optimization and Profiling: Turning Theory into Speed</h3>
+              <p>Roofline model, occupancy analysis, Nsight Systems (timeline), Nsight Compute
+                 (kernel metrics), compute-sanitizer, the optimization checklist, and Tensor Cores.</p>
+            </div>
+            <span class="module-meta">28 min</span>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ─── PHASE 6 ─────────────────────────────────────────────────── -->
+      <div class="phase-section">
+        <div class="phase-title">Phase 6 — Interview Preparation</div>
+        <div class="module-grid">
+
+          <a href="cuda-phase6-interview-prep.html" class="module-card">
+            <span class="module-num">6</span>
+            <div class="module-info">
+              <h3>NVIDIA Interview Prep: Questions, Coding Problems, and What to Study</h3>
+              <p>25+ conceptual Q&amp;As with full answers, 6 complete coding problem solutions
+                 (reduction, transpose, histogram, scan, dot product), system design, and a 4-week study plan.</p>
+            </div>
+            <span class="module-meta">35 min</span>
+          </a>
+
+        </div>
+      </div>
+
+      <h2>Quick Reference</h2>
+
+      <pre><code>  Essential formulas you must know:
+  ─────────────────────────────────────────────────────────────
+  Global thread index (1D):  idx = blockIdx.x * blockDim.x + threadIdx.x
+  Grid size (ceiling div):   gridSize = (N + blockSize - 1) / blockSize
+  Arithmetic Intensity:      AI = FLOPs / bytes_from_DRAM
+  Occupancy:                 active_warps / max_warps_per_SM
+  Warp size:                 32 (always)
+  Max threads per block:     1024
+  Shared memory per SM:      48–164 KB (depends on config)
+  Registers per SM:          65536 × 32-bit
+
+  Memory latency reference:
+    Registers:      ~1 cycle
+    Shared memory:  ~5 cycles
+    L2 cache:       ~200 cycles
+    Global memory:  ~800 cycles
+    Host memory:    millions of cycles (PCIe)
+
+  CUDA_CHECK macro (mandatory):
+    #define CUDA_CHECK(call) do { \
+        cudaError_t e = (call); \
+        if (e != cudaSuccess) { \
+            fprintf(stderr, "CUDA error %s:%d — %s\n", \
+                    __FILE__, __LINE__, cudaGetErrorString(e)); \
+            exit(EXIT_FAILURE); \
+        } \
+    } while(0)</code></pre>
+
+      <h2>Prerequisites</h2>
+      <ul>
+        <li>Comfortable with C (pointers, malloc/free, structs) — see <a href="c-memory-part1.html">C Memory Internals #1</a></li>
+        <li>Basic Linux command line</li>
+        <li>Access to a CUDA-capable GPU (GTX 1060+ or any data center GPU)</li>
+        <li>CUDA toolkit installed (<code>nvcc --version</code> should work)</li>
+      </ul>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

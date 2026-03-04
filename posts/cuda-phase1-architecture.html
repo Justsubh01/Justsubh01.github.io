@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CUDA Mastery Phase 1.2 — CPU vs GPU Architecture — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">cuda</span>
+        <span class="read-time">· 20 min read</span>
+      </div>
+      <h1>CUDA Mastery Phase 1.2 — CPU vs GPU Architecture: Why Parallelism Changes Everything</h1>
+      <p class="post-description">
+        Why CPUs and GPUs are designed so differently, how memory bandwidth determines GPU performance,
+        and the fundamental mental model shift you need to think in parallel — with real numbers
+        and architecture diagrams.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Most programmers spend years writing CPU code and never question the assumption that
+        programs run one instruction at a time, sequentially. Then they hit CUDA and everything
+        breaks. The reason is architectural: CPUs and GPUs were designed to solve completely
+        different problems. Understanding why changes how you think about every kernel you write.
+      </p>
+
+      <h2>1. CPU Architecture — Built for Latency</h2>
+
+      <p>
+        A modern CPU like an Intel Core i9 or AMD Ryzen 9 has 16–32 physical cores. Each core
+        is a masterpiece of latency-hiding engineering:
+      </p>
+
+      <ul>
+        <li><strong>Out-of-order execution</strong>: instructions execute in whatever order avoids stalls, not source order</li>
+        <li><strong>Branch prediction</strong>: speculatively executes likely branches before the condition is evaluated</li>
+        <li><strong>Deep cache hierarchy</strong>: L1 (32–64KB, ~4 cycles), L2 (256KB–1MB, ~12 cycles), L3 (8–64MB, ~40 cycles)</li>
+        <li><strong>Superscalar execution</strong>: multiple instruction units can execute in parallel per core</li>
+        <li><strong>SIMD (AVX-512)</strong>: 512-bit vector registers for data parallelism</li>
+      </ul>
+
+      <pre><code>  CPU Architecture (simplified):
+
+  +------------------------------------------------------------+
+  |                     CPU Die                                |
+  |                                                            |
+  |  +----------+  +----------+  +----------+  +----------+   |
+  |  | Core 0   |  | Core 1   |  | Core 2   |  | Core 3   |   |
+  |  | [L1 32KB]|  | [L1 32KB]|  | [L1 32KB]|  | [L1 32KB]|   |
+  |  | [L2 1MB] |  | [L2 1MB] |  | [L2 1MB] |  | [L2 1MB] |   |
+  |  | OOO exec |  | OOO exec |  | OOO exec |  | OOO exec |   |
+  |  | branch   |  | branch   |  | branch   |  | branch   |   |
+  |  | predict  |  | predict  |  | predict  |  | predict  |   |
+  |  +----------+  +----------+  +----------+  +----------+   |
+  |                                                            |
+  |  +------------------------------------------------------+  |
+  |  |              Shared L3 Cache (32MB)                  |  |
+  |  +------------------------------------------------------+  |
+  |                                                            |
+  |  +------------------------------------------------------+  |
+  |  |              Memory Controller                       |  |
+  |  +------------------------------------------------------+  |
+  +------------------------------------------------------------+
+            |
+  +---------+---------+
+  | DDR5 RAM (192GB/s)|
+  +-------------------+</code></pre>
+
+      <p>
+        The key insight: a CPU core has enormous hardware dedicated to running a single thread
+        as fast as possible. All that out-of-order logic, branch predictors, and large caches
+        exist to minimize the latency any single instruction stream experiences.
+      </p>
+
+      <h2>2. GPU Architecture — Built for Throughput</h2>
+
+      <p>
+        An NVIDIA A100 GPU has 6912 CUDA cores organized into 108 Streaming Multiprocessors (SMs).
+        Each SM is far simpler than a CPU core — it lacks the complex latency-hiding hardware.
+        Instead, it hides latency a different way: by switching between thousands of in-flight threads.
+      </p>
+
+      <pre><code>  GPU Architecture (simplified A100):
+
+  +----------------------------------------------------------------+
+  |                          A100 GPU                              |
+  |                                                                |
+  |  SM0  SM1  SM2  SM3  ...  SM107                               |
+  |  +--+  +--+  +--+  +--+   +--+                                |
+  |  |  |  |  |  |  |  |  |   |  |   Each SM contains:           |
+  |  |  |  |  |  |  |  |  |   |  |   - 64 CUDA cores (FP32)      |
+  |  +--+  +--+  +--+  +--+   +--+   - 4 Tensor Core units       |
+  |                                   - 48KB L1 / shared memory   |
+  |  108 SMs × 64 cores = 6912 CUDA cores total                   |
+  |                                                                |
+  |  +----------------------------------------------------------+  |
+  |  |           L2 Cache (40MB on A100)                        |  |
+  |  +----------------------------------------------------------+  |
+  |                                                                |
+  |  +----------------------------------------------------------+  |
+  |  |           HBM2e Memory (80GB, 2 TB/s)                    |  |
+  |  +----------------------------------------------------------+  |
+  +----------------------------------------------------------------+</code></pre>
+
+      <pre><code>  Inside one SM (Streaming Multiprocessor):
+
+  +------------------------------------------------------+
+  |                 Streaming Multiprocessor             |
+  |                                                      |
+  |  Warp Scheduler  Warp Scheduler  (4 schedulers)      |
+  |  [issues 1 inst/cycle to a warp of 32 threads]       |
+  |                                                      |
+  |  +--------+  +--------+  +--------+  +--------+      |
+  |  | FP32   |  | FP32   |  | INT32  |  | Tensor |      |
+  |  | 16 cores|  | 16 cores|  | 16 cores|  | Core   |  |
+  |  +--------+  +--------+  +--------+  +--------+      |
+  |                                                      |
+  |  Register File (65536 × 32-bit registers)            |
+  |  Shared Memory / L1 Cache (48KB + 16KB, or 32+32)   |
+  |                                                      |
+  |  Active warps: up to 64 warps (2048 threads)        |
+  +------------------------------------------------------+</code></pre>
+
+      <p>
+        The GPU's secret weapon is <strong>massive multithreading</strong>. When one warp stalls
+        waiting for global memory (~800 cycle latency), the SM instantly switches to another
+        ready warp. With 64 active warps per SM, the SM can stay busy as long as enough warps
+        are always ready to execute.
+      </p>
+
+      <h2>3. Latency vs Throughput — The Design Philosophy</h2>
+
+      <p>
+        This is the single most important mental model shift:
+      </p>
+
+      <pre><code>  CPU philosophy: MINIMIZE LATENCY for one thread
+  ─────────────────────────────────────────────────
+  - Big caches to avoid waiting for RAM
+  - Branch prediction to avoid wasted cycles
+  - Out-of-order execution to reorder around stalls
+  - Few, powerful cores
+
+  Result: One task in 1 microsecond.
+
+
+  GPU philosophy: MAXIMIZE THROUGHPUT across many threads
+  ────────────────────────────────────────────────────────
+  - Small caches (latency is EXPECTED, not avoided)
+  - No branch prediction (just predicate both paths)
+  - In-order execution (simplicity = more cores)
+  - Many, simple cores
+
+  Result: 10,000 tasks in 10 microseconds (1000x the work,
+          only 10x the time = 100x the throughput).</code></pre>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th>Intel Core i9-13900K</th>
+            <th>NVIDIA A100</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Cores</td><td>24 (8P + 16E)</td><td>6912 CUDA cores</td></tr>
+          <tr><td>Clock speed</td><td>5.8 GHz (boost)</td><td>1.41 GHz (boost)</td></tr>
+          <tr><td>Memory bandwidth</td><td>~192 GB/s (DDR5)</td><td>2,039 GB/s (HBM2e)</td></tr>
+          <tr><td>L1 cache per core</td><td>48KB</td><td>~1.5KB per SM</td></tr>
+          <tr><td>Branch prediction</td><td>Yes (complex)</td><td>No (predication)</td></tr>
+          <tr><td>Peak FP32 TFLOPS</td><td>~0.8 TFLOPS</td><td>19.5 TFLOPS</td></tr>
+          <tr><td>TDP</td><td>125W</td><td>400W</td></tr>
+        </tbody>
+      </table>
+
+      <h2>4. Memory Bandwidth — The Real Bottleneck</h2>
+
+      <p>
+        GPU performance is almost always limited by memory bandwidth, not compute.
+        The A100 has 2 TB/s of HBM2 bandwidth. A CPU has ~200 GB/s of DDR5 bandwidth.
+        That 10x difference is why GPUs dominate memory-intensive workloads.
+      </p>
+
+      <pre><code>  Memory Bandwidth Comparison:
+  ─────────────────────────────────────────────────────────
+  DDR5 (CPU) :  ████                          ~200 GB/s
+  GDDR6X     :  ████████████                  ~600 GB/s  (RTX 3090)
+  HBM2e (A100):  ████████████████████████████  ~2000 GB/s
+  ─────────────────────────────────────────────────────────
+  Each '█' represents ~70 GB/s</code></pre>
+
+      <p>
+        Why does HBM (High Bandwidth Memory) achieve such high bandwidth? It's stacked
+        directly on the GPU die with a very wide bus (5120-bit on A100), whereas CPU
+        memory uses a narrow 64-bit DDR bus. More lanes = more data per clock.
+      </p>
+
+      <h2>5. The Memory Wall and the Roofline Model</h2>
+
+      <p>
+        Any computation has two potential bottlenecks: compute (FLOPs/sec) and memory
+        bandwidth (bytes/sec). The <strong>Roofline model</strong> captures this:
+      </p>
+
+      <pre><code>  Performance = min(Peak FLOPS,  Bandwidth × Arithmetic_Intensity)
+
+  Arithmetic Intensity = FLOPs performed / bytes transferred from memory
+
+
+  Roofline plot:
+
+  Performance
+  (TFLOPS)
+    │
+ 20 │                            ─ ─ ─ ─ ─ ─ ─ Peak compute (A100: 19.5T)
+    │                       ╱─────────────────────────────────
+    │                  ╱───╱
+    │             ╱───╱
+ 10 │        ╱───╱
+    │   ╱───╱   ← memory-bound      compute-bound →
+    │───╱
+    └─────────────────────────────────────────────── Arithmetic Intensity
+    0   1   2   4   8  16  32  64  (FLOPs/byte)
+                   ↑
+             Ridge point (~10 FLOPs/byte for A100)</code></pre>
+
+      <ul>
+        <li>Left of the ridge point: memory-bound. More bandwidth = more performance.</li>
+        <li>Right of the ridge point: compute-bound. More FLOPS = more performance.</li>
+        <li>Vector addition: ~0.5 FLOPs/byte → deeply memory-bound.</li>
+        <li>Matrix multiplication: ~100+ FLOPs/byte → compute-bound.</li>
+      </ul>
+
+      <h2>6. SIMD vs SIMT — Two Approaches to Data Parallelism</h2>
+
+      <pre><code>  SIMD (CPU): Single Instruction, Multiple Data
+  ───────────────────────────────────────────────
+  One instruction, multiple data elements in a vector register.
+  All elements MUST execute the same instruction (no masking at instruction level).
+
+  AVX-512: 512 bits / 32 bits per float = 16 floats simultaneously
+  C code: float a[16] + float b[16] → one _mm512_add_ps() intrinsic
+
+  ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
+  │ f0  │ f1  │ f2  │ f3  │ f4  │ f5  │ f6  │ f7  │  ... (16 wide)
+  └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+       All 16 elements: same op, same cycle
+
+
+  SIMT (GPU): Single Instruction, Multiple Threads
+  ─────────────────────────────────────────────────
+  32 threads in a warp execute the same instruction in lockstep.
+  But each thread has its OWN program counter and registers.
+  Divergent branches are handled by predication (inactive threads masked out).
+
+  Warp of 32 threads:
+  T0  T1  T2  T3  ... T31
+  All execute: fadd r1, r2, r3  (each on their own r1, r2, r3 values)
+
+  Key difference: SIMT hides the vector width from the programmer.
+  You write scalar code; the hardware batches 32 threads.</code></pre>
+
+      <h2>7. Amdahl's Law — Limits of GPU Speedup</h2>
+
+      <p>
+        Amdahl's Law says that speedup is limited by the serial portion of your code:
+      </p>
+
+      <pre><code>  Speedup = 1 / (serial_fraction + parallel_fraction / N)
+
+  If 10% of your code is serial (not GPU-parallelizable):
+  Maximum possible speedup = 1 / 0.10 = 10x  (regardless of GPU size!)
+
+  serial fraction:   1%  →  max speedup: 100x
+                    10%  →  max speedup:  10x
+                    25%  →  max speedup:   4x
+                    50%  →  max speedup:   2x</code></pre>
+
+      <p>
+        This has a practical implication: if your pipeline has a 10ms CPU pre-processing step
+        and a 1ms GPU kernel, optimizing the GPU further won't help — the CPU is your bottleneck.
+        Profile both CPU and GPU. Don't assume the GPU is the bottleneck.
+      </p>
+
+      <h2>8. PCIe Bandwidth — The CPU↔GPU Transfer Tax</h2>
+
+      <p>
+        CPU and GPU sit on opposite ends of a PCIe bus. Every <code>cudaMemcpy()</code>
+        pays this tax:
+      </p>
+
+      <pre><code>  PCIe Bandwidth:
+  ─────────────────────────────────────────────────────
+  PCIe 4.0 x16:  ~32 GB/s bidirectional
+  PCIe 5.0 x16:  ~64 GB/s bidirectional
+  NVLink (A100):  ~600 GB/s (GPU↔GPU, not CPU↔GPU)
+
+  Comparison:
+  GPU global memory bandwidth:  2000 GB/s
+  PCIe 4.0 to CPU:                32 GB/s   ← 62x slower!
+  ─────────────────────────────────────────────────────
+
+  Implication: transferring data over PCIe is EXPENSIVE.
+  Minimize host↔device transfers. Keep data on GPU as long as possible.</code></pre>
+
+      <pre><code>  Common mistake: transfer data back to CPU every iteration
+  ─────────────────────────────────────────────────────────
+  for each frame:
+      CPU → GPU: upload frame        (PCIe, expensive)
+      GPU: process frame             (fast, in GPU memory)
+      GPU → CPU: download result     (PCIe, expensive!)  ← avoid if CPU doesn't need it
+      CPU: upload to display         (more PCIe)
+
+  Better: keep results on GPU, only transfer final output
+  Or: use GPU-to-display paths (OpenGL/Vulkan interop)</code></pre>
+
+      <h2>9. When NOT to Use a GPU</h2>
+
+      <p>
+        GPUs are not always faster. Understanding when to use a CPU is as important
+        as knowing how to write CUDA.
+      </p>
+
+      <pre><code>  Use GPU when:                    Use CPU when:
+  ──────────────────────────       ──────────────────────────────
+  ✓ Data parallelism dominates     ✗ Task is inherently serial
+  ✓ Same op on millions of items   ✗ Lots of branching/control flow
+  ✓ Large data (fills GPU memory)  ✗ Small data (transfer overhead dominates)
+  ✓ Regular memory access          ✗ Irregular/pointer-chasing access
+  ✓ Compute-intensive math         ✗ Low arithmetic intensity
+  ✓ Can tolerate PCIe transfer     ✗ Need ultra-low latency (&lt;1ms)
+  ✓ Batch processing               ✗ Online/interactive processing</code></pre>
+
+      <p>
+        Classic examples where GPU loses: graph traversal (BFS/DFS — pointer chasing, irregular
+        access), parsing (lots of branching), small neural network inference (transfer overhead
+        exceeds compute time), and anything where N &lt; 1000.
+      </p>
+
+      <h2>10. The Mental Model You Need</h2>
+
+      <p>
+        Before writing any CUDA kernel, ask:
+      </p>
+
+      <ol>
+        <li>Can this work be split into independent parallel tasks? (embarrassingly parallel?)</li>
+        <li>Does each task do enough work to justify thread launch overhead?</li>
+        <li>Is the memory access pattern friendly? (coalesced, not random)</li>
+        <li>Is my data already on the GPU, or will transfer cost dominate?</li>
+        <li>What fraction of total runtime is this step? (Amdahl's law check)</li>
+      </ol>
+
+      <blockquote>
+        The GPU is a throughput machine. It's happy when you give it 10 million simple,
+        independent, regular tasks. It struggles with serial dependencies, irregular
+        data access, and lots of branch conditions.
+      </blockquote>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>CPUs optimize for latency (one thread fast); GPUs optimize for throughput (all threads eventually).</li>
+        <li>GPU hides memory latency by keeping thousands of warps active and switching between them.</li>
+        <li>Memory bandwidth (2 TB/s on A100) is typically the GPU bottleneck, not compute.</li>
+        <li>SIMT: 32 threads execute the same instruction in lockstep — this is the warp.</li>
+        <li>Amdahl's Law caps your speedup at 1/serial_fraction — eliminate serial bottlenecks first.</li>
+        <li>PCIe is 62x slower than GPU memory — minimize data transfers.</li>
+        <li>GPUs lose on irregular access, small data, serial code, and latency-sensitive tasks.</li>
+        <li>Next: <a href="cuda-phase2-programming-model.html">Phase 2.1 — The CUDA Programming Model</a></li>
+      </ul>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>
