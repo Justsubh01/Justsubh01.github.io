@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery 4.2 — Parallel Reduction — Sudhanshu</title>
+  <title>CUDA Mastery 4.2 &mdash; Parallel Reduction &mdash; Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -46,14 +46,15 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">&middot; 32 min read</span>
+        <span class="read-time">&middot; 38 min read</span>
       </div>
       <h1>Parallel Reduction &mdash; Six Implementations from Naive to Near-Optimal</h1>
       <p class="post-description">
         Reduction (computing a sum, max, or dot product across an array) is the most
         studied CUDA pattern. NVIDIA's Mark Harris wrote a famous paper showing 6 progressive
-        optimizations that together achieve a 30&times; speedup. Understanding each step
-        teaches every major CUDA optimization principle.
+        optimizations that together achieve a 30&times; speedup. Each step teaches a different
+        fundamental CUDA optimization principle. By the end you will understand divergence,
+        bank conflicts, idle threads, and warp shuffle &mdash; all through one algorithm.
       </p>
     </div>
     <div class="post-body">
@@ -62,12 +63,17 @@
         Reduction is deceptively simple: given N numbers, compute their sum.
         On a CPU: one loop, N-1 additions, O(N) time. On a GPU: we can use a tree to
         do it in O(log N) parallel steps. But getting to peak memory bandwidth efficiency
-        requires 6 distinct optimizations, each teaching something important.
+        requires 6 distinct optimizations, each teaching something important about how GPUs work.
+      </p>
+
+      <p>
+        I am going to trace every algorithm with concrete data so you can see exactly
+        what is happening, not just read code and wonder why it is faster.
       </p>
 
       <div class="gif-wrap">
         <img src="assets/gif_cuda_parallel_reduction.gif" alt="Parallel tree reduction animation" />
-        <p class="gif-caption">Tree reduction in 3 steps for 8 elements. Step 1: 4 pairs summed simultaneously. Step 2: 2 pairs. Step 3: final sum. Total: log₂(8) = 3 steps instead of 7 sequential additions. The speedup grows with N.</p>
+        <p class="gif-caption">Tree reduction in 3 steps for 8 elements. Step 1: 4 pairs summed simultaneously. Step 2: 2 pairs. Step 3: final sum. Total: log&#8322;(8) = 3 steps instead of 7 sequential additions. The speedup grows with N.</p>
       </div>
 
       <div class="toc">
@@ -78,7 +84,7 @@
           <li><a href="#reduce2">Reduction 2 &mdash; Sequential Addressing (No Divergence)</a></li>
           <li><a href="#reduce3">Reduction 3 &mdash; Idle Thread Elimination</a></li>
           <li><a href="#reduce4">Reduction 4 &mdash; Unrolling the Last Warp</a></li>
-          <li><a href="#reduce5">Reduction 5 &mdash; Complete Unroll</a></li>
+          <li><a href="#reduce5">Reduction 5 &mdash; Complete Unroll (Template)</a></li>
           <li><a href="#reduce6">Reduction 6 &mdash; Warp Shuffle</a></li>
           <li><a href="#two-pass">Two-Pass Reduction for Large Arrays</a></li>
           <li><a href="#cub">CUB: The Production Answer</a></li>
@@ -93,13 +99,20 @@
       <p>
         We want: <code>result = data[0] + data[1] + ... + data[N-1]</code>.
         The GPU parallelizes by having each block reduce a chunk of data to a single value,
-        then summing the per-block results on CPU (or in a second kernel pass).
+        then either the CPU sums the per-block partial results, or a second kernel pass
+        reduces them further.
       </p>
 
       <p>
         The fundamental GPU constraint: threads can only communicate directly within a block
         (via shared memory + __syncthreads). Cross-block communication requires global memory.
         So we do a two-level reduction: block-level in shared memory, then combine block results.
+      </p>
+
+      <p>
+        Throughout this post I will use the same 8-element example array to trace each algorithm:
+        <strong>sdata = [5, 3, 7, 1, 4, 6, 2, 8]</strong> with 8 threads (tid 0&ndash;7),
+        so the final answer should be 36.
       </p>
 
       <hr class="section-divider" />
@@ -114,10 +127,11 @@
     sdata[tid] = (i &lt; n) ? g_data[i] : 0.0f;
     __syncthreads();
 
-    // Interleaved addressing: stride grows, active threads shrink
+    // Interleaved addressing: stride grows each step
+    // Active threads are spaced farther and farther apart
     for (int s = 1; s &lt; blockDim.x; s *= 2) {
-        if (tid % (2 * s) == 0) {          // only threads at stride multiples active
-            sdata[tid] += sdata[tid + s];  // this causes warp divergence!
+        if (tid % (2 * s) == 0) {          // only every (2s)-th thread is active
+            sdata[tid] += sdata[tid + s];  // causes warp divergence!
         }
         __syncthreads();
     }
@@ -125,11 +139,56 @@
     if (tid == 0) g_out[blockIdx.x] = sdata[0];
 }</code></pre>
 
+      <p>Let me trace this with sdata = [5,3,7,1,4,6,2,8]:</p>
+
+      <div class="output-block">
+<span class="comment"># Initial sdata (8 elements, 8 threads tid 0..7):</span>
+idx:    0   1   2   3   4   5   6   7
+val:    5   3   7   1   4   6   2   8
+
+<span class="comment"># s=1: condition is (tid % 2 == 0) -- threads 0,2,4,6 are active</span>
+tid 0: sdata[0] += sdata[1]  =&gt;  5+3=8
+tid 2: sdata[2] += sdata[3]  =&gt;  7+1=8
+tid 4: sdata[4] += sdata[5]  =&gt;  4+6=10
+tid 6: sdata[6] += sdata[7]  =&gt;  2+8=10
+idx:    0   1   2   3   4   5   6   7
+val:    8   3   8   1  10   6  10   8
+
+<span class="comment"># s=2: condition is (tid % 4 == 0) -- threads 0,4 are active</span>
+tid 0: sdata[0] += sdata[2]  =&gt;  8+8=16
+tid 4: sdata[4] += sdata[6]  =&gt;  10+10=20
+idx:    0   1   2   3   4  ...
+val:   16   3   8   1  20  ...
+
+<span class="comment"># s=4: condition is (tid % 8 == 0) -- thread 0 only</span>
+tid 0: sdata[0] += sdata[4]  =&gt;  16+20=36  CORRECT!
+      </div>
+
       <p>
-        <strong>Problem:</strong> The condition <code>tid % (2*s) == 0</code> causes severe warp divergence.
-        At stride s=1: threads 0,2,4,6... are active (50% active). At s=2: threads 0,4,8... (25% active).
-        Also causes shared memory bank conflicts for large strides.
+        <strong>Why it is slow &mdash; the divergence problem.</strong>
+        At s=1, the condition <code>tid % 2 == 0</code> is checked for all 32 threads
+        in a warp simultaneously. Half pass (even tids), half fail (odd tids).
+        The hardware must execute the "if body" with evens active, then skip over it
+        for odds. That is a 2-path serialization &mdash; 2x slower for this step.
+        At s=2: 75% of threads fail the condition &mdash; 4x slower.
       </p>
+
+      <div class="output-block">
+<span class="comment"># Warp 0 (threads 0-7) at s=1: which threads pass (tid % 2 == 0)?</span>
+Thread:  0   1   2   3   4   5   6   7
+Pass?:   YES  NO  YES  NO  YES  NO  YES  NO
+
+<span class="comment"># Hardware serializes:</span>
+Pass 1: threads 0,2,4,6 do sdata[tid]+=sdata[tid+1]  (threads 1,3,5,7 idle)
+Pass 2: threads 1,3,5,7 skip (nothing to do, but warp still occupied)
+=&gt; 2 serialized passes for what could be done in 1
+      </div>
+
+      <div class="warning-box">
+        <strong>Also causes shared memory bank conflicts.</strong> At large strides
+        (s=16, s=32), threads access addresses that map to the same shared memory banks,
+        serializing even the memory accesses. Two problems in one kernel.
+      </div>
 
       <hr class="section-divider" />
 
@@ -143,11 +202,12 @@
     sdata[tid] = (i &lt; n) ? g_data[i] : 0.0f;
     __syncthreads();
 
-    // Sequential addressing: stride shrinks from blockDim/2 to 1
-    // No divergence within a warp: threads 0..(blockDim/2-1) always active together
+    // Sequential addressing: stride SHRINKS from blockDim/2 down to 1
+    // Active threads are always the first (lowest-tid) half
+    // Key: within any warp, either ALL threads pass (tid < s) or NONE pass -- no divergence
     for (int s = blockDim.x / 2; s &gt; 0; s &gt;&gt;= 1) {
         if (tid &lt; s) {
-            sdata[tid] += sdata[tid + s];  // no bank conflicts, sequential
+            sdata[tid] += sdata[tid + s];  // no bank conflicts (sequential access pattern)
         }
         __syncthreads();
     }
@@ -155,10 +215,50 @@
     if (tid == 0) g_out[blockIdx.x] = sdata[0];
 }</code></pre>
 
+      <p>Trace with sdata = [5,3,7,1,4,6,2,8]:</p>
+
+      <div class="output-block">
+<span class="comment"># s=4: threads 0,1,2,3 active (tid &lt; 4)</span>
+tid 0: sdata[0] += sdata[4]  =&gt;  5+4=9
+tid 1: sdata[1] += sdata[5]  =&gt;  3+6=9
+tid 2: sdata[2] += sdata[6]  =&gt;  7+2=9
+tid 3: sdata[3] += sdata[7]  =&gt;  1+8=9
+idx:    0   1   2   3   4   5   6   7
+val:    9   9   9   9   4   6   2   8
+
+<span class="comment"># s=2: threads 0,1 active (tid &lt; 2)</span>
+tid 0: sdata[0] += sdata[2]  =&gt;  9+9=18
+tid 1: sdata[1] += sdata[3]  =&gt;  9+9=18
+idx:    0   1  ...
+val:   18  18  ...
+
+<span class="comment"># s=1: thread 0 active (tid &lt; 1)</span>
+tid 0: sdata[0] += sdata[1]  =&gt;  18+18=36  CORRECT!
+      </div>
+
       <p>
-        <strong>Win:</strong> No warp divergence for most steps. No bank conflicts.
-        <strong>Remaining problem:</strong> When the block launches, half the threads (the upper half)
-        do exactly one load from global memory, then become permanently idle. 50% of thread-cycles wasted.
+        <strong>Why no divergence:</strong> At s=4 with 8 threads &mdash; threads 0,1,2,3
+        are in the same warp as threads 4,5,6,7. The condition <code>tid &lt; 4</code>
+        splits threads cleanly at a warp boundary only when blockDim is a multiple of 32.
+        For a block of 32 threads and s=16: threads 0-15 pass, threads 16-31 fail.
+        Since threads 0-15 are in the same warp as threads 16-31, there IS divergence here.
+        But the stride halves each step, so divergence only occurs for the last 5 steps
+        (when s &lt; 32), not for the first many steps where s &ge; 32.
+      </p>
+
+      <div class="concept-box">
+        <strong>Why no bank conflicts:</strong> In reduce1 with large strides, thread k and
+        thread k+16 both access the same bank (banks repeat every 4 bytes &times; 32 = 128 bytes,
+        and stride-32 addresses alias). In reduce2, thread k accesses sdata[k] and sdata[k+s]
+        which are consecutive &mdash; each consecutive thread accesses a consecutive bank.
+        Shared memory banks are assigned sequentially, so consecutive threads hit consecutive
+        banks: zero conflicts.
+      </div>
+
+      <p>
+        <strong>Remaining problem:</strong> When the block launches, half the threads &mdash;
+        those with tid &ge; blockDim/2 &mdash; do exactly one thing: load from global memory, then
+        sit idle for all reduction steps. 50% of thread-cycles wasted just on load and then nothing.
       </p>
 
       <hr class="section-divider" />
@@ -168,16 +268,19 @@
 <pre><code>__global__ void reduce3(float* g_data, float* g_out, int n) {
     extern __shared__ float sdata[];
     int tid = threadIdx.x;
-    // Each thread loads TWO elements and adds them on the way in
-    int i   = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
 
+    // Key change: each thread loads TWO elements and adds them on the way in
+    // The block now covers 2*blockDim.x elements, not blockDim.x
+    int i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
+
+    // Load and add first pair directly into shared memory
     float val = 0.0f;
-    if (i &lt; n)          val += g_data[i];
-    if (i + blockDim.x &lt; n) val += g_data[i + blockDim.x];
-    sdata[tid] = val;
+    if (i &lt; n)                  val += g_data[i];             // element i
+    if (i + blockDim.x &lt; n)    val += g_data[i + blockDim.x]; // element i + blockDim
+    sdata[tid] = val;            // shared memory gets the sum of two elements
     __syncthreads();
 
-    // Now do the tree reduction (same as reduce2)
+    // Same tree reduction as reduce2 (no divergence, no bank conflicts)
     for (int s = blockDim.x / 2; s &gt; 0; s &gt;&gt;= 1) {
         if (tid &lt; s) sdata[tid] += sdata[tid + s];
         __syncthreads();
@@ -187,23 +290,46 @@
 }</code></pre>
 
       <p>
-        <strong>Win:</strong> Each thread now does useful work on entry (2 loads + 1 add per thread).
-        The grid size halves (each block handles 2&times; more elements).
-        Effective memory bandwidth doubles compared to reduce2.
+        With blockDim.x=4 processing 8 elements (i maps each thread to two inputs):
       </p>
+
+      <div class="output-block">
+<span class="comment"># 4 threads, each loads 2 elements and adds them immediately:</span>
+tid 0: g_data[0] + g_data[4] = 5+4 = 9   =&gt; sdata[0] = 9
+tid 1: g_data[1] + g_data[5] = 3+6 = 9   =&gt; sdata[1] = 9
+tid 2: g_data[2] + g_data[6] = 7+2 = 9   =&gt; sdata[2] = 9
+tid 3: g_data[3] + g_data[7] = 1+8 = 9   =&gt; sdata[3] = 9
+
+<span class="comment"># Tree reduction on 4 elements (s=2, s=1) gives 36 -- same as before</span>
+<span class="comment"># But we used only 4 threads instead of 8, and each did 2 loads + 1 add on entry</span>
+<span class="comment"># Grid size halves: each block now handles 2x more data</span>
+      </div>
+
+      <div class="concept-box">
+        <strong>The key insight:</strong> Every thread does useful arithmetic on entry
+        instead of one thread getting a "free" sum from a now-idle partner.
+        The global memory bandwidth used is identical (still N reads), but the grid
+        is half the size, so launch overhead drops and SM utilization improves.
+        Effective memory bandwidth roughly doubles compared to reduce2.
+      </div>
 
       <hr class="section-divider" />
 
       <h2 id="reduce4">Reduction 4 &mdash; Unrolling the Last Warp</h2>
 
-<pre><code>// Device function: no sync needed inside a warp (threads execute in lockstep)
+<pre><code>// "volatile" is critical here -- explained below
 __device__ void warpReduce(volatile float* sdata, int tid) {
+    // These 6 lines handle the last 6 steps of the tree reduction
+    // (when s = 32, 16, 8, 4, 2, 1 -- i.e., all threads remaining are in ONE warp)
     sdata[tid] += sdata[tid + 32];
     sdata[tid] += sdata[tid + 16];
     sdata[tid] += sdata[tid +  8];
     sdata[tid] += sdata[tid +  4];
     sdata[tid] += sdata[tid +  2];
     sdata[tid] += sdata[tid +  1];
+    // NO __syncthreads() needed here -- all 32 threads in one warp are
+    // always in lockstep (SIMT execution), so each line is globally visible
+    // to the whole warp before the next line executes.
 }
 
 __global__ void reduce4(float* g_data, float* g_out, int n) {
@@ -217,27 +343,47 @@ __global__ void reduce4(float* g_data, float* g_out, int n) {
     sdata[tid] = val;
     __syncthreads();
 
+    // Standard loop for all steps where multiple warps are still active
+    // (s &gt; 32 means threads 0..s-1 are active, which spans multiple warps)
     for (int s = blockDim.x / 2; s &gt; 32; s &gt;&gt;= 1) {
         if (tid &lt; s) sdata[tid] += sdata[tid + s];
         __syncthreads();
     }
 
-    // Last warp (tid &lt; 32): no syncthreads needed, unroll manually
+    // Last warp (tid &lt; 32): all 32 remaining active threads are in same warp
+    // Hand them off to warpReduce to skip the remaining __syncthreads() calls
     if (tid &lt; 32) warpReduce(sdata, tid);
 
     if (tid == 0) g_out[blockIdx.x] = sdata[0];
 }</code></pre>
 
+      <div class="concept-box">
+        <strong>Why <code>volatile</code>?</strong> Without <code>volatile</code>, the C++
+        compiler can legally reorder or eliminate memory writes to <code>sdata</code> because
+        it sees them as ordinary local operations within one function scope. It might keep the
+        values in registers and never actually write to shared memory between the lines.
+        <br/><br/>
+        <code>volatile</code> tells the compiler: "every read and write to this pointer
+        must go through actual memory, in program order, with no caching in registers."
+        This forces the shared memory write after each addition, ensuring the next line
+        reads the freshly-updated value even within the unrolled warp code.
+        <br/><br/>
+        From CUDA 9+, the preferred alternative is <code>__syncwarp()</code> between lines,
+        but <code>volatile</code> still works and compiles to efficient code.
+      </div>
+
       <p>
-        <strong>Win:</strong> Eliminates 5 __syncthreads() calls for the last warp.
-        Each sync costs ~20-30 cycles; removing them for the final 6 steps saves up to 150 cycles per block.
+        <strong>Win:</strong> Eliminates 5 <code>__syncthreads()</code> calls for the last warp.
+        Each sync costs ~20&ndash;30 cycles (serialization point for the entire block).
+        Removing them for the final 6 steps saves up to 150 cycles per block.
       </p>
 
       <hr class="section-divider" />
 
       <h2 id="reduce5">Reduction 5 &mdash; Complete Unroll (Template)</h2>
 
-<pre><code>template &lt;unsigned int blockSize&gt;
+<pre><code>// blockSize is a compile-time constant (template parameter)
+template &lt;unsigned int blockSize&gt;
 __global__ void reduce5(float* g_data, float* g_out, int n) {
     extern __shared__ float sdata[];
     int tid = threadIdx.x;
@@ -249,11 +395,15 @@ __global__ void reduce5(float* g_data, float* g_out, int n) {
     sdata[tid] = val;
     __syncthreads();
 
-    // Compile-time unrolling: compiler generates separate code for each blockSize
+    // These if() conditions use a compile-time constant (blockSize).
+    // The compiler evaluates them at compile time and eliminates dead branches.
+    // If blockSize=128, the blockSize>=512 and blockSize>=256 branches are
+    // completely removed from the generated PTX -- zero runtime overhead.
     if (blockSize &gt;= 512) { if (tid &lt; 256) sdata[tid] += sdata[tid+256]; __syncthreads(); }
     if (blockSize &gt;= 256) { if (tid &lt; 128) sdata[tid] += sdata[tid+128]; __syncthreads(); }
     if (blockSize &gt;= 128) { if (tid &lt;  64) sdata[tid] += sdata[tid+ 64]; __syncthreads(); }
 
+    // Last warp (unrolled, no syncthreads):
     if (tid &lt; 32) {
         if (blockSize &gt;= 64) sdata[tid] += sdata[tid + 32];
         if (blockSize &gt;= 32) sdata[tid] += sdata[tid + 16];
@@ -266,23 +416,37 @@ __global__ void reduce5(float* g_data, float* g_out, int n) {
     if (tid == 0) g_out[blockIdx.x] = sdata[0];
 }
 
-// Launch with explicit block size template:
-reduce5&lt;256&gt;&lt;&lt;&lt;grid, 256, 256*sizeof(float)&gt;&gt;&gt;(d_data, d_out, N);</code></pre>
+// Launch with explicit block size -- the template generates specialized PTX:
+reduce5&lt;256&gt;&lt;&lt;&lt;grid, 256, 256*sizeof(float)&gt;&gt;&gt;(d_data, d_out, N);
+// The compiled PTX for blockSize=256 has NO code for the 512 and higher branches.
+// The compiler literally deletes them. Smaller binary, faster execution.</code></pre>
+
+      <div class="concept-box">
+        <strong>Why compile-time constants win:</strong> When the compiler sees
+        <code>if (256 &gt;= 512)</code> it evaluates to <code>if (false)</code> and
+        removes the entire branch. No instruction generated, no predicate evaluation,
+        no branch predictor pressure. The resulting PTX is a straight-line sequence
+        of exactly the operations needed for that block size &mdash; the theoretical
+        minimum instruction count for this algorithm.
+      </div>
 
       <hr class="section-divider" />
 
       <h2 id="reduce6">Reduction 6 &mdash; Warp Shuffle (Modern CUDA)</h2>
 
-<pre><code>// Warp-level reduction: no shared memory, pure register communication
+<pre><code>// Intra-warp reduction using register shuffle -- no shared memory needed at all
 __device__ float warpReduceSum(float val) {
+    // Each call: lane k adds the value from lane (k + offset) to its own val
+    // After 5 steps, lane 0 holds sum of all 32 original values
+    // See detailed trace in the warps post (4.1)
     for (int offset = 16; offset &gt; 0; offset /= 2)
         val += __shfl_down_sync(0xFFFFFFFF, val, offset);
-    return val;  // lane 0 has the sum
+    return val;  // lane 0 has the total sum of this warp
 }
 
-// Block-level reduction using warp shuffle + minimal shared memory
+// Full block reduction with 3 phases:
 __global__ void reduce6(float* g_data, float* g_out, int n) {
-    __shared__ float warpSums[32];  // one slot per warp (max 32 warps per block)
+    __shared__ float warpSums[32];  // max 32 warps per block (blockDim.x / 32)
 
     int tid = threadIdx.x;
     int i   = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
@@ -291,28 +455,58 @@ __global__ void reduce6(float* g_data, float* g_out, int n) {
     if (i &lt; n)          val += g_data[i];
     if (i + blockDim.x &lt; n) val += g_data[i + blockDim.x];
 
-    // Phase 1: intra-warp reduction via shuffle (no shared memory needed)
+    // Phase 1: intra-warp reduction via shuffle (5 shuffles, no memory traffic)
+    // Each warp reduces its 32 values to 1 value in lane 0
     val = warpReduceSum(val);
 
-    // Phase 2: one value per warp, write to shared memory
+    // Phase 2: lane 0 of each warp writes its warp's sum to shared memory
+    // Only 1 write per warp (max 32 writes total for a 1024-thread block)
     int lane   = tid % 32;
     int warpId = tid / 32;
     if (lane == 0) warpSums[warpId] = val;
-    __syncthreads();
+    __syncthreads();  // ensure all warp sums are written before Phase 3
 
-    // Phase 3: first warp reduces all warp sums
+    // Phase 3: first warp reads all warp sums and reduces them
+    // nWarps <= 32, so this fits in one warp
     int nWarps = blockDim.x / 32;
     val = (tid &lt; nWarps) ? warpSums[tid] : 0.0f;
-    if (tid &lt; 32) val = warpReduceSum(val);
+    if (tid &lt; 32) val = warpReduceSum(val);  // one more warp shuffle
 
-    if (tid == 0) g_out[blockIdx.x] = val;
+    if (tid == 0) g_out[blockIdx.x] = val;  // lane 0 has the block's total sum
 }</code></pre>
 
+      <p>
+        Let me trace Phase 1 for a block of 64 threads (2 warps) with values
+        1..64 (sum should be 2080):
+      </p>
+
+      <div class="output-block">
+<span class="comment"># Warp 0 (threads 0-31): values 1,2,...,32 (sum=528)</span>
+After warpReduceSum: lane 0 holds 528, other lanes hold partial sums (don't care)
+
+<span class="comment"># Warp 1 (threads 32-63): values 33,34,...,64 (sum=1552)</span>
+After warpReduceSum: lane 0 of warp 1 (= thread 32) holds 1552
+
+<span class="comment"># Phase 2: write warp sums to shared memory</span>
+thread  0 (warp 0, lane 0): warpSums[0] = 528
+thread 32 (warp 1, lane 0): warpSums[1] = 1552
+__syncthreads()
+
+<span class="comment"># Phase 3: first warp reads warpSums</span>
+thread 0: val = warpSums[0] = 528
+thread 1: val = warpSums[1] = 1552
+threads 2..31: val = 0.0f (padded)
+warpReduceSum([528, 1552, 0, 0, ..., 0]) = 528+1552 = 2080  CORRECT!
+g_out[blockIdx.x] = 2080
+      </div>
+
       <div class="concept-box">
-        <strong>Why warp shuffle is better:</strong> Instead of writing to shared memory and syncing
-        for the last 6 reduction steps, __shfl_down_sync communicates directly through the warp's
-        register file. No memory bandwidth consumed, no bank conflict possible, no sync needed.
-        It's the fastest intra-warp reduction possible on current NVIDIA hardware.
+        <strong>Why warp shuffle is better than shared memory for the last warp:</strong>
+        Instead of 6 writes to shared memory + 6 syncs (reduce4) or 6 register moves
+        (reduce5 template), <code>__shfl_down_sync</code> communicates directly through
+        the warp's internal register file. No memory bandwidth consumed at all,
+        no bank conflict possible, no sync needed &mdash; just 5 register-to-register
+        moves in 5 cycles. It is the fastest intra-warp reduction the hardware can do.
       </div>
 
       <hr class="section-divider" />
@@ -321,35 +515,50 @@ __global__ void reduce6(float* g_data, float* g_out, int n) {
 
 <pre><code>void reduceArray(float* d_data, float* d_result, int n) {
     int blockSize = 256;
+    // Each block handles (blockSize * 2) elements (due to the first-add-on-load trick)
+    // So gridSize = ceil(n / (blockSize * 2))
     int gridSize  = (n + blockSize * 2 - 1) / (blockSize * 2);
 
     float* d_partial;
     cudaMalloc(&amp;d_partial, gridSize * sizeof(float));
 
-    // Pass 1: each block reduces its chunk to one value
+    // Pass 1: reduce N elements down to gridSize partial sums
     reduce6&lt;&lt;&lt;gridSize, blockSize, 0&gt;&gt;&gt;(d_data, d_partial, n);
 
-    // Pass 2: reduce partial results (usually fits in one block)
+    // Pass 2: reduce gridSize partial sums down to 1 result
+    // (gridSize is typically small -- a few hundred blocks)
+    // Use one block to fit entirely in shared memory
     reduce6&lt;&lt;&lt;1, blockSize, 0&gt;&gt;&gt;(d_partial, d_result, gridSize);
 
     cudaFree(d_partial);
-}</code></pre>
+}
+
+// For N = 16M elements, blockSize = 256:
+// gridSize = 16M / 512 = 32768 partial sums
+// Pass 1: 32768 blocks each reducing 512 elements
+// Pass 2: 1 block reducing 32768 partial sums (fits easily in 256 threads)</code></pre>
 
       <hr class="section-divider" />
 
       <h2 id="cub">CUB: The Production Answer</h2>
 
+      <p>
+        For production code, use CUB's <code>DeviceReduce</code>. It implements all the
+        optimizations above (and more: vectorized loads, multi-pass recursion, architecture
+        tuning) and is maintained by NVIDIA to achieve near-peak bandwidth on every GPU generation.
+      </p>
+
 <pre><code>#include &lt;cub/cub.cuh&gt;
 
-// CUB device-wide reduction (one function call, handles all edge cases)
+// CUB device-wide reduction (single function call, handles all edge cases)
 void cubReduce(float* d_data, float* d_result, int n) {
-    void* d_temp = nullptr;
-    size_t tempBytes = 0;
+    void*  d_temp     = nullptr;
+    size_t tempBytes  = 0;
 
-    // First call: get required temp storage size
+    // First call with null temp storage: CUB tells you how much temp space it needs
     cub::DeviceReduce::Sum(d_temp, tempBytes, d_data, d_result, n);
 
-    // Allocate temp storage
+    // Allocate the temp storage
     cudaMalloc(&amp;d_temp, tempBytes);
 
     // Second call: actual reduction
@@ -359,9 +568,9 @@ void cubReduce(float* d_data, float* d_result, int n) {
     cudaFree(d_temp);
 }
 
-// CUB also has: Min, Max, ArgMin, ArgMax, custom operators
+// CUB also provides: Min, Max, ArgMin, ArgMax, and custom binary operators
 cub::DeviceReduce::Reduce(d_temp, tempBytes, d_data, d_result, n,
-                           cub::Max(), INT_MIN);</code></pre>
+                           cub::Max(), INT_MIN);  // custom: maximum value</code></pre>
 
       <hr class="section-divider" />
 
@@ -369,23 +578,32 @@ cub::DeviceReduce::Reduce(d_temp, tempBytes, d_data, d_result, n,
 
       <div class="output-block">
 <span class="comment"># N = 16M floats, A100 GPU, blockSize = 256</span>
-Kernel            |  Time (ms) | GB/s  | vs reduce1
-------------------+------------+-------+-----------
-reduce1 (naive)   |   8.94     |  7.1  |    1.0x
-reduce2 (seq addr)|   3.21     | 19.9  |    2.8x
-reduce3 (2 loads) |   1.63     | 39.2  |    5.5x
-reduce4 (warp unroll)|  0.84   | 76.2  |   10.6x
-reduce5 (template)|   0.72     | 88.9  |   12.4x
-reduce6 (shuffle) |   0.61     |105.1  |   14.6x
-CUB DeviceReduce  |   0.41     |156.1  |   21.8x
-Theoretical peak  |   0.26     |246.0  |   34.6x
+Kernel              |  Time (ms) | GB/s  | vs reduce1 | Key improvement
+--------------------+------------+-------+------------+---------------------------
+reduce1 (naive)     |   8.94     |  7.1  |    1.0x    | baseline (divergent)
+reduce2 (seq addr)  |   3.21     | 19.9  |    2.8x    | no divergence, no bank conflicts
+reduce3 (2 loads)   |   1.63     | 39.2  |    5.5x    | no idle threads on entry
+reduce4 (warp unroll)   0.84     | 76.2  |   10.6x    | -5 __syncthreads() per block
+reduce5 (template)  |   0.72     | 88.9  |   12.4x    | compile-time dead branch removal
+reduce6 (shuffle)   |   0.61     |105.1  |   14.6x    | register-file reduction (no smem)
+CUB DeviceReduce    |   0.41     |156.1  |   21.8x    | NVIDIA-tuned + vectorized loads
+Theoretical peak    |   0.26     |246.0  |   34.6x    | A100 HBM2e bandwidth limit
       </div>
 
       <p>
-        CUB reaches 63% of theoretical peak bandwidth. The remaining gap is irreducible
-        overhead: kernel launch, partial sums for non-power-of-2 sizes, and the two-pass
-        structure. The hand-written reduce6 reaches 43% of peak &mdash; respectable for
-        a simple kernel.
+        CUB reaches 63% of theoretical peak bandwidth. The remaining gap is irreducible:
+        kernel launch overhead, the two-pass structure (Pass 2 is very small and
+        underutilizes the GPU), and the fact that partial sums in Pass 1 require
+        sequential writes. The hand-written reduce6 reaches 43% of peak &mdash;
+        a very strong result for a simple kernel written from scratch.
+      </p>
+
+      <p>
+        Each optimization step in this progression teaches something that applies far
+        beyond reduction: eliminate divergence, eliminate idle threads, eliminate
+        unnecessary synchronization, use compile-time constants, replace shared memory
+        with register communication where possible. These are the building blocks of
+        almost every high-performance CUDA kernel.
       </p>
 
       <div class="series-nav">

@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery 4.4 — Atomic Operations — Sudhanshu</title>
+  <title>CUDA Mastery 4.4 &mdash; Atomic Operations &mdash; Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
+    .gif-wrap { text-align: center; margin: 2.5rem 0; }
+    .gif-wrap img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
+    .gif-caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; font-style: italic; line-height: 1.5; }
     .concept-box { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
     .warning-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
     .danger-box { background: #fff1f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
@@ -44,22 +47,24 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">&middot; 20 min read</span>
+        <span class="read-time">&middot; 25 min read</span>
       </div>
       <h1>Atomic Operations &mdash; Thread-Safe Updates Without Locks</h1>
       <p class="post-description">
         Atomics solve the race condition problem: when thousands of threads want to update
         the same memory location simultaneously, you need a guarantee that each update is
         indivisible. CUDA provides hardware-accelerated atomics for integers, floats, and
-        custom compare-and-swap operations.
+        custom compare-and-swap operations. Understanding atomics &mdash; and when not to use them
+        &mdash; is essential for any kernel that aggregates results across threads.
       </p>
     </div>
     <div class="post-body">
 
       <p>
-        Race condition: two threads read a counter (value=5), both add 1, both write back 6.
-        Result: 6, not 7. With 10,000 threads all incrementing the same counter, you might
-        get anything from 1 to 10,000. Atomics fix this.
+        The fundamental problem: two threads read a counter (value=5), both add 1,
+        both write back 6. Final result: 6, not 7. With 10,000 threads all incrementing
+        the same counter, you might get anything from 1 to 10,000. Atomics fix this
+        by making read-modify-write an indivisible hardware operation.
       </p>
 
       <div class="toc">
@@ -72,7 +77,7 @@
           <li><a href="#performance">Atomic Performance and Contention</a></li>
           <li><a href="#warp-aggregation">Warp Aggregation &mdash; Fast Atomics</a></li>
           <li><a href="#histogram">Case Study: Parallel Histogram</a></li>
-          <li><a href="#lock-free">Lock-Free Patterns</a></li>
+          <li><a href="#patterns">Safe Patterns for Common Use Cases</a></li>
         </ol>
       </div>
 
@@ -81,27 +86,46 @@
       <h2 id="what-are-atomics">What Are Atomics and Why They're Needed</h2>
 
       <p>
-        An atomic operation reads, modifies, and writes a memory location as an indivisible unit.
-        No other thread can see the intermediate state. The hardware guarantees that if 10,000
-        threads all atomically increment the same counter, the final result is exactly 10,000.
+        An atomic operation reads, modifies, and writes a memory location as an
+        <strong>indivisible unit</strong>. No other thread can see or interrupt the
+        intermediate state. The hardware memory controller serializes concurrent
+        atomics to the same address, guaranteeing correctness regardless of how many
+        threads compete.
       </p>
 
-<pre><code>// WRONG: race condition, result unpredictable
+<pre><code>// WRONG: race condition -- result is unpredictable
 __global__ void wrongCounter(int* counter, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &lt; n) {
-        int old = *counter;   // read
-        *counter = old + 1;   // write (another thread may write between read and write!)
+        // Step 1: read *counter into register
+        int old = *counter;
+        // -- Another thread may execute steps 1+2 here, overwriting *counter --
+        // Step 2: compute new value
+        // Step 3: write back
+        *counter = old + 1;  // may overwrite the other thread's update!
     }
 }
+// With N=10000 threads: result is anywhere from 1 to 10000 -- completely broken
 
-// CORRECT: atomic add guarantees each thread's increment is applied exactly once
+// CORRECT: atomic -- hardware guarantees each increment is applied exactly once
 __global__ void correctCounter(int* counter, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &lt; n) {
-        atomicAdd(counter, 1);  // read-modify-write as one hardware instruction
+        // atomicAdd is ONE hardware instruction: read-add-write as an atomic unit
+        // No other thread can interleave between the read and the write
+        atomicAdd(counter, 1);
     }
-}</code></pre>
+}
+// With N=10000 threads: result is always exactly 10000 -- guaranteed</code></pre>
+
+      <div class="concept-box">
+        <strong>What "atomic" means at the hardware level:</strong> The memory controller
+        receives an atomic instruction and locks the cache line for that address.
+        All other atomic requests to the same address are queued. The controller
+        completes the read-modify-write, then releases the lock and processes the next
+        queued request. This is why atomics to the same address are serialized:
+        the hardware enforces mutual exclusion, not software.
+      </div>
 
       <hr class="section-divider" />
 
@@ -119,28 +143,31 @@ __global__ void correctCounter(int* counter, int n) {
           <tr><td>atomicOr(addr, val)</td><td>*addr |= val; return old</td><td>int, unsigned, long long</td></tr>
           <tr><td>atomicXor(addr, val)</td><td>*addr ^= val; return old</td><td>int, unsigned, long long</td></tr>
           <tr><td>atomicCAS(addr, cmp, val)</td><td>if *addr==cmp: *addr=val; return old</td><td>int, unsigned, long long, unsigned long long</td></tr>
-          <tr><td>atomicInc(addr, val)</td><td>*addr = (*addr&gt;=val) ? 0 : *addr+1</td><td>unsigned</td></tr>
-          <tr><td>atomicDec(addr, val)</td><td>*addr = (*addr==0||*addr&gt;val) ? val : *addr-1</td><td>unsigned</td></tr>
+          <tr><td>atomicInc(addr, val)</td><td>*addr = (*addr&gt;=val) ? 0 : *addr+1</td><td>unsigned (modular increment)</td></tr>
+          <tr><td>atomicDec(addr, val)</td><td>*addr = (*addr==0||*addr&gt;val) ? val : *addr-1</td><td>unsigned (modular decrement)</td></tr>
         </tbody>
       </table>
 
 <pre><code>__global__ void atomicExamples(int* data, unsigned* flags, float* fdata) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Atomic add (returns old value)
+    // atomicAdd returns the OLD value before adding
     int old = atomicAdd(&amp;data[0], 1);
+    // old = what data[0] was BEFORE this thread incremented it
+    // This is useful for claiming a unique slot: if old=5, this thread owns slot 5
 
-    // Atomic max
-    atomicMax(&amp;data[1], i);      // data[1] = max of all thread indices
+    // atomicMax: data[1] ends up as the maximum thread index seen
+    atomicMax(&amp;data[1], i);
 
-    // Atomic OR: set bit i in flags[0]
+    // atomicOr: set bit (i%32) in flags[0]
+    // After kernel: flags[0] has bits set for every thread index mod 32 that ran
     atomicOr(&amp;flags[0], (1u &lt;&lt; (i % 32)));
 
-    // Atomic exchange: replace value, get old
-    int prev = atomicExch(&amp;data[2], i);  // last writer wins
+    // atomicExch: swap in current thread index, get previous occupant
+    int prev = atomicExch(&amp;data[2], i);  // last writer's index wins
 
-    // Float atomic add (sm_20+)
-    atomicAdd(&amp;fdata[0], 1.0f);
+    // Float atomic add (hardware-native on sm_20+)
+    atomicAdd(&amp;fdata[0], 1.0f);  // safe for float accumulation
 }</code></pre>
 
       <hr class="section-divider" />
@@ -149,38 +176,78 @@ __global__ void correctCounter(int* counter, int n) {
 
       <p>
         <code>atomicCAS(addr, compare, val)</code> is the primitive from which all other
-        atomics can be built. It atomically does:
-        <code>if (*addr == compare) { *addr = val; } return old_value;</code>
+        atomic operations can be built. The semantics:
+      </p>
+      <ol>
+        <li>Read the current value at <code>*addr</code> into <code>old</code></li>
+        <li>If <code>old == compare</code>, write <code>val</code> to <code>*addr</code></li>
+        <li>Return <code>old</code> regardless</li>
+      </ol>
+      <p>
+        The check-and-write is atomic. If two threads race, only one will see
+        <code>old == compare</code> and succeed; the other gets a different <code>old</code>
+        and knows it must retry.
       </p>
 
 <pre><code>// Build custom float atomicMin using CAS:
+// (No native hardware atomicMin for floats, so we build it)
 __device__ float atomicMinFloat(float* addr, float val) {
+    // Reinterpret the float address as an int address
+    // (safe because float and int are both 4 bytes and CAS works on int)
     int* addr_as_int = (int*)addr;
     int old = *addr_as_int, assumed;
+
     do {
-        assumed = old;
+        assumed = old;  // remember what we READ (our expectation)
+
+        // Compute the new value we WANT to write:
         float old_float = __int_as_float(assumed);
         float new_float = fminf(old_float, val);
-        int new_int = __float_as_int(new_float);
-        old = atomicCAS(addr_as_int, assumed, new_int);
-        // Loop until CAS succeeds (old == assumed means no one changed it between read and CAS)
-    } while (assumed != old);
-    return __int_as_float(old);
-}
+        int   new_int   = __float_as_int(new_float);
 
-// CAS-based spinlock (DON'T use in production - can deadlock):
-__device__ void lock(int* mutex) {
-    while (atomicCAS(mutex, 0, 1) != 0);  // spin until we get 0->1
-}
-__device__ void unlock(int* mutex) {
-    atomicExch(mutex, 0);  // release
+        // Attempt the atomic update: "if *addr still equals assumed, write new_int"
+        old = atomicCAS(addr_as_int, assumed, new_int);
+
+        // If old == assumed: CAS succeeded, the value was updated. Loop exits.
+        // If old != assumed: someone else changed *addr between our read and CAS.
+        //   old now holds the NEW current value. Retry with updated 'assumed'.
+
+    } while (assumed != old);  // retry until we successfully CAS
+
+    return __int_as_float(old);  // return the old minimum (before our update)
 }</code></pre>
 
+      <p>Let me trace a concurrent scenario to make the retry logic clear:</p>
+
+      <div class="output-block">
+<span class="comment"># Initial: *addr = 7.0f, Thread A wants atomicMinFloat(addr, 3.0f)</span>
+<span class="comment">#                        Thread B wants atomicMinFloat(addr, 5.0f)</span>
+
+Thread A:                            Thread B:
+old = *addr_as_int  (reads 7.0)     old = *addr_as_int  (reads 7.0)
+assumed = 7.0                        assumed = 7.0
+new_float = min(7.0, 3.0) = 3.0     new_float = min(7.0, 5.0) = 5.0
+atomicCAS(addr, 7.0, 3.0)           &lt;--- Thread A wins the race
+  -- CAS succeeds: *addr becomes 3.0
+  -- returns old=7.0
+while(7.0 != 7.0) = false           atomicCAS(addr, 7.0, 5.0)
+Thread A done. *addr = 3.0            -- CAS FAILS: *addr is now 3.0, not 7.0
+                                      -- returns old = 3.0 (current value)
+                                    while (7.0 != 3.0) = TRUE -- retry!
+                                    assumed = 3.0  (current value)
+                                    new_float = min(3.0, 5.0) = 3.0
+                                    atomicCAS(addr, 3.0, 3.0) -- succeeds
+                                    while(3.0 != 3.0) = false
+                                    Thread B done. *addr still = 3.0 (correct minimum)
+      </div>
+
       <div class="danger-box">
-        <strong>Spinlocks in GPU code are dangerous.</strong> If a thread holding a lock is
-        context-switched out (e.g., due to a page fault), all other threads spin indefinitely.
-        Spinlocks also kill warp efficiency. Always prefer warp-aggregated atomics or reduction
-        patterns over lock-based approaches.
+        <strong>Spinlocks in GPU code are dangerous.</strong> While CAS can be used to build
+        spinlocks (spin until CAS changes 0 to 1), they are almost never the right solution
+        on a GPU. If the thread holding the lock is context-switched out, all waiting threads
+        spin indefinitely consuming cycles. GPU hardware does not support priority inversion
+        avoidance. Always prefer warp-aggregated atomics, reduction patterns, or shared
+        memory approaches over spinlocks.
       </div>
 
       <hr class="section-divider" />
@@ -189,51 +256,62 @@ __device__ void unlock(int* mutex) {
 
       <p>
         <code>atomicAdd(float*, float)</code> is hardware-native since sm_20.
-        <code>atomicAdd(double*, double)</code> since sm_60. But there is no hardware
-        <code>atomicMin/Max</code> for floats &mdash; use the CAS trick above.
+        <code>atomicAdd(double*, double)</code> since sm_60.
+        There is <strong>no</strong> hardware <code>atomicMin</code> or <code>atomicMax</code>
+        for floats &mdash; use the CAS trick shown above.
       </p>
 
-<pre><code>// Half-precision atomics (sm_70+ with appropriate flags):
-// #include &lt;cuda_fp16.h&gt;
-// atomicAdd(__half* addr, __half val)  -- native on Volta+
-
-// Double precision atomic add:
-__global__ void doublePrecisionReduction(double* data, double* result, int n) {
+<pre><code>// Double precision atomic add (hardware on sm_60+, A100 is sm_80):
+__global__ void doublePrecisionAccumulate(double* data, double* result, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &lt; n) {
-        atomicAdd(result, data[i]);  // double atomicAdd, sm_60+
+        // Note: double atomicAdd is slower than float atomicAdd on most GPUs
+        // because doubles share the same memory width as int32 atomics
+        // but require more bits. Use reduction patterns for best performance.
+        atomicAdd(result, data[i]);
     }
-}</code></pre>
+}
+
+// Half-precision atomics on Volta+ (sm_70+):
+// #include &lt;cuda_fp16.h&gt;
+// atomicAdd(__half* addr, __half val)   -- native fp16 atomic on Volta+
+// atomicAdd(__half2* addr, __half2 val) -- two fp16 atomics in one instruction</code></pre>
 
       <hr class="section-divider" />
 
       <h2 id="performance">Atomic Performance and Contention</h2>
 
       <p>
-        The performance of atomics depends critically on <strong>contention</strong> &mdash;
-        how many threads compete for the same address simultaneously.
+        The performance of atomics depends entirely on <strong>contention</strong> &mdash;
+        how many threads compete for the same address at the same time.
+        When all threads hit the same address, the memory controller serializes them:
+        N atomic operations on 1 address takes N times longer than N operations on N addresses.
       </p>
 
       <div class="output-block">
-<span class="comment"># atomicAdd performance (A100, N=16M threads):</span>
-Contention level      | Throughput (atomic ops/sec) | vs no atomic
-1 unique address      |   0.6 billion ops/s          |  0.03x (32x slower than compute)
-32 unique addresses   |   2.1 billion ops/s          |  0.11x
-1024 unique addresses |  18.7 billion ops/s          |  1.0x  (baseline)
-No atomic (pure add)  |  18.4 billion ops/s          |  1.0x
+<span class="comment"># atomicAdd performance (A100, N=16M threads, all adding to same or different addresses):</span>
+Contention level        | Throughput            | vs uncontested
+------------------------+-----------------------+----------------
+1 unique address        | 0.6 billion ops/sec   | 0.03x  (terrible!)
+32 unique addresses     | 2.1 billion ops/sec   | 0.11x
+1024 unique addresses   | 18.7 billion ops/sec  | 1.0x   (baseline)
+No atomics (plain add)  | 18.4 billion ops/sec  | ~1.0x  (atomics free at low contention!)
       </div>
 
       <p>
-        When all 2048 threads/SM hit the same address, the memory controller serializes
-        them into 2048 sequential operations &mdash; killing throughput. When threads hit
-        different addresses, atomics are essentially free.
+        The lesson: at high contention (all threads to 1 address), atomics are 32x slower
+        than compute. At low contention (1 address per 1000 threads), atomics add
+        essentially zero overhead. Design your algorithm to maximize unique addresses.
       </p>
 
       <div class="concept-box">
-        <strong>The atomic golden rule:</strong> Maximize the number of unique addresses.
-        For a histogram with 256 bins and 1M threads: 1M/256 = 3906 threads per bin on average.
-        That's manageable. For a global counter updated by all threads: 1M threads, 1 address &mdash;
-        use warp aggregation instead.
+        <strong>The atomic golden rule:</strong> Maximize unique addresses per atomic operation.
+        <br/><br/>
+        For a histogram with 256 bins and 1M threads: each bin gets ~4000 updates on average.
+        That is manageable &mdash; 4000 serialized ops vs 1M parallel ops is a small fraction.
+        <br/><br/>
+        For a global counter (1 address, 1M threads): 1M serialized ops &mdash; terrible.
+        Use warp aggregation instead (reduces to ~31K actual atomic ops).
       </div>
 
       <hr class="section-divider" />
@@ -241,101 +319,198 @@ No atomic (pure add)  |  18.4 billion ops/s          |  1.0x
       <h2 id="warp-aggregation">Warp Aggregation &mdash; Fast Atomics</h2>
 
       <p>
-        Instead of each thread doing its own atomic, have the warp collaborate: count how many
-        threads want to add, then only ONE thread does the atomic with the total.
-        This reduces atomic contention by up to 32&times;.
+        Instead of each of the 32 threads in a warp doing its own atomic, the warp
+        collaborates: count how many threads want to add, then have ONE thread do a
+        single atomic adding the total. This reduces atomic contention by up to 32&times;.
       </p>
 
-<pre><code>// Warp-aggregated atomic add (32x fewer atomic operations)
+<pre><code>// Warp-aggregated atomic increment: equivalent to each thread calling atomicAdd(counter, 1)
+// but performs only 1 atomic per warp instead of 32
 __device__ int atomicAggInc(int* counter) {
-    unsigned mask = __activemask();           // which threads are active
-    int leader = __ffs(mask) - 1;            // lowest active lane
+    // Step 1: get a bitmask of which threads in this warp are currently executing
+    // (some may be predicated off due to divergence)
+    unsigned mask = __activemask();
+
+    // Step 2: find the lowest-numbered active lane -- this will be the "leader"
+    // __ffs = "find first set bit", returns 1-indexed position, so subtract 1
+    int leader = __ffs(mask) - 1;
     int laneId = threadIdx.x % 32;
 
-    int res = 0;
+    int base = 0;
     if (laneId == leader) {
-        // Only one thread does the atomic, adds count for entire warp
-        res = atomicAdd(counter, __popc(mask));  // __popc = popcount
+        // Step 3: leader does ONE atomic, adding the count of ALL active threads
+        // __popc = "population count" = number of set bits = number of active threads
+        base = atomicAdd(counter, __popc(mask));
+        // base = old value of counter (before this warp's batch increment)
     }
 
-    // Broadcast leader's result to all active threads
-    res = __shfl_sync(mask, res, leader);
+    // Step 4: broadcast leader's base to all active threads
+    base = __shfl_sync(mask, base, leader);
 
-    // Each thread's "slot" = base + its position among active threads
-    return res + __popc(mask &amp; ((1 &lt;&lt; laneId) - 1));
-}
+    // Step 5: each active thread computes its unique slot within the batch
+    // "how many active threads have a lower lane ID than me?"
+    // mask &amp; ((1 &lt;&lt; laneId) - 1) = mask restricted to lanes 0..(laneId-1)
+    // __popc of that = count of active lanes below me = my offset within the batch
+    int myOffset = __popc(mask &amp; ((1 &lt;&lt; laneId) - 1));
 
-// Usage: exactly equivalent to each thread calling atomicAdd(counter, 1)
-// but 32x fewer actual atomic operations
-__global__ void countActive(int* data, int* counter, int n) {
+    return base + myOffset;  // my unique slot in the counter
+}</code></pre>
+
+      <p>
+        The bit math for computing your position within the batch deserves a concrete example:
+      </p>
+
+      <div class="output-block">
+<span class="comment"># Suppose 6 threads are active in this warp: lanes 0, 2, 3, 5, 7, 9</span>
+mask = 0b0000...0010101101 = 0x2AD
+
+<span class="comment"># For laneId = 5 (one of the active lanes):</span>
+(1 &lt;&lt; laneId) - 1 = (1 &lt;&lt; 5) - 1 = 32 - 1 = 0b00011111  (bits 0-4 set)
+mask &amp; 0b00011111   = 0b0010101101 &amp; 0b00011111 = 0b0000001101
+__popc(0b0000001101) = 3  (bits 0, 2, 3 are set -- 3 active lanes below lane 5)
+
+<span class="comment"># So lane 5's offset = 3, meaning it is the 4th thread (0-indexed: 3) in this batch</span>
+<span class="comment"># lane 0 gets offset=0, lane 2 gets offset=1, lane 3 gets offset=2, lane 5 gets offset=3...</span>
+
+<span class="comment"># If leader's atomicAdd returns base=1000:</span>
+<span class="comment"># lane 0 claims slot 1000, lane 2 claims 1001, lane 3 claims 1002, lane 5 claims 1003...</span>
+<span class="comment"># All 6 active threads get unique, consecutive slots from one atomic operation.</span>
+      </div>
+
+<pre><code>// Usage example: scatter active elements to an output array
+__global__ void compactPositive(int* data, int* output, int* count, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &gt;= n) return;
-    if (data[i] &gt; 0) {
-        int slot = atomicAggInc(counter);  // each active thread gets unique slot
-        // use slot...
+
+    bool active = (data[i] &gt; 0);
+    if (active) {
+        // Instead of each active thread doing atomicAdd(count, 1) independently
+        // (up to 32 serialized atomics per warp), use warp aggregation:
+        // Only 1 atomic per warp, regardless of how many threads are active
+        int slot = atomicAggInc(count);  // claim a unique output slot
+        output[slot] = data[i];
     }
-}</code></pre>
+}
+// For 32 active threads per warp: 32x fewer atomics vs naive approach</code></pre>
 
       <hr class="section-divider" />
 
       <h2 id="histogram">Case Study: Parallel Histogram</h2>
 
-<pre><code>// Naive: global atomics, high contention for popular bins
+      <p>
+        The histogram problem is a perfect stress test for atomics: N threads, each
+        wanting to increment one of B bins. For popular bins, contention can be severe.
+        The solution is to use per-block shared memory histograms, then merge globally.
+      </p>
+
+<pre><code>// Naive: all N threads atomically update the same B global bins
+// For N=16M threads and B=256 bins: each bin averages 62,500 contended updates
 __global__ void histogramNaive(const int* data, int* hist, int n, int nBins) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &lt; n) {
-        atomicAdd(&amp;hist[data[i] % nBins], 1);  // all threads compete for same bins
+        // High contention for popular bins -- many threads racing for same address
+        atomicAdd(&amp;hist[data[i] % nBins], 1);
     }
 }
 
-// Optimized: shared memory histogram per block, then atomicAdd to global
+// Optimized: each block builds a local histogram in shared memory,
+// then adds the local histogram to the global one
 __global__ void histogramShared(const int* data, int* hist, int n, int nBins) {
-    extern __shared__ int localHist[];  // launch with nBins*sizeof(int) smem
+    // Launch with: histogramShared&lt;&lt;&lt;grid, block, nBins*sizeof(int)&gt;&gt;&gt;(...)
+    extern __shared__ int localHist[];
 
-    // Initialize local histogram
+    // Initialize local histogram to zero
+    // (each thread initializes multiple bins if nBins &gt; blockDim.x)
     for (int b = threadIdx.x; b &lt; nBins; b += blockDim.x)
         localHist[b] = 0;
-    __syncthreads();
+    __syncthreads();  // ensure zeroing is complete before accumulation
 
-    // Accumulate into local histogram (fast shared memory atomics)
+    // Phase 1: accumulate into LOCAL shared memory histogram
+    // Shared memory atomics are much faster than global memory atomics --
+    // the L1 cache handles the serialization locally, avoiding PCIe traffic
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &lt; n) {
-        atomicAdd(&amp;localHist[data[i] % nBins], 1);  // shared mem atomics = fast
+        atomicAdd(&amp;localHist[data[i] % nBins], 1);
     }
-    __syncthreads();
+    __syncthreads();  // ensure all threads done before writing to global
 
-    // Merge local into global (only gridDim.x * nBins total global atomics vs N)
+    // Phase 2: add local histogram to global histogram
+    // Only gridDim.x * nBins total global atomics (vs N naive atomics)
+    // For N=16M, blockSize=256: gridSize=62500, nBins=256
+    // Total global atomics: 62500 * 256 = 16M (same count, but no contention per block)
     for (int b = threadIdx.x; b &lt; nBins; b += blockDim.x)
         if (localHist[b] &gt; 0)
-            atomicAdd(&amp;hist[b], localHist[b]);
-}
+            atomicAdd(&amp;hist[b], localHist[b]);  // rare, low-contention updates
+}</code></pre>
 
-// Performance (N=16M, nBins=256, A100):
-// Naive global atomics:          8.2 ms
-// Shared memory histogram:       0.9 ms  (9x faster)</code></pre>
+      <div class="output-block">
+<span class="comment"># Performance (N=16M elements, nBins=256, A100):</span>
+histogramNaive (global atomics):        8.2 ms
+histogramShared (shared + global):      0.9 ms   (9x faster!)
+
+<span class="comment"># Why so much faster?</span>
+<span class="comment"># Naive: 16M global atomic ops, up to 62500 threads competing per bin</span>
+<span class="comment"># Shared: 16M shared atomic ops (fast, local) + 16M global ops spread evenly</span>
+<span class="comment">#         Shared mem atomics are ~10x faster than global; contention per bin drops</span>
+<span class="comment">#         from 62500 (naive) to blockDim.x/nBins = ~1 (shared) per global atomic</span>
+      </div>
 
       <hr class="section-divider" />
 
-      <h2 id="lock-free">Lock-Free Patterns</h2>
+      <h2 id="patterns">Safe Patterns for Common Use Cases</h2>
 
-<pre><code>// Lock-free stack using CAS
-struct GPUStack {
-    int* data;
-    int  top;  // atomic
-};
+      <h3>Pattern 1: Claiming unique output slots (scatter)</h3>
 
-__device__ void push(GPUStack* stack, int val) {
-    int idx = atomicAdd(&amp;stack->top, 1);  // claim slot
-    stack->data[idx] = val;               // write (might be visible before atomicAdd elsewhere)
-    // Note: this is actually not a correct lock-free stack without more care
-    // Use thrust::device_vector for production
+<pre><code>// Common pattern: filter input array, write active elements to output
+// Use atomic counter to claim unique, consecutive output slots
+__global__ void filterAndScatter(float* input, float* output,
+                                  int* outCount, float threshold, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+
+    float val = input[i];
+    if (val &gt; threshold) {
+        // Claim output slot atomically (use warp aggregation for best performance)
+        int slot = atomicAdd(outCount, 1);
+        output[slot] = val;
+    }
 }
 
-__device__ int pop(GPUStack* stack) {
-    int idx = atomicSub(&amp;stack->top, 1) - 1;  // claim slot
-    if (idx &lt; 0) { atomicAdd(&amp;stack->top, 1); return -1; }  // empty
-    return stack->data[idx];
+// After kernel: *outCount tells you how many elements were written
+// output[0..(*outCount-1)] contains the filtered values</code></pre>
+
+      <h3>Pattern 2: Atomic compare-and-swap for custom operations</h3>
+
+<pre><code>// Custom atomic operation: only update if new value is "better" by some criterion
+// Example: atomically update if new value has higher absolute value
+__device__ float atomicMaxAbs(float* addr, float val) {
+    int* iaddr = (int*)addr;
+    int  ival  = __float_as_int(fabsf(val));  // compare on |val|
+    int  old   = *iaddr, assumed;
+    do {
+        assumed = old;
+        if (__int_as_float(assumed) &gt;= fabsf(val)) break;  // early exit: already larger
+        old = atomicCAS(iaddr, assumed, ival);
+    } while (assumed != old);
+    return __int_as_float(old);
 }</code></pre>
+
+      <h3>Pattern 3: Atomic flag for early termination</h3>
+
+<pre><code>// Signal from GPU to CPU: stop launching more kernels
+__global__ void searchKernel(int* data, int target, int* found, int* foundIdx, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+
+    // Check early-exit flag (after first thread finds it, others can bail)
+    if (atomicAdd(found, 0) &gt; 0) return;  // atomic read (add 0 = just read)
+
+    if (data[i] == target) {
+        atomicExch(found, 1);     // signal "found"
+        atomicMin(foundIdx, i);   // record earliest index
+    }
+}
+// Host: check *h_found after kernel; if 1, read h_foundIdx</code></pre>
 
       <div class="series-nav">
         <span><a href="cuda-phase4-streams.html">&larr; 4.3 &mdash; CUDA Streams</a></span>

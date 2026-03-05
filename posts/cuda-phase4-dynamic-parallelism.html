@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery 4.5 — Dynamic Parallelism — Sudhanshu</title>
+  <title>CUDA Mastery 4.5 &mdash; Dynamic Parallelism &mdash; Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
+    .gif-wrap { text-align: center; margin: 2.5rem 0; }
+    .gif-wrap img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
+    .gif-caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; font-style: italic; line-height: 1.5; }
     .concept-box { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
     .warning-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
     .danger-box { background: #fff1f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
-    .output-block { background: #0f172a; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-family: monospace; font-size: 0.85rem; color: #a3e635; overflow-x: auto; border: 1px solid #1e293b; }
+    .output-block { background: #0f172a; border-radius: 8px; padding: 1rem 1.25px; margin: 1.5rem 0; font-family: monospace; font-size: 0.85rem; color: #a3e635; overflow-x: auto; border: 1px solid #1e293b; }
     .output-block .comment { color: #64748b; }
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
@@ -44,17 +47,26 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">&middot; 18 min read</span>
+        <span class="read-time">&middot; 22 min read</span>
       </div>
       <h1>Dynamic Parallelism &mdash; Kernels Launching Kernels</h1>
       <p class="post-description">
         Dynamic Parallelism lets GPU kernels launch child kernels without returning to the CPU.
         This enables adaptive algorithms where the GPU itself decides how much work to spawn
         based on data seen at runtime &mdash; recursive refinement, tree traversal, and
-        variable-depth BFS all become natural to express.
+        variable-depth BFS all become natural to express. But it comes with real overhead
+        and is often the wrong tool. This post explains both when it helps and when to avoid it.
       </p>
     </div>
     <div class="post-body">
+
+      <p>
+        Before Dynamic Parallelism existed, every kernel launch required a CPU round-trip.
+        Your algorithm had to finish a GPU pass, return to the CPU, make a decision, then
+        launch the next GPU pass. That round-trip adds 10&ndash;50 microseconds per decision
+        &mdash; tolerable for occasional decisions, catastrophic for recursive algorithms
+        that make thousands of decisions per second.
+      </p>
 
       <div class="toc">
         <h4>In this post</h4>
@@ -75,42 +87,39 @@
       <h2 id="what-is-dp">What Is Dynamic Parallelism</h2>
 
       <p>
-        Before Dynamic Parallelism (pre-Kepler), every kernel launch had to come from the CPU.
-        If your algorithm needed to decide how much work to do based on GPU-computed results,
-        you had to: run kernel &rarr; copy result to CPU &rarr; decide &rarr; launch next kernel.
-        The CPU round-trip added &sim;10-50 &micro;s per decision point.
+        With Dynamic Parallelism (Kepler sm_35+), a kernel thread can launch a new kernel
+        directly from the GPU. The syntax is the same as CPU-side kernel launches:
+        <code>childKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(args)</code>, but called from inside a
+        <code>__global__</code> function instead of from host code.
       </p>
 
-      <p>
-        With Dynamic Parallelism (Kepler sm_35+), a kernel can launch child kernels directly
-        from the GPU. The parent kernel continues running while child kernels execute. No CPU
-        involvement required.
-      </p>
-
-<pre><code>// Without Dynamic Parallelism: CPU must coordinate
+<pre><code>// Without Dynamic Parallelism: CPU must coordinate every decision
 void cpuCoordinated(float* data, int n) {
-    // Pass 1
-    kernel1&lt;&lt;&lt;grid, block&gt;&gt;&gt;(data, n);
-    cudaDeviceSynchronize();  // back to CPU
+    // Pass 1: compute partial results
+    kernel1&lt;&lt;&lt;grid, block&gt;&gt;&gt;(data, d_count, n);
+    cudaDeviceSynchronize();  // GPU &rarr; CPU: ~10-50us latency
 
     // CPU reads result, decides how much work for pass 2
-    int* h_count; cudaMallocHost(&amp;h_count, sizeof(int));
-    cudaMemcpy(h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
-    int newGrid = (*h_count + 255) / 256;
+    int h_count;
+    cudaMemcpy(&amp;h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
+    // More latency: PCIe transfer + CPU decision + kernel launch
 
-    // Pass 2
-    kernel2&lt;&lt;&lt;newGrid, 256&gt;&gt;&gt;(data, *h_count);
-    cudaFreeHost(h_count);
+    // Pass 2: work decided by CPU based on GPU-computed count
+    int newGrid = (h_count + 255) / 256;
+    kernel2&lt;&lt;&lt;newGrid, 256&gt;&gt;&gt;(data, h_count);
+    // Total added latency: ~50-100us per CPU round-trip
 }
 
-// With Dynamic Parallelism: GPU decides
-__global__ void parentKernel(float* data, int n) {
-    // Phase 1 work done by this thread...
+// With Dynamic Parallelism: GPU decides and launches immediately
+__global__ void gpuCoordinated(float* data, int* d_count, int n) {
+    // ... parent thread does phase 1 work ...
+
+    // Only ONE thread needs to launch the child (see explanation below)
     if (threadIdx.x == 0 &amp;&amp; blockIdx.x == 0) {
-        // GPU launches child kernel with dynamically computed grid
-        int newGrid = (d_count + 255) / 256;
-        childKernel&lt;&lt;&lt;newGrid, 256&gt;&gt;&gt;(data, d_count);
-        // Parent can continue doing other work while child runs
+        // GPU computes d_count, then launches phase 2 directly -- no CPU involved
+        int newGrid = (*d_count + 255) / 256;
+        childKernel2&lt;&lt;&lt;newGrid, 256&gt;&gt;&gt;(data, *d_count);
+        // ~50us launch overhead, but no PCIe round-trip
     }
 }</code></pre>
 
@@ -118,17 +127,28 @@ __global__ void parentKernel(float* data, int n) {
 
       <h2 id="compile">Compiling for Dynamic Parallelism</h2>
 
-<pre><code># Requires separate compilation (-rdc=true) and linking with cudadevrt
+<pre><code># Requires -rdc=true (relocatable device code) and linking with cudadevrt
 nvcc -arch=sm_70 -rdc=true mykernel.cu -o myprogram -lcudadevrt
 
 # Or with CMake:
 set_property(TARGET mytarget PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(mytarget cudadevrt)</code></pre>
 
-      <div class="warning-box">
-        <strong>-rdc=true has a compile-time cost.</strong> Relocatable device code disables
-        some compiler optimizations (function inlining across TUs, some PTX-level optimizations).
-        For kernels that don't use dynamic parallelism, prefer the default -rdc=false.
+      <div class="concept-box">
+        <strong>What is -rdc=true and why does it have a cost?</strong>
+        <br/><br/>
+        Normal CUDA compilation (<code>-rdc=false</code>) compiles each .cu file into
+        a self-contained binary. The compiler can inline functions across the whole file,
+        optimize aggressively, and produce compact PTX.
+        <br/><br/>
+        Relocatable device code (<code>-rdc=true</code>) compiles each file into a
+        relocatable object, similar to how CPU linkers work. Device functions are
+        linked at binary link time, not compile time. This is required for:
+        (a) device-side kernel launches, (b) calls to device functions in other .cu files.
+        <br/><br/>
+        The cost: the compiler cannot inline across translation unit boundaries
+        at compile time. Some PTX-level optimizations are disabled. Kernels that
+        do NOT use dynamic parallelism should use <code>-rdc=false</code> where possible.
       </div>
 
       <hr class="section-divider" />
@@ -143,25 +163,55 @@ target_link_libraries(mytarget cudadevrt)</code></pre>
 }
 
 __global__ void parentKernel(float* data, int n) {
-    // Each block independently launches a child kernel for its portion
     int blockStart = blockIdx.x * blockDim.x;
     int blockN     = min(blockDim.x, n - blockStart);
 
-    if (threadIdx.x == 0) {  // only one thread per block launches child
-        // Child kernel: separate grid, runs asynchronously
+    // IMPORTANT: gate child launch on threadIdx.x == 0
+    // (full explanation below)
+    if (threadIdx.x == 0) {
         childKernel&lt;&lt;&lt;1, blockN&gt;&gt;&gt;(data + blockStart, blockN, blockIdx.x);
-        // Parent continues immediately (child runs in background)
+        // The child kernel runs asynchronously -- parent continues executing
+        // while child is queued and (eventually) runs
     }
+
+    // Parent can do other work here while child is pending...
+    // But: global memory writes by the parent after this point
+    // are NOT guaranteed visible to the child without explicit sync
 }
 
 // Host:
 parentKernel&lt;&lt;&lt;numBlocks, blockSize&gt;&gt;&gt;(d_data, N);
-cudaDeviceSynchronize();  // waits for all children too</code></pre>
+cudaDeviceSynchronize();  // waits for parent AND all children to complete</code></pre>
 
       <div class="concept-box">
-        <strong>Memory visibility:</strong> Child kernels see all global memory writes made
-        by the parent block before the child launch. But two sibling child kernels (launched
-        by different parent threads) don't have guaranteed ordering unless explicitly synchronized.
+        <strong>Why gate child launches on <code>threadIdx.x == 0</code>?</strong>
+        <br/><br/>
+        Each thread in a block has its own execution context. If 256 threads all call
+        <code>childKernel&lt;&lt;&lt;...&gt;&gt;&gt;()</code>, the GPU queues <strong>256 separate child grids</strong>.
+        That is almost never what you want &mdash; it means 256 copies of the same computation,
+        consuming the pending launch queue extremely fast and adding 256x the overhead.
+        <br/><br/>
+        The convention is: exactly one thread per block (or per grid) is responsible for
+        launching the child. Use <code>if (threadIdx.x == 0)</code> to select one thread
+        per block, or <code>if (threadIdx.x == 0 &amp;&amp; blockIdx.x == 0)</code> for one
+        launch per grid.
+        <br/><br/>
+        If different blocks need different child grid sizes (adaptive refinement), you
+        would use <code>if (threadIdx.x == 0)</code> to let each block launch its own
+        appropriately-sized child. This is one of the primary use cases for dynamic parallelism.
+      </div>
+
+      <div class="concept-box">
+        <strong>Memory visibility rules for parent and child:</strong>
+        <br/><br/>
+        (1) The parent's global memory writes made <em>before</em> the child launch are
+        visible to the child kernel &mdash; the launch acts as a memory fence for the
+        launching thread's block.<br/>
+        (2) Sibling child kernels (launched by different parent threads or blocks) have
+        no guaranteed ordering relative to each other. Treat them as independent unless
+        you add explicit synchronization.<br/>
+        (3) Child kernel results are visible to the parent only after
+        <code>cudaDeviceSynchronize()</code> (from device code) returns.
       </div>
 
       <hr class="section-divider" />
@@ -170,30 +220,38 @@ cudaDeviceSynchronize();  // waits for all children too</code></pre>
 
 <pre><code>__global__ void parentWithSync(float* data, int n) {
     if (threadIdx.x == 0 &amp;&amp; blockIdx.x == 0) {
-        // Launch child
+        // Launch child to fill data[]
         childKernel&lt;&lt;&lt;16, 256&gt;&gt;&gt;(data, n);
 
-        // Wait for child to complete before reading its results
-        cudaDeviceSynchronize();  // from device: waits for all children from this thread
+        // cudaDeviceSynchronize() from DEVICE code:
+        // waits for all children launched by any thread in THIS grid
+        // (not the entire GPU -- just children of this kernel invocation)
+        cudaDeviceSynchronize();
 
-        // Now safe to read data modified by childKernel
-        float result = data[0];
-        printf("Child result: %f\n", result);
+        // NOW safe to read data[] modified by childKernel
+        printf("data[0] = %f\n", data[0]);
+
+        // Launch a second child that processes the results
+        processKernel&lt;&lt;&lt;16, 256&gt;&gt;&gt;(data, n);
+        cudaDeviceSynchronize();
     }
 }
 
-// Stream-based child synchronization:
-__global__ void parentStreams(float* A, float* B, float* C, int n) {
+// Using streams for concurrent child kernels:
+__global__ void parentConcurrent(float* A, float* B, float* C, int n) {
     if (threadIdx.x == 0 &amp;&amp; blockIdx.x == 0) {
+        // Create streams (device-side streams are for concurrent child launches)
         cudaStream_t s1, s2;
         cudaStreamCreateWithFlags(&amp;s1, cudaStreamNonBlocking);
         cudaStreamCreateWithFlags(&amp;s2, cudaStreamNonBlocking);
 
-        childA&lt;&lt;&lt;8, 256, 0, s1&gt;&gt;&gt;(A, n);  // runs in s1
-        childB&lt;&lt;&lt;8, 256, 0, s2&gt;&gt;&gt;(B, n);  // runs concurrently in s2
+        // Launch two independent children concurrently
+        childA&lt;&lt;&lt;8, 256, 0, s1&gt;&gt;&gt;(A, n);  // fills A[]
+        childB&lt;&lt;&lt;8, 256, 0, s2&gt;&gt;&gt;(B, n);  // fills B[] concurrently
 
-        cudaDeviceSynchronize();  // wait for both
+        cudaDeviceSynchronize();  // wait for both A and B to finish
 
+        // Now merge: A[] and B[] are both ready
         mergeKernel&lt;&lt;&lt;8, 256&gt;&gt;&gt;(A, B, C, n);
         cudaDeviceSynchronize();
 
@@ -206,41 +264,67 @@ __global__ void parentStreams(float* A, float* B, float* C, int n) {
 
       <h2 id="recursive">Recursive Kernels</h2>
 
-<pre><code>// Recursive quicksort: partition, then recursively sort each half
-__global__ void quicksort(int* data, int lo, int hi) {
-    if (lo &gt;= hi) return;
+      <p>
+        The most iconic dynamic parallelism use case: a kernel that calls itself
+        recursively. Each recursive level subdivides the problem and launches smaller
+        sub-problems.
+      </p>
 
-    // Partition (simplified: use last element as pivot, one thread)
+<pre><code>// Recursive quicksort: each call partitions a range, then recursively sorts each half
+// This is a simplified demo -- a production quicksort would use multiple threads for partitioning
+__global__ void quicksort(int* data, int lo, int hi) {
+    if (lo &gt;= hi) return;  // base case: 0 or 1 element -- already sorted
+
+    // One thread partitions the range (simplified Lomuto partition)
     if (threadIdx.x == 0 &amp;&amp; blockIdx.x == 0) {
+        // Choose last element as pivot
         int pivot = data[hi];
         int i = lo - 1;
+
+        // Move all elements &lt;= pivot to the left of i
         for (int j = lo; j &lt; hi; j++) {
             if (data[j] &lt;= pivot) {
                 i++;
                 int tmp = data[i]; data[i] = data[j]; data[j] = tmp;
             }
         }
+        // Place pivot at its final position
         i++;
         int tmp = data[i]; data[i] = data[hi]; data[hi] = tmp;
         int pivotIdx = i;
 
-        // Recursively sort left and right partitions
+        // Recursively sort left partition (elements &lt; pivot)
         if (pivotIdx - 1 &gt; lo)
             quicksort&lt;&lt;&lt;1, 1&gt;&gt;&gt;(data, lo, pivotIdx - 1);
+
+        // Recursively sort right partition (elements &gt; pivot)
         if (pivotIdx + 1 &lt; hi)
             quicksort&lt;&lt;&lt;1, 1&gt;&gt;&gt;(data, pivotIdx + 1, hi);
+        // Both child launches run concurrently with each other
     }
 }
 
-// Host call:
+// Initial call from host:
 quicksort&lt;&lt;&lt;1, 1&gt;&gt;&gt;(d_data, 0, N - 1);
 cudaDeviceSynchronize();</code></pre>
 
       <div class="warning-box">
-        <strong>Recursive dynamic parallelism is limited in depth.</strong> Maximum nesting
-        depth is 24 levels. Each level of recursion uses device memory for the launch
-        configuration queue. Deep recursion on large datasets can exhaust the device
-        synchronization queue (default: 2048 pending launches).
+        <strong>This quicksort is a demonstration, not production code.</strong>
+        The single-thread partition is O(N) serial work per level &mdash; no parallelism
+        within a partition step. A real GPU quicksort would use a parallel partition
+        (thrust::partition or a warp-parallel Hoare scheme) within each kernel.
+        The recursion structure shown here is correct; the inner partition needs more work.
+      </div>
+
+      <div class="warning-box">
+        <strong>Recursive dynamic parallelism has hard limits:</strong><br/>
+        Maximum nesting depth: 24 levels<br/>
+        Default pending launch queue: 2048 launches<br/>
+        Each recursive level uses device memory for launch state<br/>
+        <br/>
+        For N=1000 elements, quicksort has O(log N) &asymp; 10 levels on average &mdash; well within limits.
+        For N=1M, worst-case O(N) levels would overflow the queue. Always add a minimum
+        problem size threshold to avoid deep recursion on tiny subproblems.
       </div>
 
       <hr class="section-divider" />
@@ -248,23 +332,24 @@ cudaDeviceSynchronize();</code></pre>
       <h2 id="when-to-use">When to Use Dynamic Parallelism</h2>
 
       <table class="address-table">
-        <thead><tr><th>Good Use Case</th><th>Why</th></tr></thead>
+        <thead><tr><th>Good Use Case</th><th>Why DP helps</th></tr></thead>
         <tbody>
-          <tr><td>Adaptive mesh refinement</td><td>GPU decides which cells need subdivision</td></tr>
-          <tr><td>BFS on irregular graphs</td><td>Frontier size unknown until runtime</td></tr>
-          <tr><td>N-body with variable accuracy</td><td>Close particles need more sub-steps</td></tr>
-          <tr><td>Recursive tree traversal</td><td>Depth unknown at launch time</td></tr>
-          <tr><td>Iterative linear solvers</td><td>Adaptive stopping when residual &lt; eps</td></tr>
+          <tr><td>Adaptive mesh refinement</td><td>GPU inspects each cell and decides whether to subdivide it; decision and launch happen without CPU involvement</td></tr>
+          <tr><td>Irregular graph traversal (BFS)</td><td>Frontier size is unknown until each BFS level completes; DP avoids overprovisioning or under-using the GPU</td></tr>
+          <tr><td>Variable-depth recursion</td><td>Tree structures where depth is data-dependent; each node decides independently</td></tr>
+          <tr><td>Iterative solvers with adaptive convergence</td><td>GPU checks residual and launches next iteration only if needed</td></tr>
+          <tr><td>N-body with variable accuracy</td><td>Close particles need more sub-steps; GPU decides per particle pair</td></tr>
         </tbody>
       </table>
 
       <table class="address-table">
-        <thead><tr><th>Bad Use Case</th><th>Why / Better Alternative</th></tr></thead>
+        <thead><tr><th>Bad Use Case</th><th>Better Alternative</th></tr></thead>
         <tbody>
-          <tr><td>Fixed-size sub-problems</td><td>Just launch a larger grid from CPU</td></tr>
-          <tr><td>Regular reductions</td><td>Use CUB or two-pass reduction</td></tr>
-          <tr><td>Sorting small arrays</td><td>Thrust or CUB handle this better</td></tr>
-          <tr><td>Simple conditional work</td><td>Use warp voting + compaction instead</td></tr>
+          <tr><td>Fixed, known problem size</td><td>Launch the right grid size from CPU; no overhead</td></tr>
+          <tr><td>Regular tree reduction</td><td>Two-pass reduction (post 4.2) or CUB -- far less overhead</td></tr>
+          <tr><td>Conditional work selection</td><td>Warp voting + compaction; keeps all threads busy</td></tr>
+          <tr><td>Sorting</td><td>Thrust or CUB sort -- GPU-optimized, handles all sizes</td></tr>
+          <tr><td>Launching one kernel from inside another "just because you can"</td><td>Just restructure the kernel; the overhead is rarely worth it</td></tr>
         </tbody>
       </table>
 
@@ -272,68 +357,97 @@ cudaDeviceSynchronize();</code></pre>
 
       <h2 id="overhead">Overhead and Limitations</h2>
 
-      <p>Child kernel launch overhead on A100:</p>
+      <p>
+        Dynamic parallelism is not free. Each child kernel launch from the GPU goes through
+        a device-side command queue (the "pending launch queue") before reaching the GPU scheduler.
+      </p>
 
       <div class="output-block">
-<span class="comment"># Measured overhead per child kernel launch (A100):</span>
-Parent kernel launch (from CPU):     ~5 us
-Child kernel launch (from GPU):      ~50 us  (10x slower than CPU launch)
-Child kernel launch in tight loop:   ~10 us  (amortized after warmup)
+<span class="comment"># Kernel launch overhead comparison (A100):</span>
+CPU-side kernel launch:              ~5 us    (microseconds)
+GPU-side (dynamic) kernel launch:   ~50 us    (10x more expensive than CPU launch!)
+GPU-side launch (warm, amortized):  ~10 us    (after queue warmup on repeated calls)
 
-<span class="comment"># Launch limits:</span>
-Max pending launches per device:     2048 (can set higher with cudaDeviceSetLimit)
-Max recursion depth:                 24
-Max child grid dimensions:           Same as normal grid
+<span class="comment"># Pending launch queue defaults:</span>
+Max pending launches per device:    2048     (configurable with cudaDeviceSetLimit)
+Max recursion depth:                24 levels
+Max child grid dimensions:          Same as normal grid (no additional constraints)
+
+<span class="comment"># cudaDeviceSetLimit example (increase queue size for deep recursion):</span>
+cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 8192);
       </div>
 
-      <p>
-        Child kernel launches have significant overhead compared to parent launches.
-        Launch thousands of tiny child kernels (1 thread each) and you'll spend more
-        time on launch overhead than computation. Batch work into fewer, larger child kernels.
-      </p>
+      <div class="concept-box">
+        <strong>Understanding the pending launch queue:</strong>
+        <br/><br/>
+        Think of it as an inbox. Every <code>child&lt;&lt;&lt;...&gt;&gt;&gt;()</code> call from device code
+        posts a message to this inbox. The GPU scheduler reads messages and launches kernels
+        as resources become available. The inbox holds 2048 messages by default.
+        <br/><br/>
+        If your algorithm launches 3000 children before the scheduler has processed any
+        of them, the 2049th call will either block the parent thread (stalling it) or
+        fail with an error. For deep recursive algorithms, increase the limit with
+        <code>cudaDeviceSetLimit</code> before launching the parent kernel from the CPU.
+        <br/><br/>
+        This is why child launches have &sim;50 us overhead &mdash; the launch must go through
+        this queue and the associated synchronization. A CPU launch bypasses this entirely
+        and writes directly to the GPU command buffer.
+      </div>
 
       <hr class="section-divider" />
 
       <h2 id="alternatives">Alternatives to Dynamic Parallelism</h2>
 
       <p>
-        Before resorting to dynamic parallelism, consider these alternatives which often
-        have lower overhead:
+        Before using dynamic parallelism, try these alternatives. They are usually faster
+        with less complexity:
       </p>
 
       <ul>
-        <li><strong>Cooperative Groups:</strong> Flexible synchronization without nested launches.
-        Sync at thread, warp, block, or grid level.</li>
-        <li><strong>Work queues:</strong> One persistent kernel + global work queue. Threads pull
-        work items atomically. Avoids launch overhead entirely.</li>
-        <li><strong>CUB DeviceScan + Compaction:</strong> Remove inactive elements before processing,
-        eliminating the need for adaptive grid sizing.</li>
-        <li><strong>CPU dispatch loop:</strong> For coarse-grained decisions, a CPU loop with
-        cudaDeviceSynchronize() has predictable latency and is often fast enough.</li>
+        <li><strong>Cooperative Groups (CUDA 9+):</strong> Flexible synchronization at thread,
+        warp, block, or multi-block level. Grid-wide sync without child launches.</li>
+        <li><strong>Persistent kernels + work queues:</strong> One kernel that lives until the
+        queue is empty. Threads atomically claim work items. Eliminates launch overhead entirely.</li>
+        <li><strong>CUB DeviceSelect / DevicePartition:</strong> Compact active elements, then
+        launch a fixed kernel on the compacted data. No adaptive grid sizing needed.</li>
+        <li><strong>CPU dispatch loop with cudaStreamWaitEvent:</strong> For coarse-grained
+        decisions (every 10ms), a CPU loop is perfectly fine and has predictable behavior.</li>
       </ul>
 
-<pre><code>// Persistent kernel with work queue (often better than dynamic parallelism)
+<pre><code>// Persistent kernel with work queue -- often better than dynamic parallelism
+// One kernel launch processes unlimited amounts of work adaptively
 __global__ void persistentKernel(WorkItem* queue, int* tail, int maxWork) {
+    // Each thread keeps claiming and processing items until queue is empty
     while (true) {
-        int idx = atomicAdd(tail, 1);  // claim next work item
-        if (idx &gt;= maxWork) break;
+        // Atomically claim the next work item index
+        int idx = atomicAdd(tail, 1);
+        if (idx &gt;= maxWork) break;  // queue exhausted, thread exits
 
         WorkItem item = queue[idx];
         processItem(item);
 
-        // Enqueue new work dynamically into the same queue
+        // If this item generates sub-problems, enqueue them
         if (item.needsSubdivision) {
-            int newIdx = atomicAdd(tail, 2);  // claim 2 new slots
+            // Claim 2 new slots at the end of the queue
+            int newIdx = atomicAdd(tail, 2);
             if (newIdx + 1 &lt; maxWork) {
-                queue[newIdx]   = item.left;
-                queue[newIdx+1] = item.right;
+                queue[newIdx]   = subdivide(item, 0);  // left sub-problem
+                queue[newIdx+1] = subdivide(item, 1);  // right sub-problem
             }
         }
     }
 }
 
-// Launch once with enough threads to keep SM busy, runs until queue empty
-persistentKernel&lt;&lt;&lt;numSMs * 4, 256&gt;&gt;&gt;(d_queue, d_tail, maxWork);</code></pre>
+// Launch once with enough threads to saturate SMs
+// The kernel processes ALL work adaptively without ever returning to CPU
+persistentKernel&lt;&lt;&lt;numSMs * 4, 256&gt;&gt;&gt;(d_queue, d_tail, maxWork);
+// maxWork = initial queue size + max possible expansions
+
+// Advantages over dynamic parallelism:
+// - No per-launch overhead (50 us per child vs 0 per work item)
+// - No pending queue limits
+// - No recursion depth limits
+// - Naturally load-balanced (fast threads claim more items)</code></pre>
 
       <div class="series-nav">
         <span><a href="cuda-phase4-atomics.html">&larr; 4.4 &mdash; Atomic Operations</a></span>

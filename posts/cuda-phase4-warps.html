@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery 4.1 — Warps, SIMT, and Warp Divergence — Sudhanshu</title>
+  <title>CUDA Mastery 4.1 &mdash; Warps, SIMT, and Warp Divergence &mdash; Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -47,7 +47,7 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">&middot; 28 min read</span>
+        <span class="read-time">&middot; 35 min read</span>
       </div>
       <h1>Warps, SIMT, and Warp Divergence &mdash; The Execution Model Under the Hood</h1>
       <p class="post-description">
@@ -64,6 +64,12 @@
         The hardware never actually runs individual threads &mdash; it runs warps of 32 threads
         in lockstep. Every performance characteristic of a CUDA kernel &mdash; occupancy,
         latency hiding, divergence cost, register pressure &mdash; is ultimately a warp-level story.
+      </p>
+
+      <p>
+        I spent a long time thinking in terms of threads and wondering why my kernels
+        underperformed. Once I started thinking in terms of warps, the performance model
+        clicked. This post gives you that mental model with concrete numbers and traced examples.
       </p>
 
       <div class="gif-wrap">
@@ -114,6 +120,20 @@
            tid, laneId, warpId, globalWarpId);
 }</code></pre>
 
+      <p>
+        Running this with 64 threads in one block would print lane IDs 0&ndash;31 twice (once per warp),
+        with warp IDs 0 and 1. The lane ID tells a thread where it sits within its warp &mdash;
+        this matters for warp-level primitives and for predicting access patterns.
+      </p>
+
+      <div class="concept-box">
+        <strong>Why 32?</strong> It is a hardware constant, not a software choice.
+        The SIMD execution units in an SM are 32-wide. The register file is organized
+        in 32-thread groups. The warp size matches the hardware vector width exactly,
+        so there is zero overhead for scheduling &mdash; one instruction dispatch covers
+        all 32 threads simultaneously.
+      </div>
+
       <hr class="section-divider" />
 
       <h2 id="simt">SIMT Execution Model</h2>
@@ -141,6 +161,30 @@
         </tbody>
       </table>
 
+      <p>
+        Here is a concrete instruction-level trace for a warp of 32 threads executing
+        a simple kernel without divergence:
+      </p>
+
+      <div class="output-block">
+<span class="comment">// __global__ void add(float* a, float* b, float* c, int n)</span>
+<span class="comment">// Warp 0 (threads 0-31) executing together:</span>
+
+Cycle 1: i = blockIdx.x * blockDim.x + threadIdx.x
+         Thread 0: i=0, Thread 1: i=1, ..., Thread 31: i=31
+         (32 different values of i, computed in ONE cycle)
+
+Cycle 2: bounds check   if (i &lt; n)
+         All 32 threads pass (n &gt; 31)  &rarr;  no divergence, full throughput
+
+Cycle 3: load a[i]      (all 32 threads issue load to 32 consecutive addresses)
+         Hardware coalesces into 1-2 cache line fetches  &rarr;  very fast
+
+Cycle 4: load b[i]      (same pattern)
+
+Cycle 5: c[i] = a[i] + b[i]   (32 additions, one cycle, all in parallel)
+      </div>
+
       <hr class="section-divider" />
 
       <h2 id="scheduling">Warp Scheduling &mdash; Latency Hiding</h2>
@@ -165,14 +209,24 @@
       </p>
 
       <div class="concept-box">
-        <strong>The warp scheduler timeline:</strong><br/>
-        Cycle 1: Warp 0 issues load (800-cycle stall starts)<br/>
-        Cycle 2: Warp 1 executes arithmetic<br/>
+        <strong>The warp scheduler timeline (concrete example):</strong><br/>
+        Cycle 1: Warp 0 issues load from global memory (800-cycle stall starts)<br/>
+        Cycle 2: Scheduler sees Warp 0 is stalled &rarr; switches to Warp 1<br/>
+        Cycle 2: Warp 1 executes arithmetic (ADD, MUL, etc.)<br/>
         Cycle 3: Warp 2 executes arithmetic<br/>
         ...<br/>
-        Cycle 800: Warp 0's data arrives, scheduler can issue next instruction<br/>
-        &rarr; Zero cycles wasted if enough warps are active
+        Cycle 801: Warp 0's data finally arrives from DRAM<br/>
+        Cycle 802: Scheduler picks Warp 0 again &mdash; it resumes from where it stalled<br/>
+        <br/>
+        &rarr; Zero cycles wasted if &ge; 800/avg_instructions_between_loads warps are active.<br/>
+        &rarr; With 20 warps doing 40 instructions between loads: 20 &times; 40 = 800 &mdash; perfect hiding.
       </div>
+
+      <p>
+        The practical implication: if your kernel has very few warps per SM (low occupancy),
+        every memory load causes visible stalls. If you have many warps, stalls are invisible.
+        This is why occupancy matters for memory-bound kernels.
+      </p>
 
       <hr class="section-divider" />
 
@@ -185,18 +239,42 @@
 
       <p>Three resources limit occupancy:</p>
       <ol>
-        <li><strong>Registers:</strong> 65,536 total per SM &divide; registers_per_thread &divide; 32 = max warps</li>
-        <li><strong>Shared memory:</strong> total_smem / smem_per_block = max blocks (each block has at least 1 warp)</li>
+        <li><strong>Registers:</strong> 65,536 total per SM &divide; registers_per_thread &divide; 32 = max warps from register budget</li>
+        <li><strong>Shared memory:</strong> total_smem / smem_per_block = max blocks; each block has at least 1 warp</li>
         <li><strong>Block size:</strong> max_threads_per_SM / threads_per_block = max blocks</li>
       </ol>
+
+      <p>Let me walk through the register calculation for a kernel using 32 registers/thread:</p>
+
+      <div class="output-block">
+<span class="comment"># A100 SM register file: 65,536 registers total</span>
+<span class="comment"># Kernel uses 32 registers per thread</span>
+
+Step 1: registers needed per warp  = 32 registers/thread * 32 threads/warp = 1024 reg/warp
+Step 2: max warps from registers   = 65536 / 1024 = 64 warps  (full occupancy!)
+
+<span class="comment"># Now with 64 registers per thread:</span>
+registers needed per warp  = 64 * 32 = 2048 reg/warp
+max warps from registers   = 65536 / 2048 = 32 warps  (50% occupancy)
+
+<span class="comment"># With 128 registers per thread:</span>
+registers needed per warp  = 128 * 32 = 4096 reg/warp
+max warps from registers   = 65536 / 4096 = 16 warps  (25% occupancy)
+      </div>
+
+      <p>
+        Use <code>--ptxas-options=-v</code> at compile time to see how many registers your
+        kernel actually uses. If it is over 32, start thinking about whether you can
+        restructure to spill some values through shared memory.
+      </p>
 
       <table class="address-table">
         <thead><tr><th>Registers/thread</th><th>Max threads/SM</th><th>Occupancy</th><th>Typical performance impact</th></tr></thead>
         <tbody>
           <tr><td>32</td><td>2048 (64 warps)</td><td>100%</td><td>Maximum latency hiding</td></tr>
-          <tr><td>64</td><td>1024 (32 warps)</td><td>50%</td><td>Usually fine (&gt;90% of peak)</td></tr>
+          <tr><td>64</td><td>1024 (32 warps)</td><td>50%</td><td>Usually fine (&gt;90% of peak for compute-bound)</td></tr>
           <tr><td>128</td><td>512 (16 warps)</td><td>25%</td><td>Starts hurting for memory-bound kernels</td></tr>
-          <tr><td>255</td><td>256 (8 warps)</td><td>12.5%</td><td>Likely performance problem</td></tr>
+          <tr><td>255</td><td>256 (8 warps)</td><td>12.5%</td><td>Likely a performance problem; investigate</td></tr>
         </tbody>
       </table>
 
@@ -207,12 +285,20 @@ printf("Optimal block size: %d\n", blockSize);
 printf("Suggested grid size: %d\n", minGridSize);
 
 // Query actual occupancy for a given launch config:
-int activeWarps, maxWarps;
-cudaOccupancyMaxActiveBlocksPerMultiprocessor(&amp;activeWarps, myKernel, blockSize, smemBytes);
+int activeBlocks, maxWarps;
+cudaOccupancyMaxActiveBlocksPerMultiprocessor(&amp;activeBlocks, myKernel, blockSize, smemBytes);
 cudaDeviceProp prop;
 cudaGetDeviceProperties(&amp;prop, 0);
 maxWarps = prop.maxThreadsPerMultiProcessor / 32;
-printf("Occupancy: %.1f%%\n", (float)(activeWarps * blockSize / 32) / maxWarps * 100);</code></pre>
+int activeWarps = activeBlocks * (blockSize / 32);
+printf("Occupancy: %.1f%%\n", (float)activeWarps / maxWarps * 100);</code></pre>
+
+      <div class="warning-box">
+        <strong>High occupancy is not always better.</strong> A kernel that uses all registers
+        efficiently and only needs 4 warps per SM to hide latency may be faster at 25% occupancy
+        than a register-starved kernel at 100% occupancy. Use the roofline model (post 5.1) to
+        determine if your kernel is compute-bound or memory-bound, then optimize accordingly.
+      </div>
 
       <hr class="section-divider" />
 
@@ -223,14 +309,38 @@ printf("Occupancy: %.1f%%\n", (float)(activeWarps * blockSize / 32) / maxWarps *
         through an <code>if/else</code>, <code>switch</code>, or loop with variable iteration count.
       </p>
 
-      <p>How the hardware handles it:</p>
+      <p>How the hardware handles it &mdash; step by step:</p>
       <ol>
-        <li>Warp reaches branch: evaluate predicate for all 32 threads</li>
-        <li>32-bit mask created: 1 = thread takes branch, 0 = thread skips</li>
-        <li>Execute "if" body with threads where mask=1, others are masked off (no-op)</li>
-        <li>Execute "else" body with threads where mask=0, others are masked off</li>
-        <li>Warp reconverges at merge point</li>
+        <li>Warp reaches branch: evaluate predicate for all 32 threads simultaneously</li>
+        <li>32-bit <strong>active mask</strong> created: bit k = 1 if thread k takes the "if" path</li>
+        <li>Execute the "if" body: threads where mask bit = 1 do work; others are <em>predicated off</em> (they stall, consuming cycles but doing no useful work)</li>
+        <li>Execute the "else" body: threads where mask bit = 0 do work; others predicated off</li>
+        <li>Warp reconverges at the merge point; all 32 threads active again</li>
       </ol>
+
+      <p>Let us trace exactly what happens for a 50/50 divergent kernel:</p>
+
+      <div class="output-block">
+<span class="comment">// if (i % 2 == 0) { out[i] = sqrtf(out[i]); }   // even threads</span>
+<span class="comment">// else             { out[i] = out[i] * 2.0f; }   // odd threads</span>
+
+<span class="comment">// Warp 0: threads 0-31</span>
+Predicate eval: [T,F,T,F,T,F,...,T,F]  (even=T, odd=F) — 1 cycle
+
+<span class="comment">// Executing "if" body (sqrtf path):</span>
+Active threads:  0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30  (16 threads)
+Masked threads:  1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31  (idle)
+Time taken: T_sqrt  (16 threads doing sqrt, 16 idle — full 32-wide hardware still occupied)
+
+<span class="comment">// Executing "else" body (multiply path):</span>
+Active threads:  1, 3, 5, ..., 31  (16 threads)
+Masked threads:  0, 2, 4, ..., 30  (idle)
+Time taken: T_mul
+
+Total time: T_sqrt + T_mul
+Without divergence (all threads take same path): max(T_sqrt, T_mul)
+<span class="comment">// If T_sqrt = T_mul: divergence costs exactly 2x</span>
+      </div>
 
 <pre><code>// Example: 50% divergence
 __global__ void divergentKernel(float* out, int n) {
@@ -252,14 +362,14 @@ __global__ void divergentKernel(float* out, int n) {
       <p>
         The performance cost depends on the balance between branches. Worst case:
         50/50 split (half the warp idles during each branch). Best case: one branch
-        is essentially a no-op (the masked threads do nothing meaningful).
+        is essentially a no-op (the masked threads stall for nearly zero cycles).
       </p>
 
       <div class="warning-box">
         <strong>Bounds-check divergence is fine.</strong> The most common divergence pattern &mdash;
         <code>if (i &gt;= N) return;</code> &mdash; only affects the last warp of a grid when N is not
         a multiple of 32. This is at most 1 warp out of thousands and has negligible impact.
-        Don't over-optimize this.
+        Do not over-optimize this. The ncu metric below will confirm it is near 0.998.
       </div>
 
       <hr class="section-divider" />
@@ -268,41 +378,48 @@ __global__ void divergentKernel(float* out, int n) {
 
       <p>Three strategies:</p>
 
-      <h3>1. Sort data so threads in same warp do the same thing</h3>
+      <h3>1. Sort data so threads in the same warp do the same thing</h3>
 
 <pre><code>// DIVERGENT: sparse operation, each thread may or may not work
 __global__ void sparseNaive(float* data, int* mask, float* out, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &gt;= n) return;
-    if (mask[i]) {          // some threads skip, some don't &rarr; divergence
+    if (mask[i]) {          // some threads skip, some don't -- divergence
         out[i] = sqrtf(data[i]);
     }
 }
 
-// BETTER: pre-sort active indices, all threads always work
-// (requires prefix sum to compact active indices)
+// BETTER: pre-sort active indices (prefix sum compaction), all threads always work
+// Every thread always takes the same path -- no divergence at all
 __global__ void sparseCompact(float* data, int* activeIdx, float* out, int nActive) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &gt;= nActive) return;
-    int idx = activeIdx[i];     // all threads take same path, no divergence
+    int idx = activeIdx[i];     // all threads take this path; no divergence
     out[idx] = sqrtf(data[idx]);
-}</code></pre>
+}
+// Requires prefix sum to build activeIdx -- use thrust::copy_if or CUB DeviceSelect</code></pre>
 
       <h3>2. Hoist branches out of loops</h3>
 
-<pre><code>// SLOW: branch inside loop re-evaluated every iteration
+<pre><code>// SLOW: branch inside loop re-evaluated every iteration (N times per thread)
 __global__ void branchInLoop(float* A, float* B, float* C, int n, bool useA) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (int j = 0; j &lt; n; j++) {
-        if (useA) C[i] += A[j];   // branch evaluated n times
-        else      C[i] += B[j];
+        if (useA) C[i] += A[j];   // divergence if useA varies per thread
+        else      C[i] += B[j];   // (here it's uniform, but compiler may not know)
     }
 }
 
-// FAST: branch hoisted, separate kernels, no divergence
-__global__ void useAKernel(float* A, float* C, int n) { ... }
-__global__ void useBKernel(float* B, float* C, int n) { ... }
-// Choose kernel on CPU, zero divergence in either</code></pre>
+// FAST: branch hoisted -- compiler eliminates the dead path entirely
+// Caller selects which kernel to launch; zero divergence inside either kernel
+__global__ void useAKernel(float* A, float* C, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    for (int j = 0; j &lt; n; j++) C[i] += A[j];
+}
+__global__ void useBKernel(float* B, float* C, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    for (int j = 0; j &lt; n; j++) C[i] += B[j];
+}</code></pre>
 
       <h3>3. Use arithmetic instead of branches</h3>
 
@@ -310,15 +427,17 @@ __global__ void useBKernel(float* B, float* C, int n) { ... }
 __global__ void withBranch(float* out, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &gt;= n) return;
-    if (out[i] &lt; 0.0f) out[i] = 0.0f;  // ReLU with branch
+    if (out[i] &lt; 0.0f) out[i] = 0.0f;  // ReLU with branch -- diverges for mixed data
 }
 
-// NO DIVERGENCE: arithmetic equivalent (compiler often does this automatically)
+// NO DIVERGENCE: arithmetic equivalent
+// fmaxf compiles to a single hardware instruction (FMAX) with no branch
 __global__ void noBranch(float* out, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i &gt;= n) return;
-    out[i] = fmaxf(out[i], 0.0f);  // no branch, single instruction
-}</code></pre>
+    out[i] = fmaxf(out[i], 0.0f);  // single instruction, no predicate needed
+}
+// Note: the compiler often applies this transformation automatically (ReLU is a known pattern)</code></pre>
 
       <hr class="section-divider" />
 
@@ -327,48 +446,117 @@ __global__ void noBranch(float* out, int n) {
       <p>
         Since Volta (compute capability 7.0), CUDA provides direct warp-level intrinsics
         that let threads within a warp communicate without shared memory. These are faster
-        than shared memory for intra-warp communication.
+        than shared memory for intra-warp communication because they use the register file
+        directly &mdash; no memory bandwidth consumed, no bank conflicts possible,
+        no <code>__syncthreads()</code> required.
+      </p>
+
+      <h3>Understanding the mask parameter</h3>
+
+      <p>
+        Every warp primitive takes a <code>unsigned mask</code> as its first argument.
+        This mask is a 32-bit integer where <strong>bit k = 1 means lane k participates</strong>.
+      </p>
+
+      <div class="output-block">
+<span class="comment"># Common mask values:</span>
+0xFFFFFFFF  = 1111 1111 1111 1111 1111 1111 1111 1111  (all 32 lanes)
+0x0000FFFF  = 0000 0000 0000 0000 1111 1111 1111 1111  (lanes 0-15 only)
+0xFFFF0000  = 1111 1111 1111 1111 0000 0000 0000 0000  (lanes 16-31 only)
+__activemask()  = bitmask of currently executing (non-predicated-off) threads
+
+<span class="comment"># Why you need to specify it:</span>
+<span class="comment"># Pre-Volta: hardware tracked active threads automatically</span>
+<span class="comment"># Post-Volta (independent thread scheduling): threads can be at different PCs,</span>
+<span class="comment"># so YOU must tell the hardware which threads to synchronize.</span>
+<span class="comment"># Using wrong mask = undefined behavior (data races across diverged sub-warps).</span>
+      </div>
+
+      <h3>__shfl_down_sync: the butterfly reduction</h3>
+
+<pre><code>// Warp-level sum reduction: no shared memory, pure register communication
+__device__ float warpReduceSum(float val) {
+    // Each call to __shfl_down_sync:
+    //   - Every active lane reads the value from lane (laneId + offset)
+    //   - Adds it to its own val
+    //   - After 5 steps (offset=16,8,4,2,1), lane 0 holds the sum of all 32 values
+    unsigned mask = 0xFFFFFFFF;  // all 32 lanes participate
+    val += __shfl_down_sync(mask, val, 16);  // step 1
+    val += __shfl_down_sync(mask, val,  8);  // step 2
+    val += __shfl_down_sync(mask, val,  4);  // step 3
+    val += __shfl_down_sync(mask, val,  2);  // step 4
+    val += __shfl_down_sync(mask, val,  1);  // step 5
+    return val;  // lane 0 has the total sum of all 32 values
+}</code></pre>
+
+      <p>
+        Let me trace this with 8 threads (simplified to offset=4,2,1) using values [1,2,3,4,5,6,7,8]:
+      </p>
+
+      <div class="output-block">
+<span class="comment"># Initial values (lane 0..7):</span>
+Lane:   0   1   2   3   4   5   6   7
+val:    1   2   3   4   5   6   7   8
+
+<span class="comment"># After __shfl_down_sync(mask, val, 4):</span>
+<span class="comment"># Lane k gets: val[k] + val[k+4]</span>
+Lane:   0     1     2     3     4   5   6   7
+val:  1+5=6  2+6=8  3+7=10  4+8=12  5   6   7   8
+      (6)    (8)    (10)   (12)   [lanes 4-7 still hold old vals, but we don't use them]
+
+<span class="comment"># After __shfl_down_sync(mask, val, 2):</span>
+<span class="comment"># Lane k gets: val[k] + val[k+2]</span>
+Lane:    0       1       2    3
+val:  6+10=16  8+12=20  10  12
+     (16)     (20)
+
+<span class="comment"># After __shfl_down_sync(mask, val, 1):</span>
+<span class="comment"># Lane k gets: val[k] + val[k+1]</span>
+Lane:    0
+val:  16+20=36   &larr; sum of [1,2,3,4,5,6,7,8] = 36 correct!
+      </div>
+
+      <p>
+        Each <code>__shfl_down_sync</code> call takes <em>one cycle</em>.
+        Five cycles to sum 32 values across 32 registers &mdash; compare this to
+        5 shared memory reads and 5 <code>__syncthreads()</code> calls for the
+        traditional approach. The shuffle version is dramatically faster.
       </p>
 
 <pre><code>// __shfl_sync: broadcast a value from one lane to all others
 __global__ void broadcastFromLane0(float* out, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     float val = (threadIdx.x % 32 == 0) ? out[i] : 0.0f;  // only lane 0 has data
-    // Broadcast lane 0's value to all other lanes in the warp
+    // Broadcast lane 0's value to all 31 other lanes in the warp:
     val = __shfl_sync(0xFFFFFFFF, val, 0);  // srcLane = 0
+    // Now ALL 32 threads have the same value (lane 0's original value)
     out[i] = val;
-}
-
-// __shfl_down_sync: shift values down (for reduction)
-__device__ float warpReduceSum(float val) {
-    unsigned mask = 0xFFFFFFFF;  // all 32 lanes participate
-    for (int offset = 16; offset &gt; 0; offset /= 2) {
-        val += __shfl_down_sync(mask, val, offset);
-    }
-    return val;  // lane 0 has the sum of all 32 lanes
 }
 
 // __ballot_sync: which threads have predicate true?
 __global__ void countActive(int* data, int* count, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     bool active = (i &lt; n) &amp;&amp; (data[i] &gt; 0);
-    // 32-bit mask: bit k = 1 if thread k in this warp has active=true
+    // 32-bit mask: bit k = 1 if lane k has active=true
     unsigned mask = __ballot_sync(0xFFFFFFFF, active);
+    // __popc counts the number of set bits (= number of active threads in warp)
     if (threadIdx.x % 32 == 0) {
-        atomicAdd(count, __popc(mask));  // popcount = number of active threads
+        atomicAdd(count, __popc(mask));
     }
+    // Example: if lanes 0,1,3,7 have active=true:
+    // mask = 0b...10001011 = 0x8B, __popc(0x8B) = 4
 }</code></pre>
 
       <table class="address-table">
         <thead><tr><th>Intrinsic</th><th>What it does</th><th>Use case</th></tr></thead>
         <tbody>
-          <tr><td>__shfl_sync(mask, val, src)</td><td>Broadcast from lane src to all</td><td>Broadcasting a common value</td></tr>
-          <tr><td>__shfl_up_sync(mask, val, delta)</td><td>Copy from lane (i-delta)</td><td>Prefix scan patterns</td></tr>
-          <tr><td>__shfl_down_sync(mask, val, delta)</td><td>Copy from lane (i+delta)</td><td>Reduction patterns</td></tr>
+          <tr><td>__shfl_sync(mask, val, src)</td><td>All lanes get val from lane src</td><td>Broadcasting a common value</td></tr>
+          <tr><td>__shfl_up_sync(mask, val, delta)</td><td>Lane k gets val from lane k-delta</td><td>Prefix scan (running sum)</td></tr>
+          <tr><td>__shfl_down_sync(mask, val, delta)</td><td>Lane k gets val from lane k+delta</td><td>Reduction (sum, max, etc.)</td></tr>
           <tr><td>__shfl_xor_sync(mask, val, lane_mask)</td><td>Exchange with XOR-partner</td><td>Butterfly reductions</td></tr>
-          <tr><td>__ballot_sync(mask, pred)</td><td>32-bit active mask from predicate</td><td>Counting, compaction</td></tr>
-          <tr><td>__any_sync(mask, pred)</td><td>True if any thread has pred=true</td><td>Early exit conditions</td></tr>
-          <tr><td>__all_sync(mask, pred)</td><td>True if all threads have pred=true</td><td>Uniform path detection</td></tr>
+          <tr><td>__ballot_sync(mask, pred)</td><td>Returns 32-bit mask of which lanes have pred=true</td><td>Counting, compaction</td></tr>
+          <tr><td>__any_sync(mask, pred)</td><td>True if any lane in mask has pred=true</td><td>Early exit conditions</td></tr>
+          <tr><td>__all_sync(mask, pred)</td><td>True if all lanes in mask have pred=true</td><td>Uniform path detection</td></tr>
         </tbody>
       </table>
 
@@ -376,21 +564,39 @@ __global__ void countActive(int* data, int* count, int n) {
 
       <h2 id="measuring">Measuring Divergence with ncu</h2>
 
-<pre><code>ncu --metrics   smsp__thread_inst_executed_pred_on_per_inst_executed.ratio,  smsp__average_warp_latency_per_inst_issued.ratio   ./myprogram</code></pre>
+      <p>
+        The most direct metric for warp divergence is
+        <code>smsp__thread_inst_executed_pred_on_per_inst_executed.ratio</code>.
+        It measures the fraction of thread-slots that were doing useful work
+        (predicated on) across all issued instructions.
+        A value of 1.0 = all 32 lanes active every cycle. A value of 0.5 = only 16 lanes
+        active on average = effectively half your compute is wasted.
+      </p>
+
+<pre><code>ncu --metrics \
+  smsp__thread_inst_executed_pred_on_per_inst_executed.ratio,\
+  smsp__average_warp_latency_per_inst_issued.ratio \
+  ./myprogram</code></pre>
 
       <div class="output-block">
-<span class="comment"># No divergence kernel:</span>
+<span class="comment"># No divergence kernel (all threads same path):</span>
 smsp__thread_inst_executed_pred_on_per_inst_executed.ratio = 1.000
-<span class="comment"># 1.0 means all 32 threads active on every instruction = perfect</span>
+<span class="comment"># 1.0 = all 32 threads active on every instruction -- perfect efficiency</span>
 
 <span class="comment"># 50% divergence kernel (alternating if/else by thread index):</span>
 smsp__thread_inst_executed_pred_on_per_inst_executed.ratio = 0.500
-<span class="comment"># 0.5 means on average only 16/32 threads active = 2x wasted work</span>
+<span class="comment"># 0.5 = on average only 16/32 threads active -- 2x wasted execution units</span>
 
-<span class="comment"># Bounds-check only (if i >= N return, last warp partial):</span>
+<span class="comment"># Bounds-check only (if i >= N return, last partial warp):</span>
 smsp__thread_inst_executed_pred_on_per_inst_executed.ratio = 0.998
-<span class="comment"># 0.998 = negligible, don't worry about it</span>
+<span class="comment"># 0.998 = negligible -- 1 partial warp out of 1000s -- don't optimize this</span>
       </div>
+
+      <p>
+        If you see a ratio below 0.8 on a kernel, look for divergent branches in hot loops.
+        Often the fix is one of the three strategies above: sort inputs, hoist branches,
+        or replace conditionals with arithmetic (fmaxf, fminf, select-patterns).
+      </p>
 
       <div class="series-nav">
         <span><a href="cuda-phase3-unified-memory.html">&larr; 3.4 &mdash; Unified Memory</a></span>

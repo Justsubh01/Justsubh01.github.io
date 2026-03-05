@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery 4.3 — CUDA Streams — Sudhanshu</title>
+  <title>CUDA Mastery 4.3 &mdash; CUDA Streams &mdash; Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -47,7 +47,7 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">&middot; 22 min read</span>
+        <span class="read-time">&middot; 28 min read</span>
       </div>
       <h1>CUDA Streams &mdash; Overlapping Copy and Compute for Free Speedup</h1>
       <p class="post-description">
@@ -59,6 +59,14 @@
     </div>
     <div class="post-body">
 
+      <p>
+        The GPU has three separate hardware engines that can all run simultaneously:
+        a copy engine for host-to-device transfers, a copy engine for device-to-host transfers,
+        and the compute engine. When you use the default stream, only one of these runs at a time.
+        CUDA streams let you use all three in parallel &mdash; often a 2&ndash;3&times; speedup
+        with zero algorithmic change.
+      </p>
+
       <div class="gif-wrap">
         <img src="assets/gif_cuda_streams_overlap.gif" alt="CUDA streams overlap animation" />
         <p class="gif-caption">Default stream (top): H&rarr;D copy, kernel, D&rarr;H copy run strictly sequentially. Multi-stream pipeline (bottom): while chunk N's kernel runs, copy chunk N+1 from host and copy chunk N-1 results back &mdash; all three engines run simultaneously. Total time shrinks to the compute-bound limit.</p>
@@ -69,6 +77,7 @@
         <ol>
           <li><a href="#default-stream">The Default Stream and Why It Serializes</a></li>
           <li><a href="#create-streams">Creating and Using Streams</a></li>
+          <li><a href="#stream-ordering">Stream Ordering Guarantees</a></li>
           <li><a href="#pinned-memory">Pinned Memory &mdash; Required for Async Copies</a></li>
           <li><a href="#pipeline">The Double-Buffer Pipeline Pattern</a></li>
           <li><a href="#events">CUDA Events &mdash; Timing and Synchronization</a></li>
@@ -85,23 +94,28 @@
       <p>
         Every CUDA operation you perform without specifying a stream goes into the
         <strong>default stream</strong> (stream 0). Operations in the default stream execute
-        in order, and the default stream also blocks all other streams &mdash; it is a
-        global synchronization point.
+        in order, and the default stream also implicitly synchronizes with all other streams &mdash;
+        it is a global serialization barrier.
       </p>
 
 <pre><code>// Default stream: everything serialized, PCIe and compute engines never overlap
-cudaMemcpy(d_A, h_A, bytes, cudaMemcpyHostToDevice);  // blocks until done
+cudaMemcpy(d_A, h_A, bytes, cudaMemcpyHostToDevice);  // blocks CPU until DMA done
 kernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_A, d_B, N);               // waits for copy to finish
 cudaMemcpy(h_B, d_B, bytes, cudaMemcpyDeviceToHost);  // waits for kernel to finish
 
-// Timeline:
-// [=====H2D=====][====KERNEL====][=====D2H=====]
-// Total: T_copy + T_kernel + T_copy = 3 phases serial</code></pre>
+// Timeline (time flows right):
+// [=======H2D=======][======KERNEL======][=======D2H=======]
+//
+// Total: T_H2D + T_kernel + T_D2H
+// For 1GB data: ~40ms + ~20ms + ~40ms = 100ms sequential</code></pre>
 
       <div class="concept-box">
         <strong>What can overlap on an A100:</strong>
-        (1) One H&rarr;D PCIe copy engine, (2) One D&rarr;H PCIe copy engine, (3) Multiple compute kernels.
-        All three can run simultaneously on separate hardware engines. Streams let you exploit this.
+        (1) One H&rarr;D PCIe copy engine &mdash; transfers data from host RAM to GPU VRAM.<br/>
+        (2) One D&rarr;H PCIe copy engine &mdash; transfers data from GPU VRAM to host RAM.<br/>
+        (3) Compute &mdash; kernels running on SMs.<br/>
+        All three run on entirely separate hardware. Streams are the software mechanism
+        that tells the GPU driver which operations can run concurrently.
       </div>
 
       <hr class="section-divider" />
@@ -114,31 +128,64 @@ cudaStreamCreate(&amp;stream1);
 cudaStreamCreate(&amp;stream2);
 cudaStreamCreate(&amp;stream3);
 
-// Assign operations to streams (4th arg to cudaMemcpyAsync, or &lt;&lt;&lt;g,b,smem,stream&gt;&gt;&gt;)
+// Assign operations to streams:
+// - cudaMemcpyAsync: 4th argument is the stream
+// - kernel launch:   4th argument in &lt;&lt;&lt;grid, block, smem, stream&gt;&gt;&gt;
 cudaMemcpyAsync(d_A, h_A, bytes, cudaMemcpyHostToDevice, stream1);
 kernel&lt;&lt;&lt;grid, block, 0, stream1&gt;&gt;&gt;(d_A, d_result, N);
 cudaMemcpyAsync(h_result, d_result, bytes, cudaMemcpyDeviceToHost, stream1);
 
-// Different operations in stream2 run concurrently with stream1
+// Different work in stream2: runs concurrently with stream1's operations
 cudaMemcpyAsync(d_B, h_B, bytes, cudaMemcpyHostToDevice, stream2);
 kernel2&lt;&lt;&lt;grid, block, 0, stream2&gt;&gt;&gt;(d_B, d_result2, N);
 
-// Synchronize all streams
-cudaDeviceSynchronize();
+// Wait for everything:
+cudaDeviceSynchronize();   // CPU blocks until all streams complete
 
-// Or synchronize one stream:
+// Or wait for just one stream:
 cudaStreamSynchronize(stream1);
 
-// Cleanup
+// Always destroy streams when done
 cudaStreamDestroy(stream1);
 cudaStreamDestroy(stream2);
 cudaStreamDestroy(stream3);</code></pre>
 
-      <div class="warning-box">
-        <strong>cudaMemcpyAsync requires pinned (page-locked) memory on the host side.</strong>
-        Regular <code>malloc()</code> memory will silently fall back to synchronous copy.
-        Use <code>cudaMallocHost()</code> or <code>cudaHostAlloc()</code> for host memory
-        used in async copies.
+      <hr class="section-divider" />
+
+      <h2 id="stream-ordering">Stream Ordering Guarantees</h2>
+
+      <p>
+        This is the most important thing to understand about streams.
+        The guarantee is simple but easy to get wrong:
+      </p>
+
+      <div class="concept-box">
+        <strong>Rule 1 &mdash; Intra-stream ordering (FIFO):</strong> Operations within the
+        same stream always execute in the order you submitted them. If you queue
+        <code>copy &rarr; kernel &rarr; copy</code> in stream1, they run in that exact order.
+        The kernel is guaranteed not to start until the first copy finishes.
+        <br/><br/>
+        <strong>Rule 2 &mdash; Inter-stream concurrency (no guarantees):</strong> Operations
+        in different streams may run in any order relative to each other, or simultaneously.
+        The GPU scheduler decides based on resource availability. You cannot assume
+        stream2's kernel starts before stream1's kernel, or vice versa.
+        <br/><br/>
+        <strong>Rule 3 &mdash; Dependencies require explicit synchronization:</strong> If
+        stream2's kernel needs data produced by stream1's kernel, you must use a CUDA event
+        to enforce that ordering. Stream isolation does not imply isolation from data
+        dependency bugs.
+      </div>
+
+      <div class="output-block">
+<span class="comment"># Correct use: independent streams, no data dependencies</span>
+stream1: [H2D: input_A] [kernel_A(d_A)] [D2H: output_A]
+stream2: [H2D: input_B] [kernel_B(d_B)] [D2H: output_B]
+<span class="comment"># input_A and input_B are separate buffers -- totally independent, safe to overlap</span>
+
+<span class="comment"># WRONG: stream2 uses data produced by stream1's kernel, but no sync</span>
+stream1: [kernel1(d_A, d_B)]         &lt;-- writes d_B
+stream2:          [kernel2(d_B, d_C)] &lt;-- reads d_B -- RACE CONDITION! may start before kernel1 done
+<span class="comment"># Fix: use cudaStreamWaitEvent(stream2, event_after_kernel1, 0)</span>
       </div>
 
       <hr class="section-divider" />
@@ -146,44 +193,62 @@ cudaStreamDestroy(stream3);</code></pre>
       <h2 id="pinned-memory">Pinned Memory &mdash; Required for Async Copies</h2>
 
       <p>
-        Normal malloc memory is <em>pageable</em> &mdash; the OS can swap it to disk.
-        The GPU DMA engine cannot access pageable memory directly. For async copies,
-        CUDA needs <em>pinned (page-locked)</em> memory: guaranteed to stay in physical RAM.
+        Normal <code>malloc()</code> memory is <em>pageable</em> &mdash; the OS can move it
+        in physical RAM or even swap it to disk. The GPU's DMA engine transfers data directly
+        between physical memory addresses. If the host buffer is pageable, those physical
+        addresses might change at any moment &mdash; the DMA would read garbage.
       </p>
 
-<pre><code>// Allocate pinned memory:
+      <p>
+        <strong>What CUDA does with pageable memory in cudaMemcpyAsync:</strong>
+        It silently stages the data through an internal pinned buffer, then does the DMA.
+        This forces a synchronous copy under the hood &mdash; your "async" call blocks until
+        the staging is done. The overlap never happens.
+      </p>
+
+      <p>
+        <strong>What you need to do:</strong> Allocate host memory with <code>cudaMallocHost()</code>,
+        which allocates page-locked (pinned) memory. The OS guarantees it stays at fixed
+        physical addresses, so the DMA can proceed truly asynchronously.
+      </p>
+
+<pre><code>// WRONG: regular malloc -- async copy will silently be synchronous
+float* h_data = (float*)malloc(N * sizeof(float));
+cudaMemcpyAsync(d_data, h_data, N * sizeof(float), cudaMemcpyHostToDevice, stream1);
+// This looks async but is actually synchronous! CPU blocks here.
+
+// CORRECT: pinned memory -- async copy is truly asynchronous
 float* h_data;
-cudaMallocHost(&amp;h_data, N * sizeof(float));  // pinned, page-locked
-// OR with flags:
-cudaHostAlloc(&amp;h_data, N * sizeof(float), cudaHostAllocDefault);
+cudaMallocHost(&amp;h_data, N * sizeof(float));  // page-locked allocation
+// OR equivalently:
+// cudaHostAlloc(&amp;h_data, N * sizeof(float), cudaHostAllocDefault);
 
-// Initialize
-for (int i = 0; i &lt; N; i++) h_data[i] = i * 0.1f;
+// Now this returns immediately -- DMA runs in background
+cudaMemcpyAsync(d_data, h_data, N * sizeof(float), cudaMemcpyHostToDevice, stream1);
+// CPU is free to do other work (queue more operations, launch other streams, etc.)
 
-// Now async copies work truly asynchronously:
-cudaMemcpyAsync(d_data, h_data, N * sizeof(float),
-                cudaMemcpyHostToDevice, stream1);
-// This returns IMMEDIATELY on the CPU while DMA runs in background
-
-// Free:
+// Free pinned memory with cudaFreeHost (NOT free())
 cudaFreeHost(h_data);</code></pre>
 
       <p>Pinned memory bandwidth comparison:</p>
 
       <div class="output-block">
-<span class="comment"># cudaMemcpy performance (A100, 1 GB transfer):</span>
-Pageable host &rarr; Device:  6.1 GB/s  (PCIe 4.0 limit: 31.5 GB/s)
-Pinned host &rarr; Device:   24.3 GB/s  (4x faster, near PCIe limit)
+<span class="comment"># cudaMemcpy performance (A100, 1 GB transfer, PCIe 4.0 x16 = 31.5 GB/s theoretical):</span>
+Pageable host &rarr; Device:  6.1 GB/s   (staging adds overhead, far below PCIe limit)
+Pinned host &rarr; Device:   24.3 GB/s   (4x faster, near PCIe limit)
 Device &rarr; Pinned host:   21.8 GB/s
 Device &rarr; Pageable host:  5.9 GB/s
 
-<span class="comment"># Pinned memory enables overlap, pageable does NOT</span>
+<span class="comment"># Additionally: pinned enables OVERLAP; pageable does NOT</span>
+<span class="comment"># With pageable: zero pipeline benefit even if you use streams</span>
       </div>
 
       <div class="warning-box">
-        <strong>Pinned memory is a limited resource.</strong> Pinning too much memory degrades
-        system performance for all other processes (less physical RAM available for paging).
-        A practical rule: pin no more than 25% of system RAM. For 64 GB system: &lt;16 GB pinned.
+        <strong>Pinned memory is a limited system resource.</strong> Pinning memory removes
+        it from the OS page pool &mdash; the OS cannot use that physical RAM for other processes'
+        paging needs. Pin too much and your system starts thrashing. A practical guideline:
+        pin no more than 25% of total system RAM. For a 64 GB system: keep pinned allocations
+        under ~16 GB. For a pipeline buffer: you only need 2&times;chunkSize, not the full dataset.
       </div>
 
       <hr class="section-divider" />
@@ -192,177 +257,238 @@ Device &rarr; Pageable host:  5.9 GB/s
 
       <p>
         The classic streams use case: processing a large array in chunks, overlapping
-        the copy of chunk N+1 with the computation of chunk N.
+        the copy of chunk N+1 with the computation of chunk N, and the copy-back of
+        chunk N-1 &mdash; all simultaneously.
       </p>
 
 <pre><code>void processWithStreams(float* h_input, float* h_output, int N, int chunkSize) {
-    int nStreams = 2;  // double-buffer
-    int nChunks  = (N + chunkSize - 1) / chunkSize;
-
-    // Allocate pinned host memory
-    float* h_in[2];
-    float* h_out[2];
-    cudaMallocHost(&amp;h_in[0],  chunkSize * sizeof(float));
-    cudaMallocHost(&amp;h_in[1],  chunkSize * sizeof(float));
-    cudaMallocHost(&amp;h_out[0], chunkSize * sizeof(float));
-    cudaMallocHost(&amp;h_out[1], chunkSize * sizeof(float));
-
-    // Allocate device memory
-    float* d_in[2];
-    float* d_out[2];
-    cudaMalloc(&amp;d_in[0],  chunkSize * sizeof(float));
-    cudaMalloc(&amp;d_in[1],  chunkSize * sizeof(float));
-    cudaMalloc(&amp;d_out[0], chunkSize * sizeof(float));
-    cudaMalloc(&amp;d_out[1], chunkSize * sizeof(float));
+    // Allocate 2 sets of pinned host + device buffers (double-buffering)
+    float* h_in[2],  *h_out[2];
+    float* d_in[2],  *d_out[2];
+    for (int b = 0; b &lt; 2; b++) {
+        cudaMallocHost(&amp;h_in[b],  chunkSize * sizeof(float));
+        cudaMallocHost(&amp;h_out[b], chunkSize * sizeof(float));
+        cudaMalloc(&amp;d_in[b],      chunkSize * sizeof(float));
+        cudaMalloc(&amp;d_out[b],     chunkSize * sizeof(float));
+    }
 
     cudaStream_t streams[2];
     cudaStreamCreate(&amp;streams[0]);
     cudaStreamCreate(&amp;streams[1]);
 
+    int nChunks = (N + chunkSize - 1) / chunkSize;
     dim3 block(256);
     dim3 grid((chunkSize + 255) / 256);
 
     for (int chunk = 0; chunk &lt; nChunks; chunk++) {
-        int s = chunk % 2;  // alternate between 0 and 1
+        int s = chunk % 2;           // alternate between buffer 0 and 1
         int offset = chunk * chunkSize;
         int thisChunk = min(chunkSize, N - offset);
 
-        // Copy input chunk to pinned buffer
+        // CPU: copy this chunk's data into the pinned buffer for this stream
         memcpy(h_in[s], h_input + offset, thisChunk * sizeof(float));
 
-        // Async: H&rarr;D, then kernel, then D&rarr;H (all in same stream, ordered)
+        // GPU stream s: H-&gt;D copy, then kernel, then D-&gt;H copy (ordered within stream)
         cudaMemcpyAsync(d_in[s], h_in[s], thisChunk * sizeof(float),
-                       cudaMemcpyHostToDevice, streams[s]);
+                        cudaMemcpyHostToDevice, streams[s]);
 
         processKernel&lt;&lt;&lt;grid, block, 0, streams[s]&gt;&gt;&gt;(d_in[s], d_out[s], thisChunk);
 
         cudaMemcpyAsync(h_out[s], d_out[s], thisChunk * sizeof(float),
-                       cudaMemcpyDeviceToHost, streams[s]);
+                        cudaMemcpyDeviceToHost, streams[s]);
 
-        // If previous chunk in this stream is done, copy results to output
-        if (chunk &gt;= nStreams) {
+        // Once stream s has processed at least 2 chunks (so the OTHER buffer has results),
+        // wait for the previous use of THIS stream and copy results to output
+        if (chunk &gt;= 2) {
             cudaStreamSynchronize(streams[s]);
-            int prevOffset = (chunk - nStreams) * chunkSize;
+            int prevOffset = (chunk - 2) * chunkSize;
             int prevChunk  = min(chunkSize, N - prevOffset);
             memcpy(h_output + prevOffset, h_out[s], prevChunk * sizeof(float));
         }
     }
 
-    // Flush remaining chunks
-    for (int s = 0; s &lt; nStreams; s++) cudaStreamSynchronize(streams[s]);
-    // Copy last outputs...
+    // Flush both streams
+    for (int s = 0; s &lt; 2; s++) cudaStreamSynchronize(streams[s]);
 
     // Cleanup
-    cudaFreeHost(h_in[0]); cudaFreeHost(h_in[1]);
-    cudaFreeHost(h_out[0]); cudaFreeHost(h_out[1]);
-    cudaFree(d_in[0]); cudaFree(d_in[1]);
-    cudaFree(d_out[0]); cudaFree(d_out[1]);
-    cudaStreamDestroy(streams[0]); cudaStreamDestroy(streams[1]);
-}
+    for (int b = 0; b &lt; 2; b++) {
+        cudaFreeHost(h_in[b]);  cudaFreeHost(h_out[b]);
+        cudaFree(d_in[b]);      cudaFree(d_out[b]);
+    }
+    cudaStreamDestroy(streams[0]);
+    cudaStreamDestroy(streams[1]);
+}</code></pre>
 
-// Timeline with double-buffering (chunkSize = N/4):
-//
-// Stream 0: [H2D-0][KERNEL-0][D2H-0]
-// Stream 1:        [H2D-1][KERNEL-1][D2H-1]
-// Stream 0:               [H2D-2][KERNEL-2][D2H-2]
-// Stream 1:                      [H2D-3][KERNEL-3][D2H-3]
-//
-// Total: ~= T_kernel (if compute-bound) or T_copy (if copy-bound)
-// vs sequential: 4 * (T_H2D + T_kernel + T_D2H)</code></pre>
+      <p>Let me walk through what happens in the first 4 iterations:</p>
+
+      <div class="output-block">
+<span class="comment"># Time flows to the right. Each column is one hardware unit (H2D copy, compute, D2H copy)</span>
+<span class="comment"># s0 = stream 0, s1 = stream 1</span>
+
+chunk 0 (s=0): queue [H2D_0][KERNEL_0][D2H_0] in stream 0
+chunk 1 (s=1): queue [H2D_1][KERNEL_1][D2H_1] in stream 1
+
+<span class="comment"># GPU timeline (once both are queued, hardware runs them concurrently):</span>
+H2D engine:  [H2D_0     ][H2D_1     ][H2D_2     ][H2D_3     ]
+Compute:             [KERNEL_0  ][KERNEL_1  ][KERNEL_2  ][KERNEL_3  ]
+D2H engine:                   [D2H_0     ][D2H_1     ][D2H_2     ][D2H_3     ]
+
+<span class="comment"># Without streams (sequential):</span>
+<span class="comment"># [H2D_0][KERNEL_0][D2H_0][H2D_1][KERNEL_1][D2H_1][H2D_2]...</span>
+<span class="comment"># Total: 4 * (T_H2D + T_kernel + T_D2H)</span>
+
+<span class="comment"># With streams (pipelined):</span>
+<span class="comment"># Total: T_H2D + 4*T_kernel + T_D2H  (if compute-bound)</span>
+<span class="comment"># Speedup: up to (T_H2D + T_kernel + T_D2H) / T_kernel</span>
+      </div>
+
+      <div class="concept-box">
+        <strong>When streams give the biggest speedup:</strong> The benefit is highest when
+        the three phases (H2D, compute, D2H) have roughly equal duration. If T_kernel &lt;&lt; T_copy,
+        compute is not the bottleneck and you are PCIe-bound; streams help but the gain is limited.
+        If T_kernel &gt;&gt; T_copy, copies are nearly free and streams give enormous benefit.
+        Profile with nsys to see the actual overlap.
+      </div>
 
       <hr class="section-divider" />
 
       <h2 id="events">CUDA Events &mdash; Timing and Synchronization</h2>
 
-<pre><code>// Timing with CUDA events (only way to accurately time GPU operations)
+      <p>
+        A CUDA event is a timestamp that gets recorded into a stream. When the GPU
+        reaches that point in the stream, it writes the current GPU clock to the event.
+        You can then ask how much time elapsed between two events, or use one event to
+        block another stream from proceeding.
+      </p>
+
+<pre><code>// Timing with CUDA events (the only accurate way to time GPU operations)
 cudaEvent_t start, stop;
 cudaEventCreate(&amp;start);
 cudaEventCreate(&amp;stop);
 
-cudaEventRecord(start, 0);             // record in stream 0 (default)
+cudaEventRecord(start, 0);              // record "start" at this point in stream 0
 myKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_A, d_B, N);
-cudaEventRecord(stop, 0);
+cudaEventRecord(stop, 0);              // record "stop" after kernel
 
-cudaEventSynchronize(stop);            // wait for stop event to complete
+cudaEventSynchronize(stop);            // CPU waits until "stop" is recorded on GPU
 float ms;
-cudaEventElapsedTime(&amp;ms, start, stop);
+cudaEventElapsedTime(&amp;ms, start, stop); // elapsed time between the two events
 printf("Kernel time: %.3f ms\n", ms);
 printf("Bandwidth: %.2f GB/s\n",
-       (2.0 * N * sizeof(float)) / (ms * 1e-3) / 1e9);
+       (2.0 * N * sizeof(float)) / (ms * 1e-3) / 1e9);  // 2*N = read + write
 
 cudaEventDestroy(start);
-cudaEventDestroy(stop);
+cudaEventDestroy(stop);</code></pre>
 
-// Cross-stream synchronization with events:
+<pre><code>// Cross-stream dependency with events:
+// kernel1 produces d_B, kernel2 consumes d_B -- must enforce ordering
 cudaEvent_t dep;
 cudaEventCreate(&amp;dep);
+
 kernel1&lt;&lt;&lt;grid, block, 0, stream1&gt;&gt;&gt;(d_A, d_B, N);
-cudaEventRecord(dep, stream1);          // dep fires when stream1 is here
-cudaStreamWaitEvent(stream2, dep, 0);   // stream2 waits for dep before proceeding
-kernel2&lt;&lt;&lt;grid, block, 0, stream2&gt;&gt;&gt;(d_B, d_C, N);  // uses d_B produced by kernel1</code></pre>
+cudaEventRecord(dep, stream1);          // "dep" fires when stream1 reaches this point
+
+// stream2 will not start kernel2 until "dep" is recorded
+// (i.e., until kernel1 in stream1 has completed)
+// The CPU does NOT block here -- it is the GPU stream that waits
+cudaStreamWaitEvent(stream2, dep, 0);
+kernel2&lt;&lt;&lt;grid, block, 0, stream2&gt;&gt;&gt;(d_B, d_C, N);  // safe to read d_B here
+
+cudaEventDestroy(dep);</code></pre>
 
       <hr class="section-divider" />
 
       <h2 id="stream-sync">Stream Synchronization Methods</h2>
 
       <table class="address-table">
-        <thead><tr><th>Method</th><th>What it waits for</th><th>Who waits</th></tr></thead>
+        <thead><tr><th>Method</th><th>What it waits for</th><th>Who waits</th><th>When to use</th></tr></thead>
         <tbody>
-          <tr><td>cudaDeviceSynchronize()</td><td>ALL operations on ALL streams</td><td>CPU blocks</td></tr>
-          <tr><td>cudaStreamSynchronize(s)</td><td>All operations in stream s</td><td>CPU blocks</td></tr>
-          <tr><td>cudaEventSynchronize(e)</td><td>Event e to be recorded</td><td>CPU blocks</td></tr>
-          <tr><td>cudaStreamWaitEvent(s, e)</td><td>Event e before stream s continues</td><td>GPU stream waits, CPU continues</td></tr>
-          <tr><td>cudaStreamQuery(s)</td><td>Non-blocking: poll if stream is done</td><td>CPU polls, no block</td></tr>
+          <tr><td>cudaDeviceSynchronize()</td><td>ALL operations on ALL streams</td><td>CPU blocks</td><td>End of program, or before measuring elapsed time</td></tr>
+          <tr><td>cudaStreamSynchronize(s)</td><td>All operations queued in stream s</td><td>CPU blocks</td><td>When you need results from one stream before proceeding on CPU</td></tr>
+          <tr><td>cudaEventSynchronize(e)</td><td>Event e to be recorded on GPU</td><td>CPU blocks</td><td>Fine-grained timing; waiting for a specific point in one stream</td></tr>
+          <tr><td>cudaStreamWaitEvent(s, e)</td><td>GPU stream s waits for event e</td><td>GPU stream waits; CPU continues</td><td>Cross-stream data dependencies (preferred for pipelines)</td></tr>
+          <tr><td>cudaStreamQuery(s)</td><td>Non-blocking: returns cudaSuccess if done</td><td>CPU polls; no block</td><td>Checking completion without stalling (e.g., work-stealing loop)</td></tr>
         </tbody>
       </table>
+
+      <div class="concept-box">
+        <strong>Prefer cudaStreamWaitEvent over cudaStreamSynchronize for pipelines.</strong>
+        <code>cudaStreamSynchronize</code> blocks the CPU thread, preventing you from queuing
+        more work. <code>cudaStreamWaitEvent</code> lets the CPU continue queuing work while
+        the GPU enforces the ordering internally. Your pipeline queue stays full, maximizing
+        GPU utilization.
+      </div>
 
       <hr class="section-divider" />
 
       <h2 id="multi-kernel">Concurrent Kernel Execution</h2>
 
       <p>
-        Multiple kernels can run simultaneously on the GPU if:
+        Multiple kernels can run simultaneously on the GPU if they are in different
+        non-default streams and the GPU has resources available for both.
+        This is most useful when individual kernels are small (do not fill all 108 SMs
+        on an A100) &mdash; you can keep all SMs busy by running multiple kernels.
       </p>
-      <ul>
-        <li>They are in different (non-default) streams</li>
-        <li>The GPU has enough resources (SMs, registers, shared memory) for both</li>
-        <li>The GPU supports concurrent kernel execution (<code>prop.concurrentKernels == 1</code>)</li>
-      </ul>
 
-<pre><code>// Two independent kernels running concurrently
-cudaStream_t s1, s2;
+<pre><code>cudaStream_t s1, s2;
 cudaStreamCreate(&amp;s1);
 cudaStreamCreate(&amp;s2);
 
-// These launch almost simultaneously and run concurrently
-smallKernel&lt;&lt;&lt;16, 256, 0, s1&gt;&gt;&gt;(d_A, N);   // uses 16 SMs
-largeKernel&lt;&lt;&lt;80, 256, 0, s2&gt;&gt;&gt;(d_B, M);   // uses 80 SMs
-// Total: 96 SMs used (A100 has 108), both run in parallel
+// These two kernels launch almost simultaneously and run concurrently:
+// smallKernel uses 16 SMs, largeKernel uses 80 SMs -- together: 96 of 108 on A100
+smallKernel&lt;&lt;&lt;16, 256, 0, s1&gt;&gt;&gt;(d_A, N);   // uses ~16 SMs
+largeKernel&lt;&lt;&lt;80, 256, 0, s2&gt;&gt;&gt;(d_B, M);   // uses ~80 SMs
+// Both run in parallel; total SM occupancy = 96/108 = 89%
 
 cudaStreamSynchronize(s1);
 cudaStreamSynchronize(s2);
-
 cudaStreamDestroy(s1);
 cudaStreamDestroy(s2);</code></pre>
+
+      <div class="warning-box">
+        <strong>Concurrent kernel execution requires non-default streams.</strong>
+        Kernels in the default stream (stream 0) will NOT overlap with anything.
+        Also requires the GPU to support it: check <code>prop.concurrentKernels == 1</code>.
+        All modern NVIDIA GPUs from Fermi onward support this.
+      </div>
 
       <hr class="section-divider" />
 
       <h2 id="priorities">Stream Priorities</h2>
 
-<pre><code>// Query priority range (lower number = higher priority)
+      <p>
+        Stream priorities control which stream's operations the GPU scheduler prefers
+        when multiple streams have ready work. Higher-priority streams preempt
+        lower-priority streams (on Pascal+ with compute preemption).
+      </p>
+
+<pre><code>// Query the range of priority values available on this GPU
+// Lower number = higher priority (counterintuitive but that's the API)
 int leastPriority, greatestPriority;
 cudaDeviceGetStreamPriorityRange(&amp;leastPriority, &amp;greatestPriority);
-// typically: leastPriority=0, greatestPriority=-1
+// Typically: leastPriority = 0, greatestPriority = -1
 
-// Create high-priority stream for latency-sensitive work
+// Create a high-priority stream for latency-sensitive work
+// and a low-priority stream for background batch processing
 cudaStream_t highPri, lowPri;
-cudaStreamCreateWithPriority(&amp;highPri, cudaStreamNonBlocking, greatestPriority);
-cudaStreamCreateWithPriority(&amp;lowPri,  cudaStreamNonBlocking, leastPriority);
+cudaStreamCreateWithPriority(&amp;highPri, cudaStreamNonBlocking, greatestPriority); // -1
+cudaStreamCreateWithPriority(&amp;lowPri,  cudaStreamNonBlocking, leastPriority);    //  0
 
-// High-priority kernels preempt low-priority ones (compute preemption on Pascal+)
-lowPriKernel&lt;&lt;&lt;huge_grid, 256, 0, lowPri&gt;&gt;&gt;(d_big_data, N);  // long background task
-// ... some time later, urgent work arrives:
-highPriKernel&lt;&lt;&lt;small_grid, 256, 0, highPri&gt;&gt;&gt;(d_urgent, M);  // preempts lowPri</code></pre>
+// Launch long background batch job in low-priority stream
+batchKernel&lt;&lt;&lt;huge_grid, 256, 0, lowPri&gt;&gt;&gt;(d_batch, N);
+
+// Later: urgent inference request arrives, needs immediate GPU time
+// On Pascal+, this can preempt the low-priority kernel at a safe boundary
+urgentKernel&lt;&lt;&lt;small_grid, 256, 0, highPri&gt;&gt;&gt;(d_query, M);
+
+// highPri kernel runs with lower latency; lowPri resumes after</code></pre>
+
+      <p>
+        Priority is a hint, not a guarantee. The scheduler may still run both at low
+        utilization. Use priorities when you have a latency-sensitive workload (e.g.,
+        real-time inference) running alongside a throughput-sensitive workload
+        (e.g., training preprocessing) and need the former to take precedence.
+      </p>
 
       <div class="series-nav">
         <span><a href="cuda-phase4-reduction.html">&larr; 4.2 &mdash; Parallel Reduction</a></span>
