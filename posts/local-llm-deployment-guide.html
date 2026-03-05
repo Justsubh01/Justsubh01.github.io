@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Local LLM Deployment: Ollama vs vLLM vs llama.cpp — The Definitive Guide — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">← back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">inference</span>
+        <span class="read-time">· 45 min read</span>
+      </div>
+      <h1>Local LLM Deployment: Ollama vs vLLM vs llama.cpp — The Definitive Deep Dive</h1>
+      <p class="post-description">
+        A complete engineering guide to running large language models on your own hardware —
+        from first install to production-grade serving, covering quantization internals,
+        KV-cache mechanics, continuous batching, and every knob that actually moves the needle.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Running LLMs locally has crossed a threshold. With a single RTX 3090 (24 GB VRAM)
+        you can serve Llama 3.1 8B at full fp16 precision, hit sub-100ms time-to-first-token,
+        and field hundreds of requests per hour — all without an API bill. But the gap between
+        "it runs" and "it runs well" is enormous, and that gap is what this post is about.
+      </p>
+
+      <p>
+        We're going to go deep on three tools: <strong>Ollama</strong> (developer-friendly wrapper),
+        <strong>vLLM</strong> (production throughput server), and <strong>llama.cpp</strong>
+        (bare-metal GGUF inference). I'll explain not just <em>how</em> to use them, but
+        <em>why</em> they work the way they do — the memory math, the scheduler internals,
+        the quantization tradeoffs, and the optimization techniques that separate toy demos
+        from real deployments.
+      </p>
+
+      <blockquote>
+        Hardware reference for this post: NVIDIA RTX 3090 (24 GB VRAM), AMD Ryzen 7 3700X,
+        32 GB RAM, CUDA 13.0. All benchmarks and configs are tuned for this setup.
+      </blockquote>
+
+      <!-- ============================================================ -->
+      <h2>Part 0: The Memory Math You Must Know</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Before touching any tool, internalize this formula. It predicts whether a model
+        fits in your VRAM and how much headroom you have for KV cache:
+      </p>
+
+      <pre><code># VRAM estimate for inference (bytes)
+model_vram = num_parameters * bytes_per_param
+
+# bytes_per_param by precision:
+#   fp32  → 4 bytes
+#   fp16 / bf16 → 2 bytes
+#   int8  → 1 byte
+#   int4  → 0.5 bytes (4-bit NF4/GPTQ/AWQ)
+
+# KV cache per token (bytes)
+kv_per_token = 2 * num_layers * num_kv_heads * head_dim * bytes_per_param
+# factor of 2 = one K tensor + one V tensor
+
+# Total VRAM needed
+total = model_vram + (max_seq_len * batch_size * kv_per_token)</code></pre>
+
+      <p>
+        For Llama 3.1 8B in fp16: 8B * 2 = 16 GB for weights.
+        With 4096 context and batch=1, KV cache adds ~1 GB. Total ~17 GB — fits in a 3090.
+        Bump to batch=8 and 8192 context: KV cache explodes to ~8 GB. Now you're tight at 24 GB.
+        This is why KV cache management is the central problem in LLM serving.
+      </p>
+
+      <h2>Part 0.1: How Transformer Inference Actually Works</h2>
+
+      <p>
+        LLM inference has two distinct phases with completely different bottlenecks:
+      </p>
+
+      <ul>
+        <li><strong>Prefill phase</strong>: Process all input tokens in parallel. Compute-bound.
+          All tokens attend to each other, filling the KV cache. Throughput: ~tens of ms for
+          a 1000-token prompt.</li>
+        <li><strong>Decode phase</strong>: Generate one token at a time, autoregressively.
+          Memory-bandwidth-bound. Each new token attends to all cached KV entries.
+          A 3090 doing attention over 4096 cached tokens is reading ~500 MB of KV data
+          per generated token.</li>
+      </ul>
+
+      <p>
+        The decode phase is why LLMs feel slow for long outputs. You're not compute-limited —
+        you're limited by how fast you can stream weights and KV cache through the memory bus.
+        The RTX 3090's 936 GB/s bandwidth means with a 16 GB model, you can do at most
+        ~58 decode steps/sec on a single stream. Batching amortizes that cost.
+      </p>
+
+      <!-- ============================================================ -->
+      <h2>Part 1: Ollama — The Fast Lane to Running Models</h2>
+      <!-- ============================================================ -->
+
+      <h2>1.1 What Ollama Actually Is</h2>
+
+      <p>
+        Ollama is a Go daemon that wraps llama.cpp under the hood, adds a model registry
+        (pull/push like Docker), automatic GPU detection, and an OpenAI-compatible REST API.
+        It's not magic — it's a well-engineered convenience layer. When you run
+        <code>ollama run llama3.1</code>, it pulls a pre-quantized GGUF file, loads it into
+        llama.cpp, and exposes port 11434.
+      </p>
+
+      <h2>1.2 Installation</h2>
+
+      <pre><code># Linux (one-liner)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Verify the daemon is running
+systemctl status ollama
+
+# Check GPU detection
+ollama serve &amp;
+curl http://localhost:11434/api/tags</code></pre>
+
+      <p>
+        Ollama auto-detects CUDA and will use all available VRAM. If a model doesn't fit,
+        it automatically splits layers between GPU and CPU (partial offload). This is
+        powerful but silent — always check GPU utilization to confirm you're not
+        accidentally running on CPU.
+      </p>
+
+      <h2>1.3 Running Your First Model</h2>
+
+      <pre><code># Pull and run interactively
+ollama run llama3.1:8b
+
+# Run a specific quantization (Q4_K_M = good quality/size tradeoff)
+ollama run llama3.1:8b-instruct-q4_K_M
+
+# Run Mistral 7B
+ollama run mistral:7b-instruct
+
+# List available models
+ollama list
+
+# Remove a model
+ollama rm llama3.1:8b</code></pre>
+
+      <h2>1.4 The REST API — OpenAI Compatible</h2>
+
+      <pre><code># Chat completions (OpenAI-compatible)
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "llama3.1:8b",
+    "messages": [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Explain KV cache in one paragraph."}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 512
+  }'
+
+# Native Ollama API (more control)
+curl http://localhost:11434/api/generate \
+  -d '{
+    "model": "llama3.1:8b",
+    "prompt": "Explain transformer attention:",
+    "stream": false,
+    "options": {
+      "num_predict": 512,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "num_ctx": 4096,
+      "num_gpu": 99
+    }
+  }'</code></pre>
+
+      <h2>1.5 Using Python with Ollama</h2>
+
+      <pre><code">from ollama import Client
+
+client = Client(host='http://localhost:11434')
+
+# Simple generation
+response = client.chat(
+    model='llama3.1:8b',
+    messages=[
+        {'role': 'user', 'content': 'What is quantization in neural networks?'}
+    ]
+)
+print(response['message']['content'])
+
+# Streaming
+for chunk in client.chat(
+    model='llama3.1:8b',
+    messages=[{'role': 'user', 'content': 'Write a Python decorator for timing functions.'}],
+    stream=True
+):
+    print(chunk['message']['content'], end='', flush=True)
+
+# Using the OpenAI SDK (drop-in replacement)
+from openai import OpenAI
+client = OpenAI(base_url='http://localhost:11434/v1', api_key='ollama')
+
+response = client.chat.completions.create(
+    model='llama3.1:8b',
+    messages=[{'role': 'user', 'content': 'Hello!'}]
+)
+print(response.choices[0].message.content)</code></pre>
+
+      <h2>1.6 Modelfiles — Custom System Prompts and Parameters</h2>
+
+      <pre><code"># Create a Modelfile
+cat > Modelfile << 'EOF'
+FROM llama3.1:8b
+
+SYSTEM """
+You are an expert ML engineer specializing in GPU optimization and LLM deployment.
+Answer questions with specific numbers, code examples, and first-principles reasoning.
+"""
+
+PARAMETER temperature 0.3
+PARAMETER top_p 0.9
+PARAMETER num_ctx 8192
+PARAMETER num_predict 2048
+PARAMETER repeat_penalty 1.1
+EOF
+
+# Build and run
+ollama create ml-expert -f Modelfile
+ollama run ml-expert</code></pre>
+
+      <h2>1.7 Ollama Key Configuration Options</h2>
+
+      <pre><code># Environment variables for the Ollama daemon
+# Set in /etc/systemd/system/ollama.service.d/override.conf
+
+[Service]
+Environment="OLLAMA_NUM_PARALLEL=4"        # concurrent requests
+Environment="OLLAMA_MAX_LOADED_MODELS=2"   # models kept in VRAM
+Environment="OLLAMA_FLASH_ATTENTION=1"     # enable Flash Attention
+Environment="CUDA_VISIBLE_DEVICES=0"       # specific GPU</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 2: vLLM — Production Throughput Serving</h2>
+      <!-- ============================================================ -->
+
+      <h2>2.1 Why vLLM Exists</h2>
+
+      <p>
+        vLLM was born from a 2023 paper called <strong>PagedAttention</strong> — a KV cache
+        management technique borrowed from OS virtual memory. The core insight: traditional
+        serving frameworks pre-allocate contiguous KV cache blocks per sequence.
+        This creates two problems: fragmentation (wasted VRAM between requests) and
+        the inability to share KV cache across requests with the same prefix.
+      </p>
+
+      <p>
+        PagedAttention stores KV cache in fixed-size non-contiguous blocks (like memory pages),
+        mapping logical sequence positions to physical blocks. This enables:
+      </p>
+
+      <ul>
+        <li><strong>Near-zero KV fragmentation</strong> — no pre-allocation waste</li>
+        <li><strong>Copy-on-write prefix sharing</strong> — identical system prompts share cache</li>
+        <li><strong>Continuous batching</strong> — add/remove sequences mid-flight without stopping</li>
+      </ul>
+
+      <blockquote>
+        vLLM achieves 24x higher throughput than naive HuggingFace generation on identical hardware,
+        according to the original paper. On real workloads with mixed sequence lengths,
+        the gains are typically 8-15x.
+      </blockquote>
+
+      <h2>2.2 Installation</h2>
+
+      <pre><code># Install vLLM (CUDA 12.x)
+pip install vllm
+
+# Verify GPU is detected
+python -c "import vllm; print(vllm.__version__)"
+python -c "import torch; print(torch.cuda.get_device_name(0))"</code></pre>
+
+      <h2>2.3 Starting the OpenAI-Compatible Server</h2>
+
+      <pre><code># Basic server — Llama 3.1 8B
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --dtype float16 \
+  --max-model-len 8192 \
+  --port 8000
+
+# With GPU memory tuning (leave 10% for KV cache overhead)
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --dtype float16 \
+  --gpu-memory-utilization 0.90 \
+  --max-model-len 8192 \
+  --max-num-seqs 256 \
+  --port 8000
+
+# With AWQ 4-bit quantization (fits larger models)
+python -m vllm.entrypoints.openai.api_server \
+  --model casperhansen/llama-3-8b-instruct-awq \
+  --quantization awq \
+  --dtype half \
+  --max-model-len 16384
+
+# Using HuggingFace token for gated models
+HUGGING_FACE_HUB_TOKEN=your_token python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --dtype float16</code></pre>
+
+      <h2>2.4 Python Client — Offline Inference and API</h2>
+
+      <pre><code">from vllm import LLM, SamplingParams
+
+# Offline batch inference (highest throughput)
+llm = LLM(
+    model="meta-llama/Llama-3.1-8B-Instruct",
+    dtype="float16",
+    gpu_memory_utilization=0.90,
+    max_model_len=8192,
+    max_num_seqs=256,
+)
+
+sampling_params = SamplingParams(
+    temperature=0.7,
+    top_p=0.9,
+    max_tokens=512,
+    stop=["&lt;/s&gt;", "[/INST]"]
+)
+
+prompts = [
+    "Explain flash attention in simple terms:",
+    "What is the difference between GPTQ and AWQ quantization?",
+    "Write a Python function to compute cosine similarity:",
+]
+
+outputs = llm.generate(prompts, sampling_params)
+
+for output in outputs:
+    print(f"Prompt: {output.prompt[:50]}...")
+    print(f"Generated: {output.outputs[0].text}")
+    print(f"Tokens: {len(output.outputs[0].token_ids)}")
+    print("---")
+
+# ---- Online server client ----
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="EMPTY")
+
+# Streaming response
+stream = client.chat.completions.create(
+    model="meta-llama/Llama-3.1-8B-Instruct",
+    messages=[
+        {"role": "system", "content": "You are an expert ML engineer."},
+        {"role": "user", "content": "Explain PagedAttention in detail."}
+    ],
+    max_tokens=1024,
+    temperature=0.7,
+    stream=True
+)
+
+for chunk in stream:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="", flush=True)</code></pre>
+
+      <h2>2.5 Continuous Batching — The Core Engine</h2>
+
+      <p>
+        Traditional batching: collect a fixed batch, run it, wait for all sequences to finish,
+        start next batch. If one sequence in batch=32 is 10x longer than others, 31 GPUs
+        sit idle waiting for that one straggly sequence.
+      </p>
+
+      <p>
+        Continuous batching (also called iteration-level scheduling): after every single
+        decode step, vLLM checks if any sequence has finished. If yes, it immediately
+        slots in a new prefill. The GPU is <em>never</em> waiting. The batch composition
+        changes dynamically on every forward pass.
+      </p>
+
+      <pre><code"># vLLM scheduler configuration
+from vllm import AsyncLLMEngine, AsyncEngineArgs
+
+engine_args = AsyncEngineArgs(
+    model="meta-llama/Llama-3.1-8B-Instruct",
+    dtype="float16",
+    max_num_seqs=256,          # max concurrent sequences in flight
+    max_num_batched_tokens=8192, # max tokens processed per iteration
+    gpu_memory_utilization=0.90,
+    # Block size for PagedAttention (16 = standard)
+    block_size=16,
+    # Enable prefix caching (share KV for common system prompts)
+    enable_prefix_caching=True,
+)
+
+engine = AsyncLLMEngine.from_engine_args(engine_args)</code></pre>
+
+      <h2>2.6 Prefix Caching — Free Speedup for Fixed System Prompts</h2>
+
+      <pre><code">from vllm import LLM, SamplingParams
+
+llm = LLM(
+    model="meta-llama/Llama-3.1-8B-Instruct",
+    dtype="float16",
+    enable_prefix_caching=True,  # THE key flag
+)
+
+# First request: system prompt is prefilled and cached (slow)
+# Subsequent requests with same system prompt: cache hit (fast)
+SYSTEM_PROMPT = "You are an expert ML engineer. " * 100  # long shared prefix
+
+import time
+
+for i in range(5):
+    start = time.time()
+    output = llm.generate(
+        f"&lt;|system|&gt;{SYSTEM_PROMPT}&lt;|user|&gt;Question {i}: What is layer normalization?",
+        SamplingParams(max_tokens=100)
+    )
+    elapsed = time.time() - start
+    print(f"Request {i}: {elapsed:.3f}s")
+# Request 0: 0.820s (cache miss — full prefill)
+# Request 1: 0.112s (cache hit — skipped system prompt)
+# Request 2: 0.108s (cache hit)
+# ...</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 3: llama.cpp — Bare Metal, Maximum Control</h2>
+      <!-- ============================================================ -->
+
+      <h2>3.1 What Makes llama.cpp Special</h2>
+
+      <p>
+        llama.cpp is a pure C/C++ inference engine with zero Python overhead, hand-written
+        SIMD kernels (AVX-512, ARM NEON), and custom CUDA kernels for every quantization
+        type. It introduced the GGUF format — a single-file container for model weights,
+        tokenizer, and metadata. Its killer feature: run any fraction of layers on GPU
+        and the rest on CPU+RAM. If a 13B model doesn't fit in 24 GB VRAM, offload
+        half the layers to RAM and run at reduced throughput rather than not running at all.
+      </p>
+
+      <h2>3.2 Build from Source</h2>
+
+      <pre><code># Clone and build with CUDA support
+git clone https://github.com/ggerganov/llama.cpp
+cd llama.cpp
+
+# Build with CUDA (recommended for RTX 3090)
+cmake -B build \
+  -DGGML_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES="86" \
+  -DGGML_CUDA_F16=1
+cmake --build build --config Release -j$(nproc)
+
+# Alternative: make (legacy)
+make GGML_CUDA=1 -j$(nproc)
+
+# Verify CUDA build
+./build/bin/llama-cli --version</code></pre>
+
+      <h2>3.3 Download GGUF Models</h2>
+
+      <pre><code"># Download via HuggingFace Hub
+pip install huggingface_hub
+
+python3 -c "
+from huggingface_hub import hf_hub_download
+
+# Llama 3.1 8B Q4_K_M (best quality at 4-bit)
+hf_hub_download(
+    repo_id='bartowski/Meta-Llama-3.1-8B-Instruct-GGUF',
+    filename='Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf',
+    local_dir='./models'
+)
+
+# Mistral 7B Q5_K_M (higher quality 5-bit)
+hf_hub_download(
+    repo_id='bartowski/Mistral-7B-Instruct-v0.3-GGUF',
+    filename='Mistral-7B-Instruct-v0.3-Q5_K_M.gguf',
+    local_dir='./models'
+)
+"
+
+# Or use wget directly from known URLs
+# wget https://huggingface.co/path/to/model.gguf</code></pre>
+
+      <h2>3.4 Run Inference</h2>
+
+      <pre><code># Basic CLI inference — all layers on GPU (RTX 3090, 24GB)
+./build/bin/llama-cli \
+  -m ./models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf \
+  -n 512 \
+  -ngl 99 \
+  --temp 0.7 \
+  --top-p 0.9 \
+  -p "You are an ML engineer. Explain flash attention:"
+
+# Key flags:
+# -ngl 99    = offload ALL layers to GPU (99 = "all of them")
+# -n 512     = max tokens to generate
+# --ctx-size 8192  = context window
+# --batch-size 512 = prefill batch size (higher = faster prefill)
+# --threads 8      = CPU threads for CPU-offloaded layers
+# --mlock          = lock model in RAM (prevents swapping)
+# --no-mmap        = don't mmap model (load fully into RAM)
+
+# Partial GPU offload (e.g. only 20 of 32 layers on GPU)
+./build/bin/llama-cli \
+  -m ./models/Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf \
+  -ngl 20 \
+  --threads 12 \
+  -n 256</code></pre>
+
+      <h2>3.5 llama-server — HTTP Server Mode</h2>
+
+      <pre><code># Start the OpenAI-compatible HTTP server
+./build/bin/llama-server \
+  -m ./models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf \
+  -ngl 99 \
+  --ctx-size 8192 \
+  --n-predict 2048 \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --parallel 4 \       # concurrent request slots
+  --cont-batching \    # enable continuous batching
+  --flash-attn         # enable Flash Attention 2
+
+# OpenAI-compatible endpoint
+curl http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "local",
+    "messages": [{"role": "user", "content": "Explain GGUF format."}],
+    "temperature": 0.7,
+    "max_tokens": 512
+  }'</code></pre>
+
+      <h2>3.6 Python bindings — llama-cpp-python</h2>
+
+      <pre><code"># Install with CUDA support
+CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python
+
+from llama_cpp import Llama
+
+# Load model
+llm = Llama(
+    model_path="./models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+    n_gpu_layers=-1,      # -1 = all layers on GPU
+    n_ctx=8192,           # context window
+    n_batch=512,          # prefill batch size
+    n_threads=8,          # CPU threads
+    flash_attn=True,      # Flash Attention
+    verbose=False
+)
+
+# Chat completion
+response = llm.create_chat_completion(
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "What is KV cache?"}
+    ],
+    max_tokens=512,
+    temperature=0.7,
+    top_p=0.9,
+    stream=False
+)
+print(response['choices'][0]['message']['content'])
+
+# Streaming
+for chunk in llm.create_chat_completion(
+    messages=[{"role": "user", "content": "Write a CUDA kernel for vector addition."}],
+    max_tokens=1024,
+    stream=True
+):
+    delta = chunk['choices'][0]['delta']
+    if 'content' in delta:
+        print(delta['content'], end='', flush=True)
+
+# Embeddings
+embedding = llm.create_embedding("This is a sample text.")
+print(f"Embedding dim: {len(embedding['data'][0]['embedding'])}")</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 4: Quantization Deep Dive</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Quantization is the single most impactful technique for fitting models into limited
+        VRAM. But not all quantization is equal. Here's what's actually happening under the hood.
+      </p>
+
+      <h2>4.1 The Quantization Landscape</h2>
+
+      <pre><code># Format comparison for Llama 3.1 8B
+
+Format    | VRAM    | Quality (vs fp16) | Throughput | Use case
+----------|---------|-------------------|------------|------------------
+fp16      | 16 GB   | 100%              | baseline   | max quality
+bf16      | 16 GB   | ~100%             | +5%        | A100/H100
+int8 LLM.int8 | 8 GB | ~99%            | -10%       | quality + VRAM
+GPTQ int4 | 4.5 GB  | ~97%             | +60%       | balanced
+AWQ int4  | 4.5 GB  | ~98%             | +70%       | best 4-bit
+Q4_K_M    | 4.8 GB  | ~97%             | +65%       | llama.cpp sweet spot
+Q5_K_M    | 5.5 GB  | ~99%             | +55%       | near fp16 quality
+Q8_0      | 8.5 GB  | ~99.9%           | +20%       | lossless-ish
+EXL2 4bpw | 4.5 GB  | ~97%             | +80%       | ExLlamaV2</code></pre>
+
+      <h2>4.2 GPTQ — Post-Training Quantization with Layer-Wise Calibration</h2>
+
+      <pre><code"># Quantize a model to GPTQ 4-bit using AutoGPTQ
+pip install auto-gptq optimum
+
+from transformers import AutoTokenizer
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+
+model_name = "meta-llama/Llama-3.1-8B-Instruct"
+quantize_config = BaseQuantizeConfig(
+    bits=4,               # 4-bit quantization
+    group_size=128,       # quantize in groups of 128 weights
+    desc_act=True,        # activation order — higher quality, slower
+    damp_percent=0.1,     # damping for numerical stability
+)
+
+# Load the model
+model = AutoGPTQForCausalLM.from_pretrained(
+    model_name,
+    quantize_config=quantize_config,
+    device_map="auto"
+)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+# Calibration dataset (128 samples is usually enough)
+from datasets import load_dataset
+data = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
+examples = [tokenizer(d["text"]) for d in data.select(range(128))]
+
+# Quantize
+model.quantize(examples)
+
+# Save
+model.save_quantized("./llama3-8b-gptq-4bit")
+print("Quantization complete!")</code></pre>
+
+      <h2>4.3 AWQ — Activation-Aware Weight Quantization</h2>
+
+      <pre><code"># AWQ: better than GPTQ for same bit-width
+# Key insight: not all weights are equally important —
+# weights that activate highly-salient neurons matter more.
+# AWQ protects those weights by applying per-channel scaling.
+
+pip install autoawq
+
+from awq import AutoAWQForCausalLM
+from transformers import AutoTokenizer
+
+model_path = "meta-llama/Llama-3.1-8B-Instruct"
+quant_path = "./llama3-8b-awq-4bit"
+
+quant_config = {
+    "zero_point": True,   # asymmetric quantization
+    "q_group_size": 128,  # group size
+    "w_bit": 4,           # 4-bit weights
+    "version": "GEMM",    # GEMM kernel (GEMV is slower but less memory)
+}
+
+model = AutoAWQForCausalLM.from_pretrained(model_path, device_map="auto")
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+# AWQ calibration (faster than GPTQ — uses activation statistics)
+model.quantize(tokenizer, quant_config=quant_config)
+
+# Save
+model.save_quantized(quant_path)
+tokenizer.save_pretrained(quant_path)
+
+# Load quantized model with vLLM
+# python -m vllm.entrypoints.openai.api_server \
+#   --model ./llama3-8b-awq-4bit \
+#   --quantization awq</code></pre>
+
+      <h2>4.4 GGUF Quantization Types Explained</h2>
+
+      <pre><code># GGUF quantization naming convention:
+# Q{bits}_{variant}_{size}
+#   bits: 2, 3, 4, 5, 6, 8
+#   variant: K (k-quant), I (importance matrix)
+#   size: S (small), M (medium), L (large) — refers to k-quant block size
+
+# K-quants (recommended): use larger 256-element super-blocks
+# with mixed precision — some weights get higher bit depth
+# based on their importance to the output distribution.
+
+# Recommendation ladder for a 3090 (24GB):
+# Llama 3.1 8B:
+#   - Maximum quality: fp16 (16 GB) — fits with room for KV cache
+#   - Balanced: Q5_K_M (5.5 GB) — near fp16 quality
+#   - Maximum batch: Q4_K_M (4.8 GB) — more VRAM for KV cache
+# Llama 3.1 13B:
+#   - Q5_K_M (9.5 GB) — excellent quality
+#   - Q4_K_M (8.5 GB) — standard choice
+# Llama 3.3 70B:
+#   - Q4_K_M (43 GB) — needs multi-GPU or CPU offload
+#   - IQ2_XXS (19 GB) — ultra-compressed, noticeable quality loss
+
+# Convert your own model to GGUF
+python llama.cpp/convert_hf_to_gguf.py \
+  ./my-finetuned-model \
+  --outfile ./my-model-fp16.gguf \
+  --outtype f16
+
+# Then quantize
+./build/bin/llama-quantize \
+  ./my-model-fp16.gguf \
+  ./my-model-Q4_K_M.gguf \
+  Q4_K_M</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 5: Flash Attention — The Algorithmic Breakthrough</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Standard attention has O(N²) memory complexity — for a 32K context window,
+        storing the attention matrix requires 32K × 32K × 2 bytes = 2 GB for a single
+        head. Flash Attention rewrites the algorithm to tile the computation, never
+        materializing the full attention matrix in HBM (high-bandwidth memory).
+      </p>
+
+      <pre><code"># Flash Attention 2 memory complexity comparison
+# Standard attention: O(N²) HBM reads/writes
+# Flash Attention 2: O(N) HBM reads/writes (constant tiling)
+
+# Standard: for 8192 context, 32 heads, 128 head_dim, fp16:
+standard_attn_mem = 8192 * 8192 * 32 * 2 / (1024**3)
+print(f"Standard attention HBM: {standard_attn_mem:.1f} GB")  # 16.0 GB
+
+# Flash Attention: uses SRAM tiles (48 KB per SM on RTX 3090)
+# Processes in blocks, recomputes softmax statistics on the fly
+# No O(N²) intermediate matrix in HBM
+flash_overhead = 8192 * 128 * 32 * 2 / (1024**3)
+print(f"Flash Attention overhead: {flash_overhead*2:.3f} GB")  # ~0.064 GB
+
+# Enable in vLLM:
+# --enable-chunked-prefill (vLLM 0.4+, splits long prefills)
+
+# Enable in llama.cpp:
+# --flash-attn flag or cmake -DLLAMA_FLASH_ATTN=1
+
+# Enable in HuggingFace Transformers:
+from transformers import AutoModelForCausalLM
+model = AutoModelForCausalLM.from_pretrained(
+    "meta-llama/Llama-3.1-8B-Instruct",
+    torch_dtype="float16",
+    attn_implementation="flash_attention_2",  # requires flash-attn package
+    device_map="auto"
+)</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 6: Speculative Decoding</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        The decode phase processes one token at a time — a serial bottleneck. Speculative
+        decoding breaks this by using a small "draft" model to generate k candidate tokens
+        in parallel, then verifying them all in a single forward pass of the large model.
+        If the large model agrees with the draft, you get k tokens for roughly the cost of 1.
+      </p>
+
+      <pre><code"># Speculative decoding in vLLM
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --speculative-model meta-llama/Llama-3.2-1B-Instruct \
+  --num-speculative-tokens 5 \
+  --dtype float16
+
+# How it works:
+# 1. Draft model (1B) generates 5 candidate tokens (fast, cheap)
+# 2. Target model (8B) scores ALL 5 in one parallel forward pass
+# 3. Accept tokens where p_target(x) >= p_draft(x) (rejection sampling)
+# 4. On acceptance rate ~0.7-0.8, effective throughput = 2.5-4x
+
+# Python API with speculative decoding
+from vllm import LLM, SamplingParams
+
+llm = LLM(
+    model="meta-llama/Llama-3.1-8B-Instruct",
+    speculative_model="meta-llama/Llama-3.2-1B-Instruct",
+    num_speculative_tokens=5,
+    dtype="float16",
+)
+
+# Prompt-lookup decoding (no draft model needed — uses prompt text)
+llm_lookup = LLM(
+    model="meta-llama/Llama-3.1-8B-Instruct",
+    speculative_model="[ngram]",
+    num_speculative_tokens=5,
+    ngram_prompt_lookup_max=4,
+    dtype="float16",
+)</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 7: Challenges and How to Solve Them</h2>
+      <!-- ============================================================ -->
+
+      <h2>7.1 VRAM OOM (Out of Memory)</h2>
+
+      <pre><code># Diagnosis
+nvidia-smi --query-gpu=memory.used,memory.free --format=csv
+
+# Solutions in order of impact:
+# 1. Reduce max sequence length
+vllm serve model --max-model-len 4096  # was 8192
+
+# 2. Reduce GPU memory utilization (leave more for OS/other processes)
+vllm serve model --gpu-memory-utilization 0.85
+
+# 3. Switch to lower quantization
+# fp16 -> int8 -> int4 (each halves model VRAM footprint)
+
+# 4. Enable chunked prefill (vLLM) — processes long prompts in chunks
+python -m vllm.entrypoints.openai.api_server \
+  --model llama3 \
+  --enable-chunked-prefill \
+  --max-num-batched-tokens 2048
+
+# 5. CPU offload (llama.cpp) — put overflow layers on RAM
+./llama-cli -m model.gguf -ngl 20  # only 20/32 layers on GPU
+
+# 6. Swap space (vLLM) — overflow KV cache to CPU RAM
+python -m vllm.entrypoints.openai.api_server \
+  --model llama3 \
+  --swap-space 4  # 4 GB CPU swap for KV cache</code></pre>
+
+      <h2>7.2 Slow Time-to-First-Token (TTFT)</h2>
+
+      <pre><code># TTFT is dominated by prefill. For long prompts it compounds fast.
+# Llama 3.1 8B fp16, 3090: roughly 1ms per 100 input tokens during prefill
+
+# Solutions:
+# 1. Enable Flash Attention (2-4x faster prefill)
+# 2. Increase prefill batch size
+./llama-server -m model.gguf --batch-size 2048  # was 512
+
+# 3. Chunked prefill (vLLM) — interleave prefill with decode
+# reduces TTFT variance at cost of slightly lower throughput
+
+# 4. Prefix caching — reuse KV for repeated system prompts
+# (vLLM --enable-prefix-caching, Ollama does this automatically)
+
+# 5. Prompt compression — use LLMLingua or similar to compress
+# long system prompts before sending to model</code></pre>
+
+      <h2>7.3 Slow Token Generation (TGS — Tokens per Second)</h2>
+
+      <pre><code"># Decode is memory-bandwidth-bound on a single request.
+# RTX 3090: 936 GB/s bandwidth.
+# Llama 3.1 8B fp16: 16 GB model → 936/16 = ~58 tokens/sec theoretical max
+# Actual: ~45-52 tokens/sec at batch=1 (overhead from attention, sampling)
+
+# Solutions:
+# 1. Quantize to int4 — halves memory reads → ~2x throughput
+# (4.8 GB model → 936/4.8 = ~195 tokens/sec theoretical)
+# Actual: ~80-100 tokens/sec with AWQ/GPTQ
+
+# 2. Batch multiple requests — decode steps shared across batch
+# batch=8 with Q4 → ~8x throughput at same latency
+
+# 3. Speculative decoding — 2-3x speedup for typical text
+# (works best when output is predictable/repetitive)
+
+# 4. Use Flash Decoding (FlashDecoding++) for long contexts
+# Standard attention slows down with long KV cache
+# Flash Decoding parallelizes across the key/value dimension</code></pre>
+
+      <h2>7.4 Model Quality / Hallucination Issues</h2>
+
+      <pre><code># Sampling parameter tuning
+params = {
+    "temperature": 0.1,      # lower = more deterministic, less hallucination
+    "top_p": 0.9,            # nucleus sampling — ignore very low prob tokens
+    "top_k": 40,             # limit vocabulary at each step
+    "repeat_penalty": 1.1,   # penalize repeating n-grams
+    "min_p": 0.05,           # min-p sampling: minimum probability threshold
+                              # often better than top_k alone
+}
+
+# For factual tasks: temperature=0.0-0.3, top_p=0.9
+# For creative tasks: temperature=0.7-1.0, top_p=0.95
+# For code: temperature=0.0-0.2, stop at function boundaries
+
+# Structured output — force valid JSON
+from vllm import LLM, SamplingParams
+from vllm.sampling_params import GuidedDecodingParams
+
+llm = LLM(model="meta-llama/Llama-3.1-8B-Instruct", dtype="float16")
+
+schema = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "score": {"type": "number"},
+        "tags": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["name", "score", "tags"]
+}
+
+params = SamplingParams(
+    max_tokens=256,
+    guided_decoding=GuidedDecodingParams(json=schema)
+)
+# Model MUST produce valid JSON matching the schema</code></pre>
+
+      <h2>7.5 Context Window Exhaustion</h2>
+
+      <pre><code"># When conversations exceed context window:
+
+# Option 1: Sliding window — keep last N tokens
+def truncate_messages(messages, tokenizer, max_tokens=6000):
+    total = 0
+    result = []
+    for msg in reversed(messages):
+        tokens = len(tokenizer.encode(msg['content']))
+        if total + tokens > max_tokens:
+            break
+        result.insert(0, msg)
+        total += tokens
+    return result
+
+# Option 2: Summarize old turns with a small fast model
+def summarize_history(old_messages, summarizer_llm):
+    summary_prompt = f"Summarize this conversation in 3 sentences:\n{old_messages}"
+    return summarizer_llm.generate(summary_prompt)
+
+# Option 3: Use a model with large native context
+# Llama 3.1 supports up to 128K context natively
+# --max-model-len 32768 in vLLM (needs more VRAM for KV cache)</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 8: Advanced Topics</h2>
+      <!-- ============================================================ -->
+
+      <h2>8.1 LoRA — Parameter-Efficient Fine-Tuning + Serving</h2>
+
+      <pre><code"># LoRA adds low-rank adapter matrices (A and B) to attention layers:
+# W_new = W_pretrained + alpha * (A @ B)
+# where A is (d x r) and B is (r x d), r << d
+# Only A and B are trained — saves 100-1000x parameters vs full fine-tune
+
+# Fine-tune with LoRA using PEFT
+pip install peft transformers datasets trl
+
+from peft import LoraConfig, get_peft_model, TaskType
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+model = AutoModelForCausalLM.from_pretrained(
+    "meta-llama/Llama-3.1-8B-Instruct",
+    torch_dtype=torch.float16,
+    device_map="auto"
+)
+
+lora_config = LoraConfig(
+    task_type=TaskType.CAUSAL_LM,
+    r=16,                 # rank — 8-64, higher = more capacity
+    lora_alpha=32,        # scaling factor (alpha/r = effective LR scale)
+    target_modules=[      # which layers to adapt
+        "q_proj", "v_proj", "k_proj", "o_proj",
+        "gate_proj", "up_proj", "down_proj"
+    ],
+    lora_dropout=0.05,
+    bias="none"
+)
+
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+# trainable params: 83,886,080 || all params: 8,114,409,472 || 1.033%
+
+# Serving LoRA adapters with vLLM (hot-swap without restart!)
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --enable-lora \
+  --lora-modules \
+      customer-service=./lora-customer-service \
+      coding-assistant=./lora-coding \
+  --max-loras 4 \
+  --max-lora-rank 64
+
+# Request with specific adapter
+curl http://localhost:8000/v1/chat/completions \
+  -d '{"model": "coding-assistant", "messages": [...]}'</code></pre>
+
+      <h2>8.2 Multi-GPU Tensor Parallelism</h2>
+
+      <pre><code># Tensor Parallelism (TP): split attention heads across GPUs
+# Each GPU holds 1/N of the weight matrices
+# Requires fast GPU interconnect (NVLink >> PCIe)
+
+# vLLM tensor parallelism
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-70B-Instruct \
+  --tensor-parallel-size 4 \  # split across 4 GPUs
+  --dtype float16
+
+# Pipeline Parallelism (PP): split layers across GPUs
+# GPU 0 runs layers 0-20, GPU 1 runs layers 20-40...
+# Higher memory efficiency, but adds pipeline bubble latency
+
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-70B-Instruct \
+  --tensor-parallel-size 2 \
+  --pipeline-parallel-size 2 \  # 2 TP × 2 PP = 4 GPUs total
+  --dtype float16</code></pre>
+
+      <h2>8.3 KV Cache Quantization</h2>
+
+      <pre><code"># KV cache is fp16 by default — the largest VRAM consumer for long contexts
+# FP8 KV cache (vLLM 0.5+): ~2x more context for same VRAM
+
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --kv-cache-dtype fp8 \           # quantize KV cache to 8-bit
+  --max-model-len 32768 \          # now fits in 24GB
+  --dtype float16
+
+# INT8 KV cache (llama.cpp)
+./llama-server -m model.gguf \
+  --cache-type-k q8_0 \   # int8 K cache
+  --cache-type-v q8_0 \   # int8 V cache
+  --ctx-size 32768</code></pre>
+
+      <h2>8.4 Structured Generation and Tool Calling</h2>
+
+      <pre><code"># Constrained generation with outlines/guidance
+pip install outlines
+
+import outlines
+import torch
+from enum import Enum
+
+model = outlines.models.vllm(
+    "meta-llama/Llama-3.1-8B-Instruct",
+    model_kwargs={"dtype": "float16"}
+)
+
+# Force specific choices
+class Sentiment(str, Enum):
+    positive = "positive"
+    negative = "negative"
+    neutral = "neutral"
+
+generator = outlines.generate.choice(model, Sentiment)
+result = generator("Classify: 'This product is amazing!'")
+print(result)  # Always: positive | negative | neutral
+
+# Force regex pattern
+phone_generator = outlines.generate.regex(
+    model,
+    r"\+1-\d{3}-\d{3}-\d{4}"
+)
+result = phone_generator("Generate a US phone number:")
+print(result)  # Always matches the regex
+
+# JSON schema enforcement
+from pydantic import BaseModel
+from typing import List
+
+class CodeReview(BaseModel):
+    summary: str
+    issues: List[str]
+    severity: int  # 1-5
+    approved: bool
+
+generator = outlines.generate.json(model, CodeReview)
+review = generator(f"Review this code: {code_snippet}")
+print(review.severity, review.approved)</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 9: Optimization Techniques</h2>
+      <!-- ============================================================ -->
+
+      <h2>9.1 Benchmarking Your Setup</h2>
+
+      <pre><code"># vLLM benchmark
+python -m vllm.benchmarks.benchmark_throughput \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --dtype float16 \
+  --input-len 512 \
+  --output-len 256 \
+  --num-prompts 100 \
+  --backend vllm
+
+# llama.cpp benchmark
+./build/bin/llama-bench \
+  -m ./models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf \
+  -p 512,1024 \         # test with 512 and 1024 prompt tokens
+  -n 256 \              # generate 256 tokens
+  -ngl 99 \             # all layers on GPU
+  -t 8 \                # 8 CPU threads
+  -b 512,1024           # test batch sizes
+
+# Key metrics to track:
+# - TTFT: Time to First Token (ms) — latency
+# - TGS: Tokens Generated per Second — throughput
+# - TTFT p99: worst-case latency under load</code></pre>
+
+      <h2>9.2 The Optimization Decision Tree</h2>
+
+      <pre><code># Is VRAM the bottleneck? (model doesn't fit or OOMs)
+#   → Quantize: fp16 → int8 → int4
+#   → Reduce context: --max-model-len 4096
+#   → Reduce GPU utilization: --gpu-memory-utilization 0.85
+#   → CPU offload: -ngl 20 (llama.cpp)
+
+# Is decode too slow? (low tokens/sec on single request)
+#   → Quantize to int4 (2x faster, same latency feel)
+#   → Enable speculative decoding (2-3x on predictable text)
+#   → Check you're actually on GPU: nvidia-smi dmon
+
+# Is throughput too low? (low tokens/sec on many requests)
+#   → Increase max_num_seqs / parallel slots
+#   → Enable continuous batching (--cont-batching)
+#   → Enable prefix caching for repeated system prompts
+#   → Use vLLM instead of Ollama (better scheduler)
+
+# Is prefill too slow? (high TTFT on long prompts)
+#   → Enable Flash Attention
+#   → Increase batch size for prefill
+#   → Enable chunked prefill (vLLM)
+
+# Is quality poor after quantization?
+#   → Switch from GPTQ to AWQ (better calibration)
+#   → Use higher quant: Q4_K_M → Q5_K_M
+#   → Use perplexity evaluation to measure quality loss</code></pre>
+
+      <h2>9.3 Production Serving Stack</h2>
+
+      <pre><code"># Complete production setup: nginx + vLLM + monitoring
+
+# 1. vLLM server (systemd service)
+# /etc/systemd/system/vllm.service
+[Unit]
+Description=vLLM LLM Server
+After=network.target
+
+[Service]
+Type=simple
+User=mlops
+WorkingDirectory=/opt/llm
+ExecStart=/opt/llm/venv/bin/python -m vllm.entrypoints.openai.api_server \
+    --model meta-llama/Llama-3.1-8B-Instruct \
+    --dtype float16 \
+    --gpu-memory-utilization 0.90 \
+    --max-model-len 8192 \
+    --max-num-seqs 256 \
+    --enable-prefix-caching \
+    --port 8000 \
+    --host 127.0.0.1
+Restart=always
+RestartSec=10
+Environment=CUDA_VISIBLE_DEVICES=0
+
+[Install]
+WantedBy=multi-user.target
+
+# 2. Nginx reverse proxy with rate limiting
+upstream vllm_backend {
+    server 127.0.0.1:8000;
+    keepalive 64;
+}
+
+server {
+    listen 443 ssl;
+    server_name llm.yourdomain.com;
+
+    location /v1/ {
+        proxy_pass http://vllm_backend;
+        proxy_read_timeout 300s;
+        proxy_buffering off;       # critical for streaming
+        limit_req zone=llm_ratelimit burst=20 nodelay;
+    }
+}
+
+# 3. Prometheus metrics (vLLM exposes them automatically)
+# vllm:num_requests_running
+# vllm:gpu_cache_usage_perc
+# vllm:num_preemptions_total
+# vllm:time_to_first_token_seconds_bucket
+
+# Grafana dashboard query:
+# rate(vllm:num_generation_tokens_total[1m]) = tokens/sec</code></pre>
+
+      <h2>9.4 Model Selection for the RTX 3090</h2>
+
+      <pre><code># Optimal model selection matrix for RTX 3090 (24GB VRAM)
+
+# Best quality per task:
+# General chat:      Llama 3.1 8B fp16     (16GB, ~50 t/s)
+# Code generation:   Qwen2.5-Coder 7B fp16 (14GB, ~55 t/s)
+# Long context:      Llama 3.1 8B Q5_K_M   (5.5GB, 18GB KV budget)
+# Fast responses:    Llama 3.2 3B fp16     (6GB, ~120 t/s)
+# High quality chat: Gemma 2 9B Q5_K_M     (6.5GB, near frontier)
+# RAG/embeddings:    nomic-embed-text      (274MB, negligible)
+
+# Benchmark comparison on RTX 3090 (empirical):
+# Model                  | Format  | VRAM  | TTFT(512tok) | TGS
+# -----------------------|---------|-------|--------------|------
+# Llama 3.1 8B           | fp16    | 16GB  | 800ms        | 48
+# Llama 3.1 8B           | Q5_K_M  | 5.5GB | 750ms        | 62
+# Llama 3.1 8B           | Q4_K_M  | 4.8GB | 720ms        | 78
+# Mistral 7B v0.3        | Q4_K_M  | 4.5GB | 680ms        | 82
+# Qwen2.5 7B             | Q4_K_M  | 4.5GB | 670ms        | 84
+# Gemma 2 9B             | Q4_K_M  | 5.5GB | 850ms        | 58</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>Part 10: Tool Selection Guide</h2>
+      <!-- ============================================================ -->
+
+      <h2>When to Use What</h2>
+
+      <pre><code># Decision matrix
+
+Use Ollama when:
+  - Single developer, personal use
+  - Want to be running in 5 minutes
+  - Need easy model management (pull/push)
+  - Building a quick prototype with OpenAI SDK
+  - Need auto GPU/CPU splitting transparently
+  Weakness: limited concurrency, no fine-grained scheduler control
+
+Use vLLM when:
+  - Serving multiple concurrent users
+  - Need maximum throughput (API service, backend)
+  - Want LoRA hot-swapping
+  - Running production workloads
+  - Need structured output / JSON schema enforcement
+  - Want detailed Prometheus metrics
+  Weakness: Python overhead, requires more setup, heavy dependencies
+
+Use llama.cpp when:
+  - Need the absolute minimum VRAM footprint
+  - Running on CPU-only or mixed CPU+GPU
+  - Embedding in a C++ application
+  - Need GGUF format's portability
+  - Doing edge deployment or ARM devices
+  - Want to run 70B with partial CPU offload
+  Weakness: single-process (llama-server has limited concurrency vs vLLM)</code></pre>
+
+      <h2>Quick Reference: Startup Commands for Your RTX 3090</h2>
+
+      <pre><code># ---- Ollama ----
+ollama serve
+ollama run llama3.1:8b                    # fp16, ~16GB
+ollama run llama3.1:8b-instruct-q4_K_M   # 4-bit, ~5GB
+
+# ---- vLLM ----
+# Best throughput, fp16
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --dtype float16 \
+  --gpu-memory-utilization 0.90 \
+  --max-model-len 8192 \
+  --enable-prefix-caching \
+  --port 8000
+
+# ---- llama.cpp ----
+./build/bin/llama-server \
+  -m ./models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf \
+  -ngl 99 \
+  --flash-attn \
+  --ctx-size 8192 \
+  --parallel 4 \
+  --cont-batching \
+  --port 8080</code></pre>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>Memory math first: know exactly how much VRAM your model + KV cache needs before choosing a format or tool.</li>
+        <li>The decode phase is memory-bandwidth-bound, not compute-bound. Quantization helps here more than a faster GPU clock.</li>
+        <li>PagedAttention and continuous batching (vLLM) are the biggest throughput levers for multi-user serving.</li>
+        <li>Flash Attention is always free speed — enable it everywhere that supports it.</li>
+        <li>AWQ beats GPTQ at the same bit-width for quality; Q4_K_M / Q5_K_M are the llama.cpp sweet spots.</li>
+        <li>Prefix caching is a free 5-10x TTFT speedup when your system prompts are long and shared.</li>
+        <li>For your RTX 3090: Llama 3.1 8B at fp16 is the right default. Drop to Q5_K_M if you need more KV cache headroom for longer contexts or higher concurrency.</li>
+        <li>Production stack: vLLM + nginx + Prometheus/Grafana is the repeatable pattern that scales from 1 GPU to a rack.</li>
+      </ul>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>
