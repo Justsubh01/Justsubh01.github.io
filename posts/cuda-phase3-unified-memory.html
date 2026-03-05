@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery Phase 3.4 — Unified Memory — Sudhanshu</title>
+  <title>CUDA Mastery 3.4 — Unified Memory — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -16,23 +16,22 @@
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
-    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
-    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
-    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
-    .address-table tr:nth-child(even) td { background: #f8fafc; }
-    .gif-wrap { text-align: center; margin: 2.5rem 0; }
-    .gif-wrap img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
-    .gif-caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; font-style: italic; line-height: 1.5; }
     .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
     .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .toc ol { margin: 0; padding-left: 1.2rem; }
     .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
     .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
   </style>
 </head>
 <body>
   <nav>
-    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
     <div class="nav-links">
       <a href="../index.html#writing">writing</a>
       <a href="../index.html#about">about</a>
@@ -40,255 +39,297 @@
     </div>
   </nav>
   <main>
-    <a href="../index.html" class="back-link">← back to home</a>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
     <div class="post-header">
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 16 min read</span>
+        <span class="read-time">&middot; 20 min read</span>
       </div>
-      <h1>CUDA Mastery Phase 3.4 — Unified Memory: When Convenience Beats Manual Transfers</h1>
+      <h1>Unified Memory &mdash; One Pointer, CPU and GPU</h1>
       <p class="post-description">
-        How cudaMallocManaged() lets you write GPU code without explicit cudaMemcpy calls,
-        what actually happens under the hood with page faults and migration, and when unified
-        memory helps versus when it quietly destroys your performance.
+        Unified Memory lets a single pointer be accessed from both CPU and GPU without
+        explicit cudaMemcpy calls. The driver migrates pages automatically. Understanding
+        when to use it (and when not to) can save you hundreds of lines of boilerplate &mdash;
+        or cause subtle performance cliffs if misused.
       </p>
     </div>
     <div class="post-body">
 
       <p>
-        Writing CUDA without unified memory means manually managing two separate copies of
-        every data structure — one on the CPU, one on the GPU — and keeping them in sync
-        with explicit cudaMemcpy calls. For quick experiments and complex data structures
-        like linked lists or trees, this is painful. Unified memory is the answer, but it
-        comes with performance traps you need to understand.
+        The explicit CUDA memory management pattern has 7 steps: <code>malloc</code>,
+        <code>cudaMalloc</code>, <code>cudaMemcpy H&rarr;D</code>, kernel, <code>cudaMemcpy D&rarr;H</code>,
+        <code>free</code>, <code>cudaFree</code>. For complex data structures like linked lists,
+        trees, or graphs where pointers live inside device data, this is nearly impossible to
+        manage correctly. Unified Memory solves this.
       </p>
 
-      <h2>1. The Problem Unified Memory Solves</h2>
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#what-is">What Is Unified Memory</a></li>
+          <li><a href="#explicit-vs-um">Explicit Memory vs Unified Memory</a></li>
+          <li><a href="#page-faults">Page Fault Mechanism</a></li>
+          <li><a href="#prefetching">Prefetching &mdash; Eliminating Faults</a></li>
+          <li><a href="#advise">Memory Advice Hints</a></li>
+          <li><a href="#when-to-use">When to Use Unified Memory</a></li>
+          <li><a href="#multi-gpu">Multi-GPU Unified Memory</a></li>
+        </ol>
+      </div>
 
-      <pre><code>  Without unified memory: explicit memory management
-  ────────────────────────────────────────────────────
-  float *h_data = (float*)malloc(N * sizeof(float));
-  float *d_data;
-  cudaMalloc(&amp;d_data, N * sizeof(float));
+      <hr class="section-divider" />
 
-  // Initialize on CPU:
-  for (int i = 0; i &lt; N; i++) h_data[i] = init_value(i);
-
-  // Upload before kernel:
-  cudaMemcpy(d_data, h_data, N * sizeof(float), cudaMemcpyHostToDevice);
-
-  // Run kernel:
-  myKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_data, N);
-
-  // Download results:
-  cudaMemcpy(h_data, d_data, N * sizeof(float), cudaMemcpyDeviceToHost);
-
-  // Now use h_data on CPU...
-
-  // Cleanup: free BOTH:
-  free(h_data);
-  cudaFree(d_data);</code></pre>
-
-      <pre><code>  With unified memory: single pointer, automatic migration
-  ────────────────────────────────────────────────────────
-  float *data;
-  cudaMallocManaged(&amp;data, N * sizeof(float));
-
-  // Initialize on CPU (pointer works on CPU!):
-  for (int i = 0; i &lt; N; i++) data[i] = init_value(i);
-
-  // Run kernel (pointer works on GPU!):
-  myKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(data, N);
-  cudaDeviceSynchronize();  // wait for kernel
-
-  // Use results on CPU (no explicit copy needed):
-  printf("result[0] = %f\n", data[0]);
-
-  // Cleanup: single free:
-  cudaFree(data);</code></pre>
-
-      <h2>2. What Happens Under the Hood</h2>
-
-      <pre><code>  Unified memory works via the virtual memory system and hardware page faults.
-
-  ┌─────────────────────────────────────────────────────────┐
-  │  Unified Memory Architecture                             │
-  │                                                          │
-  │  Virtual address space:  0x7f0000000000                 │
-  │  ┌──────────────────────────────────────┐               │
-  │  │  "managed" pages                     │               │
-  │  │  • Single virtual address            │               │
-  │  │  • Physical copy is on CPU or GPU    │               │
-  │  │    (migrated on demand)              │               │
-  │  └──────────────────────────────────────┘               │
-  │                                                          │
-  │  Timeline:                                               │
-  │  1. cudaMallocManaged()  → pages allocated on CPU       │
-  │  2. CPU writes data[]    → CPU accesses, pages stay CPU │
-  │  3. kernel launch        → GPU tries to access pages    │
-  │  4. PAGE FAULT on GPU    → driver migrates page CPU→GPU │
-  │  5. kernel continues     → GPU reads migrated data      │
-  │  6. cudaDeviceSynchronize()                              │
-  │  7. CPU reads data[]     → PAGE FAULT on CPU            │
-  │  8. driver migrates page GPU→CPU                        │
-  └─────────────────────────────────────────────────────────┘
-
-  Each page fault migration costs ~1-2 ms (PCIe transfer + overhead).
-  For N pages accessed: N × 1-2ms of migration overhead!</code></pre>
-
-      <h2>3. Pre-fetching to Eliminate Page Fault Overhead</h2>
-
-      <pre><code>  // Instead of waiting for page faults, pre-fetch explicitly:
-  int device = 0;
-  cudaGetDevice(&amp;device);
-
-  // Pre-fetch to GPU before kernel:
-  cudaMemPrefetchAsync(data, N * sizeof(float), device, 0);
-  //                   ptr   size               dst_dev  stream
-
-  // Now kernel has no page faults:
-  myKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(data, N);
-  cudaDeviceSynchronize();
-
-  // Pre-fetch back to CPU before CPU access:
-  cudaMemPrefetchAsync(data, N * sizeof(float), cudaCpuDeviceId, 0);
-  cudaDeviceSynchronize();
-
-  printf("result = %f\n", data[0]);   // no page fault!</code></pre>
-
-      <pre><code>  Performance comparison (N = 10M floats, simple kernel):
-  ────────────────────────────────────────────────────────────
-  Explicit cudaMemcpy (baseline):    ~8 ms total
-  Unified memory, no prefetch:       ~25 ms  (3× slower, page fault cost)
-  Unified memory + prefetch:         ~8.5 ms (near explicit, slight overhead)
-  ────────────────────────────────────────────────────────────</code></pre>
-
-      <h2>4. cudaMemAdvise — Memory Hints</h2>
-
-      <pre><code>  // Tell the driver this data is mostly read (safe to replicate):
-  cudaMemAdvise(data, size, cudaMemAdviseSetReadMostly, device);
-  // Driver can now keep copies on BOTH CPU and GPU.
-  // CPU reads: served from CPU copy (no migration)
-  // GPU reads: served from GPU copy (no migration)
-  // Writes: invalidate other copy (write must migrate)
-
-  // Tell the driver data "prefers" to live on GPU:
-  cudaMemAdvise(data, size, cudaMemAdviseSetPreferredLocation, device);
-  // Initial allocation on GPU memory instead of CPU.
-  // CPU accesses: served via page fault + migration or mapped remotely.
-
-  // Tell the driver a device will access this data frequently:
-  cudaMemAdvise(data, size, cudaMemAdviseSetAccessedBy, device);
-  // Driver maintains a GPU mapping to the data wherever it lives.
-  // Reduces page fault cost: direct PCIe access instead of migration.</code></pre>
-
-      <h2>5. Unified Memory for Complex Data Structures</h2>
+      <h2 id="what-is">What Is Unified Memory</h2>
 
       <p>
-        Unified memory shines for recursive or pointer-based data structures that are
-        hard to manually transfer:
+        <code>cudaMallocManaged()</code> allocates memory in a virtual address space
+        accessible from BOTH the CPU and GPU. Physically, the data lives somewhere &mdash;
+        initially on the CPU, migrated to the GPU when the GPU accesses it &mdash; but
+        you use the same pointer everywhere.
       </p>
 
-      <pre><code>  // Linked list usable on BOTH CPU and GPU:
-  struct Node {
-      float value;
-      Node *next;   // pointer works on both sides!
-  };
+<pre><code>// Without Unified Memory: 60+ lines of boilerplate
+float *h_A, *h_B, *h_C;
+float *d_A, *d_B, *d_C;
+size_t bytes = N * sizeof(float);
 
-  Node *head = nullptr;
+h_A = (float*)malloc(bytes);
+h_B = (float*)malloc(bytes);
+h_C = (float*)malloc(bytes);
+cudaMalloc(&amp;d_A, bytes);
+cudaMalloc(&amp;d_B, bytes);
+cudaMalloc(&amp;d_C, bytes);
+// initialize h_A, h_B...
+cudaMemcpy(d_A, h_A, bytes, cudaMemcpyHostToDevice);
+cudaMemcpy(d_B, h_B, bytes, cudaMemcpyHostToDevice);
+vectorAdd&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_A, d_B, d_C, N);
+cudaMemcpy(h_C, d_C, bytes, cudaMemcpyDeviceToHost);
+// use h_C...
+free(h_A); free(h_B); free(h_C);
+cudaFree(d_A); cudaFree(d_B); cudaFree(d_C);
 
-  // Build on CPU:
-  for (int i = 0; i &lt; 100; i++) {
-      Node *n;
-      cudaMallocManaged(&amp;n, sizeof(Node));
-      n-&gt;value = (float)i;
-      n-&gt;next  = head;
-      head = n;
-  }
+// With Unified Memory: 30 lines
+float *A, *B, *C;
+size_t bytes = N * sizeof(float);
+cudaMallocManaged(&amp;A, bytes);
+cudaMallocManaged(&amp;B, bytes);
+cudaMallocManaged(&amp;C, bytes);
+// initialize A, B directly (CPU access)
+for (int i = 0; i &lt; N; i++) { A[i] = i; B[i] = N - i; }
+vectorAdd&lt;&lt;&lt;grid, block&gt;&gt;&gt;(A, B, C, N);
+cudaDeviceSynchronize();   // wait for GPU
+// use C directly (CPU access)
+printf("C[0] = %f\n", C[0]);
+cudaFree(A); cudaFree(B); cudaFree(C);</code></pre>
 
-  // Traverse on GPU:
-  __global__ void sum_list(Node *head, float *result) {
-      if (threadIdx.x == 0 &amp;&amp; blockIdx.x == 0) {
-          float s = 0.0f;
-          for (Node *n = head; n != nullptr; n = n-&gt;next)
-              s += n-&gt;value;
-          *result = s;
-      }
-  }
+      <div class="concept-box">
+        <strong>Unified Memory truly shines for complex data structures.</strong>
+        A tree, linked list, or graph where nodes contain pointers to other nodes
+        is extremely difficult to copy to the GPU explicitly &mdash; every pointer
+        must be manually updated to point to the device copy. With UM, the structure
+        works on both CPU and GPU without any pointer fixup.
+      </div>
 
-  float *d_result;
-  cudaMallocManaged(&amp;d_result, sizeof(float));
-  sum_list&lt;&lt;&lt;1, 1&gt;&gt;&gt;(head, d_result);
-  cudaDeviceSynchronize();
-  printf("Sum = %f\n", *d_result);</code></pre>
+      <hr class="section-divider" />
 
-      <h2>6. Pascal+ vs Older GPUs</h2>
+      <h2 id="explicit-vs-um">Explicit Memory vs Unified Memory</h2>
 
-      <pre><code>  Hardware page fault support (compute capability 6.0+, Pascal+):
-  ──────────────────────────────────────────────────────────────────
-  Pascal (sm_60) and newer:
-    • True hardware page faults on GPU
-    • Pages migrate automatically on access
-    • Oversubscription: managed memory can exceed GPU DRAM size!
-    • Pre-fetch works properly
+      <table class="address-table">
+        <thead><tr><th>Aspect</th><th>Explicit cudaMemcpy</th><th>Unified Memory</th></tr></thead>
+        <tbody>
+          <tr><td>Code complexity</td><td>High (6+ API calls)</td><td>Low (1 API call)</td></tr>
+          <tr><td>Transfer control</td><td>Full (you choose when)</td><td>Automatic (page faults)</td></tr>
+          <tr><td>Performance</td><td>Optimal if managed well</td><td>Can be worse without prefetch</td></tr>
+          <tr><td>Complex data structures</td><td>Very difficult</td><td>Natural</td></tr>
+          <tr><td>Iterative CPU/GPU</td><td>N copies per iteration</td><td>Faults per access</td></tr>
+          <tr><td>Debugging</td><td>Straightforward</td><td>Page faults make profiling noisy</td></tr>
+        </tbody>
+      </table>
 
-  Kepler/Maxwell (sm_30 to sm_52):
-    • Software-emulated unified memory
-    • ALL managed data is migrated to GPU at kernel launch
-    • NO on-demand migration
-    • NO oversubscription
-    • Prefetch is a no-op
+      <hr class="section-divider" />
 
-  Check your GPU:
-  $ nvidia-smi --query-gpu=compute_cap --format=csv
-  $ nvcc -arch=sm_86 (RTX 3xxx) or -arch=sm_80 (A100)</code></pre>
+      <h2 id="page-faults">Page Fault Mechanism</h2>
 
-      <h2>7. When to Use Unified Memory</h2>
+      <p>
+        When you call <code>cudaMallocManaged()</code>, the memory starts as unmapped.
+        On the first access (CPU or GPU), the system takes a page fault:
+      </p>
+      <ol>
+        <li>Fault trapped by GPU driver / OS</li>
+        <li>Page(s) migrated to the accessing device via PCIe (&sim;12 GB/s)</li>
+        <li>TLB updated on source and destination</li>
+        <li>Execution resumes</li>
+      </ol>
 
-      <pre><code>  USE unified memory when:
-  ✓ Prototyping / experimenting quickly
-  ✓ Complex data structures (trees, graphs, linked lists)
-  ✓ Data exceeds GPU memory (oversubscription on Pascal+)
-  ✓ Irregular access patterns (iterative algorithms, sparse data)
-  ✓ Simplicity matters more than peak performance
+      <p>
+        Page size is typically 64 KB on discrete GPUs. A single page fault migrates 64 KB.
+        If your kernel accesses a 1 MB array non-sequentially, it triggers 16 page faults,
+        each with significant overhead.
+      </p>
 
-  DON'T USE unified memory when:
-  ✗ Maximum performance is required (streaming, video processing)
-  ✗ Transfer pattern is known in advance (use explicit cudaMemcpy)
-  ✗ High-frequency CPU↔GPU data exchange (page fault overhead adds up)
-  ✗ Production code where latency is measured
-  ✗ pre-Volta GPUs without proper hardware page fault support</code></pre>
+      <div class="warning-box">
+        <strong>Page faults during kernel execution stall the kernel.</strong>
+        A kernel waiting on page migration is effectively paused while PCIe transfers
+        complete. For production workloads, you almost always want to prefetch data
+        before the kernel runs rather than relying on demand paging.
+      </div>
 
-      <h2>8. Profiling Unified Memory</h2>
+      <div class="output-block">
+<span class="comment"># Profile page faults with nvprof / nsys:</span>
+nsys profile --trace=cuda,osrt ./myprogram
 
-      <pre><code>  # Profile page fault counts and migration traffic:
-  nsys profile --stats=true --cuda-um-cpu-page-faults=true \
-               --cuda-um-gpu-page-faults=true \
-               ./my_program
+<span class="comment"># Look for "CPU Page Faults" and "GPU Page Faults" in the timeline</span>
+<span class="comment"># With on-demand paging (no prefetch):</span>
+GPU Page Faults:  487 faults  (each fault = ~5-50 us overhead)
+Total fault time: 24.3 ms
+Kernel time:      28.1 ms   &lt;-- 87% of kernel time was page faults!
 
-  # Look in the output for:
-  # - "CUDA GPU Page Faults" — how many page faults on GPU
-  # - "CUDA CPU Page Faults" — how many page faults on CPU
-  # High counts → consider using prefetch or explicit transfers</code></pre>
+<span class="comment"># With prefetching:</span>
+GPU Page Faults:  0
+Kernel time:       3.9 ms   &lt;-- 7x faster
+      </div>
 
-      <h2>Takeaways</h2>
+      <hr class="section-divider" />
 
+      <h2 id="prefetching">Prefetching &mdash; Eliminating Faults</h2>
+
+      <p>
+        <code>cudaMemPrefetchAsync()</code> tells the driver to migrate pages to a device
+        <em>before</em> they are needed, overlapping the migration with other work:
+      </p>
+
+<pre><code>float *A, *B, *C;
+cudaMallocManaged(&amp;A, N * sizeof(float));
+cudaMallocManaged(&amp;B, N * sizeof(float));
+cudaMallocManaged(&amp;C, N * sizeof(float));
+
+// Initialize on CPU
+for (int i = 0; i &lt; N; i++) { A[i] = i; B[i] = N - i; }
+
+int deviceId;
+cudaGetDevice(&amp;deviceId);
+
+// Prefetch A and B to GPU before kernel runs
+// This starts the migration NOW, asynchronously
+cudaMemPrefetchAsync(A, N * sizeof(float), deviceId);
+cudaMemPrefetchAsync(B, N * sizeof(float), deviceId);
+cudaMemPrefetchAsync(C, N * sizeof(float), deviceId);
+
+// Launch kernel - data is already on GPU (no page faults during kernel)
+vectorAdd&lt;&lt;&lt;grid, block&gt;&gt;&gt;(A, B, C, N);
+
+// Prefetch result back to CPU for processing
+cudaMemPrefetchAsync(C, N * sizeof(float), cudaCpuDeviceId);
+cudaDeviceSynchronize();
+
+// Access C on CPU - data already migrated, no fault
+for (int i = 0; i &lt; N; i++) printf("%f\n", C[i]);</code></pre>
+
+      <div class="concept-box">
+        <strong>Prefetching best practice:</strong> Always prefetch Unified Memory before
+        a kernel that uses it. The prefetch is async &mdash; you can overlap it with CPU work
+        or other GPU work. Think of it as "explicit copy but with one pointer" &mdash; you get
+        the simplicity of UM and the performance of explicit copies.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="advise">Memory Advice Hints</h2>
+
+      <p>
+        <code>cudaMemAdvise()</code> provides hints to the driver about expected access patterns.
+        Unlike prefetching (which moves data), advice influences how the driver manages pages:
+      </p>
+
+<pre><code>// Hint 1: data is read-mostly (create read-only copies on both CPU and GPU)
+// Good for: lookup tables, constants shared between CPU and GPU
+cudaMemAdvise(lookupTable, size, cudaMemAdviseSetReadMostly, deviceId);
+
+// Hint 2: preferred location (keep data here by default)
+// Reduces migration for data that mostly lives on GPU
+cudaMemAdvise(d_data, size, cudaMemAdviseSetPreferredLocation, deviceId);
+
+// Hint 3: this device will access the data (map direct instead of migrate if supported)
+// Good for: NVLink-connected multi-GPU, or CPU that needs rare access
+cudaMemAdvise(d_data, size, cudaMemAdviseSetAccessedBy, cudaCpuDeviceId);
+
+// Unset advice:
+cudaMemAdvise(d_data, size, cudaMemAdviseUnsetReadMostly, deviceId);</code></pre>
+
+      <table class="address-table">
+        <thead><tr><th>Advice</th><th>Effect</th><th>Best for</th></tr></thead>
+        <tbody>
+          <tr><td>SetReadMostly</td><td>Driver creates per-device copies</td><td>Lookup tables, shared constants</td></tr>
+          <tr><td>SetPreferredLocation</td><td>Driver biases toward this device</td><td>Data that 90%+ of accesses are from one device</td></tr>
+          <tr><td>SetAccessedBy</td><td>Enables direct mapping if topology supports</td><td>NVLink GPU&ndash;GPU, or rare CPU access</td></tr>
+        </tbody>
+      </table>
+
+      <hr class="section-divider" />
+
+      <h2 id="when-to-use">When to Use Unified Memory</h2>
+
+      <p><strong>Use Unified Memory when:</strong></p>
       <ul>
-        <li><code>cudaMallocManaged()</code> creates a single pointer valid on both CPU and GPU.</li>
-        <li>Under the hood: hardware page faults trigger automatic page migration over PCIe.</li>
-        <li>Page fault migration adds ~1-2ms per page — use <code>cudaMemPrefetchAsync()</code> to avoid this.</li>
-        <li><code>cudaMemAdvise(SetReadMostly)</code> allows the driver to replicate read-only data.</li>
-        <li>Unified memory enables complex data structures (trees, graphs) on GPU without manual transfer.</li>
-        <li>Hardware page faults require Pascal (compute 6.0+); older GPUs use slower software emulation.</li>
-        <li>Use for prototyping and complex structures; use explicit transfers for production performance.</li>
-        <li>Next: <a href="cuda-phase4-warps.html">Phase 4.1 — Warps and Warp Divergence</a></li>
+        <li>Prototyping &mdash; remove boilerplate, focus on algorithm</li>
+        <li>Data structures with internal pointers (trees, graphs, linked lists)</li>
+        <li>CPU and GPU take turns accessing the same data (iterative algorithms)</li>
+        <li>Memory size approaches GPU limit &mdash; UM can overflow to CPU memory</li>
       </ul>
 
+      <p><strong>Do NOT use Unified Memory when:</strong></p>
+      <ul>
+        <li>Production performance is critical &mdash; explicit copies are more predictable</li>
+        <li>Large single-direction transfer (use <code>cudaMemcpy</code> for one bulk copy)</li>
+        <li>Tight kernel loops where the kernel runs hundreds of times on the same data</li>
+        <li>Debugging memory bugs &mdash; page fault stalls make profiling harder to read</li>
+      </ul>
+
+      <table class="address-table">
+        <thead><tr><th>Scenario</th><th>Explicit copies (ms)</th><th>UM no prefetch (ms)</th><th>UM + prefetch (ms)</th></tr></thead>
+        <tbody>
+          <tr><td>vectorAdd, N=1M, single run</td><td>1.2</td><td>8.4</td><td>1.4</td></tr>
+          <tr><td>matmul, 2048&times;2048, single run</td><td>4.1</td><td>19.2</td><td>4.5</td></tr>
+          <tr><td>Graph BFS, complex structure</td><td>N/A (too complex)</td><td>12.0</td><td>8.1</td></tr>
+          <tr><td>Iterative solver, 100 iterations</td><td>0.8 (amortized)</td><td>22.0</td><td>0.9 (prefetch once)</td></tr>
+        </tbody>
+      </table>
+
+      <hr class="section-divider" />
+
+      <h2 id="multi-gpu">Multi-GPU Unified Memory</h2>
+
+      <p>
+        With NVLink-connected GPUs (e.g., A100 DGX systems), Unified Memory can provide
+        direct GPU-to-GPU memory access without going through the CPU. The driver automatically
+        routes accesses over NVLink at ~600 GB/s &mdash; much faster than PCIe migration.
+      </p>
+
+<pre><code>// Multi-GPU UM: each GPU works on its portion, UM handles cross-GPU access
+int nDevices;
+cudaGetDeviceCount(&amp;nDevices);
+
+float *data;
+cudaMallocManaged(&amp;data, N * sizeof(float));
+
+// Pin data to GPU 0 (reduce migration)
+cudaMemAdvise(data, N * sizeof(float), cudaMemAdviseSetPreferredLocation, 0);
+
+// Tell GPU 1 it will also access this data (map via NVLink if available)
+cudaMemAdvise(data, N * sizeof(float), cudaMemAdviseSetAccessedBy, 1);
+
+// Each GPU processes its half
+cudaSetDevice(0);
+processKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(data, 0, N/2);
+cudaSetDevice(1);
+processKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(data, N/2, N);
+cudaDeviceSynchronize();</code></pre>
+
+      <div class="series-nav">
+        <span><a href="cuda-phase3-coalescing.html">&larr; 3.3 &mdash; Memory Coalescing</a></span>
+        <span><a href="cuda-phase4-warps.html">4.1 &mdash; Warps and Warp Divergence &rarr;</a></span>
+      </div>
     </div>
   </main>
-  <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
-  </footer>
 </body>
 </html>

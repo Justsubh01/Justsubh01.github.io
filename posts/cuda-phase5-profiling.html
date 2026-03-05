@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery Phase 5 — Performance Optimization and Profiling — Sudhanshu</title>
+  <title>CUDA Mastery 5 — Performance Profiling and Optimization — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -13,21 +13,27 @@
     .gif-caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; font-style: italic; line-height: 1.5; }
     .concept-box { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
     .warning-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
-    .danger-box { background: #fff1f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
     .output-block { background: #0f172a; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-family: monospace; font-size: 0.85rem; color: #a3e635; overflow-x: auto; border: 1px solid #1e293b; }
     .output-block .comment { color: #64748b; }
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
+    .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
     .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
     .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
     .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
     .address-table tr:nth-child(even) td { background: #f8fafc; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
   </style>
 </head>
 <body>
   <nav>
-    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
     <div class="nav-links">
       <a href="../index.html#writing">writing</a>
       <a href="../index.html#about">about</a>
@@ -35,352 +41,306 @@
     </div>
   </nav>
   <main>
-    <a href="../index.html" class="back-link">← back to home</a>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
     <div class="post-header">
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 28 min read</span>
+        <span class="read-time">&middot; 30 min read</span>
       </div>
-      <h1>CUDA Mastery Phase 5 — Performance Optimization and Profiling: Turning Theory into Speed</h1>
+      <h1>CUDA Profiling &mdash; Finding and Fixing Performance Bottlenecks</h1>
       <p class="post-description">
-        The systematic approach to making CUDA kernels faster — the Roofline model, occupancy
-        analysis, profiling with Nsight Systems and Nsight Compute, and the optimization
-        checklist that covers 90% of real-world performance wins.
+        Good intuition can get you to 30% of GPU peak. Getting to 80%+ requires profiling.
+        nsys shows you the big picture (where time goes). ncu tells you exactly why a kernel
+        is slow. The Roofline model tells you what the theoretical ceiling is. Together,
+        they form a systematic optimization workflow.
       </p>
     </div>
     <div class="post-body">
 
-      <p>
-        Everyone knows shared memory matters and coalescing is important. But how do you
-        know WHICH problem to fix first in a real kernel? Profiling. The structured approach
-        is: measure, identify bottleneck, fix bottleneck, measure again. Without measurement,
-        you're guessing. This post is about measuring correctly and fixing systematically.
-      </p>
-
       <div class="gif-wrap">
         <img src="assets/gif_cuda_roofline.gif" alt="Roofline model animation for A100 GPU" />
-        <p class="gif-caption">The Roofline model for an A100: the diagonal is memory-bandwidth-bound (slope = 2 TB/s), the flat ceiling is compute-bound (19.5 TFLOPS). Where your kernel falls tells you exactly what to optimize — more bandwidth reuse, or more compute per byte.</p>
+        <p class="gif-caption">The Roofline model for an A100: diagonal = memory-bandwidth-bound (slope = 2 TB/s), flat ceiling = compute-bound (19.5 TFLOPS FP32). Your kernel's arithmetic intensity and throughput plotted on this chart tells you exactly what to optimize: more data reuse (move right) or more compute (move up).</p>
       </div>
 
-      <h2>1. The Roofline Model</h2>
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#roofline">The Roofline Model</a></li>
+          <li><a href="#nsys">Nsight Systems (nsys) &mdash; Timeline View</a></li>
+          <li><a href="#ncu">Nsight Compute (ncu) &mdash; Kernel Deep Dive</a></li>
+          <li><a href="#workflow">The Optimization Workflow</a></li>
+          <li><a href="#memory-bound">Diagnosing Memory-Bound Kernels</a></li>
+          <li><a href="#compute-bound">Diagnosing Compute-Bound Kernels</a></li>
+          <li><a href="#occupancy-profiling">Occupancy Profiling</a></li>
+          <li><a href="#key-metrics">Key Metrics Cheat Sheet</a></li>
+        </ol>
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="roofline">The Roofline Model</h2>
 
       <p>
-        The Roofline model tells you whether your kernel is limited by compute or memory bandwidth.
-        This determines what optimizations are worth pursuing.
+        The Roofline model answers: "Given my algorithm's arithmetic intensity, what is
+        the maximum achievable performance on this GPU?"
       </p>
 
-      <pre><code>  Roofline model:
-  ─────────────────────────────────────────────────────────────
-  Performance (TFLOPS) = min(Peak_FLOPS, Bandwidth × Arithmetic_Intensity)
-
-  Arithmetic Intensity (AI) = FLOPs / bytes_transferred_from_DRAM
-
-  Example — vectorAdd (c = a + b):
-    FLOPs: N additions = N
-    Bytes: read 2N floats + write N floats = 12N bytes
-    AI = N / 12N = 0.083 FLOPs/byte
-    → Deeply memory-bound (well left of ridge point)
-    → Optimizing compute won't help; need better memory access!
-
-  Example — matMul (N×N × N×N):
-    FLOPs: 2N³ (N² outputs × N multiply-adds)
-    Bytes: read 2N² matrices = 8N² bytes
-    AI = 2N³ / 8N² = N/4 FLOPs/byte
-    → For N=1024: AI = 256 FLOPs/byte → compute-bound!
-    → Optimizing memory won't help much; need more FLOPS/second</code></pre>
-
-      <pre><code>  Roofline plot (A100):
-
-  Performance
-  (TFLOPS)
-    │
- 20 ┤                              ── Peak Compute: 19.5 TFLOPS
-    │                        ╱───────────────────────────────
-    │                  ╱───╱
-    │            ╱───╱              ← compute-bound region
- 10 ┤       ╱──╱
-    │  ╱──╱
-    │─╱    ← memory-bound region
-    └──────────────────────────────────── AI (FLOPs/byte)
-    0   1   2   4   8  16  32  64 128
-                        ↑
-              Ridge point (~10 for A100)
-
-  vectorAdd (AI≈0.08): far left, memory-bound
-  matMul    (AI≈256):  far right, compute-bound
-  Conv2D    (AI≈4-16): near ridge, balanced</code></pre>
+      <p>
+        <strong>Arithmetic Intensity (AI)</strong> = FLOPs performed / bytes transferred from global memory.
+        It measures how much compute you get per byte of memory traffic.
+      </p>
+
+      <table class="address-table">
+        <thead><tr><th>Kernel</th><th>FLOPs</th><th>Bytes</th><th>AI (FLOPs/byte)</th><th>Bound by</th></tr></thead>
+        <tbody>
+          <tr><td>Vector Add (C=A+B)</td><td>N adds</td><td>3N floats</td><td>0.08</td><td>Memory</td></tr>
+          <tr><td>SAXPY (y=ax+y)</td><td>2N ops</td><td>3N floats</td><td>0.17</td><td>Memory</td></tr>
+          <tr><td>Stencil 2D (5-pt)</td><td>5N ops</td><td>~4N floats</td><td>0.31</td><td>Memory</td></tr>
+          <tr><td>Conv 3x3</td><td>9N ops</td><td>~2N floats</td><td>2.25</td><td>Memory/boundary</td></tr>
+          <tr><td>Tiled MatMul (T=32)</td><td>2N^3</td><td>2N^2 floats</td><td>N/4</td><td>Compute for large N</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        A100 ridge point: 19.5 TFLOPS / 2 TB/s = 9.75 FLOPs/byte.
+        Kernels below the ridge point are memory-bound. Above it, compute-bound.
+        Vector add (AI=0.08) is 122&times; below the ridge &mdash; it will never be compute-bound.
+      </p>
+
+      <div class="concept-box">
+        <strong>What the Roofline tells you to do:</strong>
+        Memory-bound kernel? Increase data reuse (tiling, caching) to shift AI right.
+        Compute-bound kernel? Optimize arithmetic (use Tensor Cores, FP16, fused operations).
+        Already at the roof? You're done &mdash; no algorithmic improvement possible.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="nsys">Nsight Systems (nsys) &mdash; Timeline View</h2>
+
+      <p>
+        <code>nsys</code> gives you a system-wide timeline: CPU threads, GPU kernels, memory copies,
+        API calls, NVTX ranges. Use it first to understand where time goes.
+      </p>
+
+<pre><code># Basic profiling
+nsys profile --stats=true ./myprogram
+
+# With specific trace types
+nsys profile   --trace=cuda,nvtx,osrt   --output=profile_report   ./myprogram
+
+# View in GUI:
+nsys-ui profile_report.nsys-rep
+
+# Or get text summary:
+nsys stats profile_report.nsys-rep</code></pre>
+
+      <div class="output-block">
+<span class="comment"># nsys text summary output:</span>
+
+CUDA Kernel Statistics (nanoseconds):
+
+ Time(%)  Total Time   Instances  Avg       Name
+ -------  ----------   ---------  ---       ----
+   78.3%  1,248,432        1000   1,248     vectorAdd
+   12.1%    193,024         500   386       reduction
+    5.4%     86,112         100   861       matmul
+    4.2%     67,008          50   1,340     transpose
+
+CUDA Memory Operations:
+
+ Time(%)  Total Time  Operations  Avg    Name
+ -------  ----------  ----------  ---    ----
+   61.2%   982,400       1000    982    CUDA memcpy HtoD
+   35.8%   573,376       1000    573    CUDA memcpy DtoH
+    3.0%    48,128        100    481    CUDA memcpy DtoD
+      </div>
+
+      <p>
+        From this output: vectorAdd takes 78% of kernel time &mdash; that's where to focus.
+        Also: memcpy takes 1.5ms vs 1.2ms kernel time &mdash; you're transfer-bound.
+        Consider streams to overlap them.
+      </p>
+
+      <h3>NVTX Ranges for Custom Profiling</h3>
+
+<pre><code>#include &lt;nvtx3/nvToolsExt.h&gt;
+
+void myFunction() {
+    nvtxRangePush("Data Preparation");
+    prepareData();
+    nvtxRangePop();
+
+    nvtxRangePush("GPU Computation");
+    myKernel&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_data, N);
+    cudaDeviceSynchronize();
+    nvtxRangePop();
+}
+// These show up as labelled regions in the nsys timeline</code></pre>
+
+      <hr class="section-divider" />
+
+      <h2 id="ncu">Nsight Compute (ncu) &mdash; Kernel Deep Dive</h2>
+
+      <p>
+        <code>ncu</code> profiles individual kernels with hardware performance counters.
+        It shows you occupancy, memory throughput, compute throughput, instruction mix,
+        and stall reasons.
+      </p>
 
-      <h2>2. Occupancy — Keeping the SM Busy</h2>
-
-      <pre><code>  Occupancy = active_warps_per_SM / max_warps_per_SM
+<pre><code># Full profiling of all kernels (slow: 5-20x slower due to counter collection)
+ncu ./myprogram
 
-  For A100: max_warps_per_SM = 64
-
-  Calculate manually:
-  ─────────────────────────────────────────────────────────────
-  Suppose: blockDim=256, kernel uses 40 registers/thread
-
-  Register limit:
-    65536 regs / (256 threads × 40 regs/thread) = 6.4 → 6 blocks max
-    6 blocks × 8 warps/block = 48 warps → 48/64 = 75% occupancy
-
-  Shared memory limit:
-    Say kernel uses 16KB shared mem, SM has 96KB:
-    96KB / 16KB = 6 blocks max → same as above, 75%
-
-  Block count limit:
-    SM can hold max 32 blocks: 32 / (256/1024) ≤ 8 blocks → not limiting
-
-  Final occupancy: min(all limits) = 75%
-
-
-  Use CUDA Occupancy Calculator API:
-  ─────────────────────────────────────────────────────────────
-  int blockSize, minGridSize;
-  cudaOccupancyMaxPotentialBlockSize(
-      &amp;minGridSize, &amp;blockSize, myKernel, 0, 0);
-
-  // Query actual occupancy for a given config:
-  int numBlocks;
-  cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-      &amp;numBlocks, myKernel, blockSize, sharedMemBytes);
-  float occupancy = (numBlocks * blockSize / 32.0f) / maxWarpsPerSM;</code></pre>
-
-      <h2>3. Nsight Systems — The Timeline Profiler</h2>
-
-      <pre><code>  nsys: find WHERE time is spent (CPU, GPU, transfers)
-
-  # Basic profile:
-  nsys profile --stats=true ./my_program
-
-  # Detailed with GPU metrics:
-  nsys profile \
-    --trace=cuda,nvtx,osrt \
-    --gpu-metrics-device=0 \
-    --output=profile_output \
-    ./my_program
-
-  # View in GUI:
-  nsys-ui profile_output.nsys-rep
-
-  # What to look for in the timeline:
-  ─────────────────────────────────────────────────────────────
-  ✓ Gaps between kernels (CPU launching overhead? Stream serialization?)
-  ✓ Large cudaMemcpy operations (can you overlap with computation?)
-  ✓ CPU-GPU sync points (unnecessary cudaDeviceSynchronize?)
-  ✓ Kernel duration vs memory transfer duration (what's the bottleneck?)
-  ✓ GPU idle time (is the GPU waiting for CPU work submission?)</code></pre>
-
-      <h2>4. Nsight Compute — The Kernel Profiler</h2>
-
-      <pre><code>  ncu: detailed metrics FOR A SPECIFIC KERNEL
-       (replays the kernel multiple times to collect all metrics)
-
-  # Basic profile of first kernel invocation:
-  ncu --set full -o kernel_profile ./my_program
-
-  # View in GUI:
-  ncu-ui kernel_profile.ncu-rep
-
-  # Command-line metrics:
-  ncu --metrics \
-    sm__throughput.avg.pct_of_peak_sustained_elapsed,\
-    l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum,\
-    dram__bytes_read.sum,\
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct \
-    ./my_program
-
-  # Most important metrics:
-  ─────────────────────────────────────────────────────────────
-  sm__throughput.avg.pct_of_peak_sustained_elapsed
-    → Overall SM utilization (is the GPU actually busy?)
-
-  smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct
-    → Memory coalescing efficiency (100% = perfect, &lt;50% = problem)
-
-  l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum
-    → Shared memory bank conflicts (0 = good)
-
-  smsp__sass_branch_targets_threads_divergent.sum
-    → Warp divergence (0 = good)
-
-  sm__warps_active.avg.pct_of_peak_sustained_active
-    → Occupancy (higher = more latency hiding)</code></pre>
-
-      <h2>5. Compute-Sanitizer</h2>
-
-      <pre><code>  # Memory error detection (like valgrind for GPU):
-  compute-sanitizer --tool memcheck ./my_program
-  # Detects: out-of-bounds access, uninitialized memory reads, misaligned access
-
-  # Race condition detection (shared memory):
-  compute-sanitizer --tool racecheck ./my_program
-  # Detects: missing __syncthreads(), RAW/WAR/WAW hazards in shared memory
-
-  # Synchronization issues:
-  compute-sanitizer --tool synccheck ./my_program
-  # Detects: __syncthreads() called in divergent code (illegal!)
-
-  # Uninitialized memory:
-  compute-sanitizer --tool initcheck ./my_program
-  # Detects: reading from uninitialized device memory
-
-  # Example output for out-of-bounds access:
-  # ========= COMPUTE-SANITIZER
-  # ========= Invalid __global__ read of size 4
-  # =========     at myKernel.cu:42 in void myKernel(float*, int)
-  # =========     by thread (256,0,0) in block (3,0,0)
-  # =========     Address 0x... is 4 bytes after a global of size 1024</code></pre>
-
-      <h2>6. The Optimization Checklist</h2>
-
-      <pre><code>  STEP 1: Profile first — don't optimize blind
-  ────────────────────────────────────────────────
-  nsys profile ./program
-  → Find the bottleneck kernel (longest runtime)
-  ncu --set full ./program
-  → Find the bottleneck WITHIN that kernel
-
-  STEP 2: Memory coalescing (biggest win for memory-bound kernels)
-  ────────────────────────────────────────────────
-  Check: smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct
-  If &lt; 80%: restructure access patterns (SoA, align accesses)
-  Expected gain: 2–10× on memory-bound kernels
-
-  STEP 3: Occupancy (if SM throughput is low)
-  ────────────────────────────────────────────────
-  Check: sm__warps_active.avg.pct_of_peak_sustained_active
-  If &lt; 50%: investigate register/shared memory usage
-  Fix: reduce registers (limit with __launch_bounds__), smaller blocks
-
-  STEP 4: Shared memory (for kernels that re-read global memory)
-  ────────────────────────────────────────────────
-  If same data read multiple times: load into __shared__ first
-  Expected gain: up to 100× for compute kernels (matrix multiply)
-  Watch for bank conflicts: add +1 padding if needed
-
-  STEP 5: Warp divergence
-  ────────────────────────────────────────────────
-  Check: smsp__sass_branch_targets_threads_divergent.sum
-  If &gt; 0: identify branches, restructure data or branch on blockIdx
-
-  STEP 6: Instruction-level optimization
-  ────────────────────────────────────────────────
-  Fast math: -use_fast_math flag (allows fused multiply-add, approx functions)
-  Avoid: integer division (use bitwise tricks: n/32 = n&gt;&gt;5 if power of 2)
-  Prefer: fmaf(a,b,c) over a*b+c (hardware fused instruction)
-  Unroll loops: #pragma unroll 4 or #pragma unroll (full unroll)</code></pre>
-
-      <h2>7. Fast Math and Instruction Optimization</h2>
-
-      <pre><code>  // Compiler flag for fast (slightly less precise) math:
-  // nvcc -use_fast_math prog.cu
-  // Enables: -ftz=true, -prec-div=false, -prec-sqrt=false
-  //          plus replaces sin/cos/exp with faster intrinsics
-
-  // Manual intrinsics for common operations:
-  float y = __sinf(x);       // fast sin (1 ULP error)
-  float y = __expf(x);       // fast exp
-  float y = __logf(x);       // fast log
-  float y = __powf(x, e);    // fast pow
-  float y = __fdividef(a,b); // fast float divide
-  float y = sqrtf(x);        // use sqrtf not sqrt (float, not double)
-  float y = rsqrtf(x);       // reciprocal sqrt (1/sqrt(x)) — very fast
-
-  // Fused multiply-add: a*b + c as one instruction:
-  float y = fmaf(a, b, c);   // faster than a*b+c (one instruction)
-
-  // Integer tricks:
-  int half   = n &gt;&gt; 1;       // n/2 (power of 2)
-  int double_ = n &lt;&lt; 1;      // n*2
-  int modulo = n &amp; 31;       // n%32 (bitwise AND for power-of-2 modulo)
-  int isEven = !(n &amp; 1);     // n%2 == 0</code></pre>
-
-      <h2>8. __launch_bounds__ — Control Register Allocation</h2>
-
-      <pre><code>  // Tell the compiler the max threads per block and min blocks per SM:
-  // Compiler can use this to limit register usage → higher occupancy
-
-  __global__
-  __launch_bounds__(256, 4)     // max 256 threads/block, at least 4 blocks/SM
-  void myKernel(float *data, int n) {
-      // Compiler tries to fit within register budget for 4 blocks per SM
-      // (65536 regs / (4 blocks × 256 threads) = 64 regs/thread limit)
-  }
-
-  // Without __launch_bounds__: compiler maximizes performance for one config
-  // With __launch_bounds__: compiler trades some per-thread speed for occupancy
-
-  // How to find the right values:
-  // 1. Profile without → check actual occupancy
-  // 2. Add __launch_bounds__ to achieve target occupancy
-  // 3. Re-profile → confirm kernel is faster overall</code></pre>
-
-      <h2>9. Tensor Cores — GEMM at 10× Speed</h2>
-
-      <pre><code>  // Tensor Cores (Volta/Turing/Ampere+) perform 4×4×4 matrix multiply-accumulate
-  // in a single warp instruction (WMMA API)
-  // 312 TFLOPS (FP16 Tensor Core) vs 19.5 TFLOPS (FP32 CUDA core) on A100!
-
-  #include &lt;mma.h&gt;
-  using namespace nvcuda::wmma;
-
-  __global__ void tensor_core_gemm(half *A, half *B, float *C, int M, int N, int K) {
-      fragment&lt;matrix_a, 16, 16, 16, half, row_major&gt; a_frag;
-      fragment&lt;matrix_b, 16, 16, 16, half, col_major&gt; b_frag;
-      fragment&lt;accumulator, 16, 16, 16, float&gt;         c_frag;
-
-      fill_fragment(c_frag, 0.0f);
-      load_matrix_sync(a_frag, A, K);
-      load_matrix_sync(b_frag, B, N);
-      mma_sync(c_frag, a_frag, b_frag, c_frag);
-      store_matrix_sync(C, c_frag, N, mem_row_major);
-  }
-
-  // In practice: use cuBLAS — it's already Tensor Core-optimized:
-  // cublasGemmEx() with CUBLAS_COMPUTE_16F
-  // Never implement GEMM yourself in production — cuBLAS is 99% of peak.</code></pre>
-
-      <h2>10. Profiling Workflow Summary</h2>
-
-      <pre><code>  ┌─────────────────────────────────────────────────────────┐
-  │             GPU Optimization Workflow                    │
-  │                                                          │
-  │  1. nsys profile → identify slow kernels               │
-  │         ↓                                               │
-  │  2. ncu --set full → kernel-level metrics              │
-  │         ↓                                               │
-  │  3. Check Roofline → memory-bound or compute-bound?    │
-  │         ↓                                               │
-  │  Memory-bound:          Compute-bound:                  │
-  │  • Fix coalescing       • Increase occupancy            │
-  │  • Add shared mem       • Use Tensor Cores              │
-  │  • Reduce transfers     • Unroll loops                  │
-  │  • Use SoA layout       • Reduce register pressure      │
-  │         ↓                                               │
-  │  4. Implement fix → re-profile → verify improvement    │
-  │         ↓                                               │
-  │  5. Repeat until within 80% of roofline peak           │
-  └─────────────────────────────────────────────────────────┘</code></pre>
-
-      <h2>Takeaways</h2>
-
-      <ul>
-        <li>Always profile before optimizing — measure first, guess never.</li>
-        <li>Roofline model: compute AI = FLOPs/bytes to know if you're memory-bound or compute-bound.</li>
-        <li>nsys: find which kernels are slow and where CPU/GPU idle time is.</li>
-        <li>ncu: find WHY a kernel is slow (coalescing, occupancy, divergence, bank conflicts).</li>
-        <li>compute-sanitizer: find correctness bugs before they become mysterious performance issues.</li>
-        <li>Optimization order: coalescing → occupancy → shared memory → divergence → fast math.</li>
-        <li>For GEMM/convolution: use cuBLAS/cuDNN — library optimizations beat manual kernels.</li>
-        <li>Next: <a href="cuda-phase6-interview-prep.html">Phase 6 — NVIDIA Interview Preparation</a></li>
-      </ul>
+# Profile specific kernel only
+ncu --kernel-name "vectorAdd" ./myprogram
 
+# Show summary metrics
+ncu --set full ./myprogram
+
+# Export for GUI
+ncu -o ncu_report ./myprogram
+ncu-ui ncu_report.ncu-rep
+
+# Specific metrics
+ncu --metrics   sm__throughput.avg.pct_of_peak_sustained_elapsed,  l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum,  smsp__thread_inst_executed_pred_on_per_inst_executed.ratio   ./myprogram</code></pre>
+
+      <div class="output-block">
+<span class="comment"># ncu Summary Section output example (A100, vectorAdd):</span>
+
+  Compute (SM) Throughput                 12.34%   <span class="comment"># low: mostly memory stalls</span>
+  Memory Throughput                       91.23%   <span class="comment"># high: memory-bound kernel</span>
+  L1/TEX Cache Throughput                 73.12%
+  L2 Cache Throughput                     48.91%
+  DRAM Throughput                         85.44%   <span class="comment"># near peak: good coalescing</span>
+
+  Registers Per Thread                       32    <span class="comment"># healthy</span>
+  Shared Memory Per Block                     0 B  <span class="comment"># none used (opportunity?)</span>
+  Block Size                                256
+  Grid Size                               3,907
+  Theoretical Occupancy                   100.0%
+  Achieved Occupancy                       91.4%
+
+  Stall Reasons:
+    Long Scoreboard (memory stalls)        45.2%   <span class="comment"># waiting for global mem</span>
+    Not Selected (warp not chosen)         32.1%   <span class="comment"># scheduler had other warps</span>
+    Math Pipe Throttle                      8.4%
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="workflow">The Optimization Workflow</h2>
+
+      <p>A systematic process that works for any kernel:</p>
+
+      <ol>
+        <li><strong>Profile with nsys first.</strong> Find the hottest kernel (most time).</li>
+        <li><strong>Profile that kernel with ncu.</strong> Look at the Summary section.</li>
+        <li><strong>Identify the bottleneck:</strong>
+          <ul>
+            <li>Memory throughput &gt; 70%? Memory-bound. Optimize memory access.</li>
+            <li>SM throughput &gt; 70%? Compute-bound. Optimize arithmetic.</li>
+            <li>Occupancy &lt; 50%? Resource-bound. Check registers and shared memory.</li>
+          </ul>
+        </li>
+        <li><strong>Apply one fix at a time.</strong> Re-profile after each change.</li>
+        <li><strong>Stop when you hit the Roofline ceiling.</strong></li>
+      </ol>
+
+      <div class="concept-box">
+        <strong>The most important rule of optimization:</strong> Never optimize without profiling.
+        Intuition is wrong more than 50% of the time for GPU code. The bottleneck is almost
+        never where you expect it. Profile first, always.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="memory-bound">Diagnosing Memory-Bound Kernels</h2>
+
+<pre><code># Key ncu metrics for memory-bound diagnosis:
+ncu --metrics   l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum,  l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum,  l1tex__t_bytes_pipe_lsu_mem_local_op_ld.sum,  l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum   ./myprogram</code></pre>
+
+      <div class="output-block">
+<span class="comment"># Metrics to look for:</span>
+
+sectors/request ratio:
+  1.0  =&gt; perfectly coalesced     (1 cache line per warp)
+  32.0 =&gt; fully uncoalesced       (32 cache lines per warp)
+
+local memory load bytes &gt; 0:
+  =&gt; register spilling to global DRAM! Reduce registers or add __launch_bounds__
+
+shared bank conflicts &gt; 0:
+  =&gt; add +1 padding to 2D shared arrays
+
+DRAM throughput &lt; 50% of peak:
+  =&gt; consider whether L2 cache is absorbing hits (check L2 metrics separately)
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="compute-bound">Diagnosing Compute-Bound Kernels</h2>
+
+<pre><code># SM utilization and instruction mix:
+ncu --metrics   sm__throughput.avg.pct_of_peak_sustained_elapsed,  smsp__inst_executed_pipe_fma.avg.pct_of_peak_sustained_active,  smsp__inst_executed_pipe_tensor.avg.pct_of_peak_sustained_active,  smsp__inst_executed_pipe_alu.avg.pct_of_peak_sustained_active   ./myprogram</code></pre>
+
+      <div class="output-block">
+<span class="comment"># FP32 compute bound: FMA pipe near 100%</span>
+FMA throughput:    94.2%  of peak  <span class="comment"># excellent</span>
+Tensor Core usage:  0.0%           <span class="comment"># opportunity: could use Tensor Cores for matmul</span>
+
+<span class="comment"># If tensor cores available for your operation (matmul, conv):</span>
+<span class="comment"># Use cublasGemmEx with CUDA_R_16F for 4x throughput vs FP32</span>
+<span class="comment"># Or use __mma_sync() for manual Tensor Core control</span>
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="occupancy-profiling">Occupancy Profiling</h2>
+
+<pre><code># Check what limits occupancy:
+ncu --metrics   sm__warps_active.avg.pct_of_peak_sustained_active,  launch__occupancy_limit_warps,  launch__occupancy_limit_registers,  launch__occupancy_limit_shared_mem,  launch__occupancy_limit_blocks   ./myprogram</code></pre>
+
+      <div class="output-block">
+<span class="comment"># Low occupancy due to registers:</span>
+Achieved Occupancy:            25.0%
+Occupancy Limit (registers):  25.0%  <span class="comment"># registers are the bottleneck</span>
+Registers per thread:              128
+
+<span class="comment"># Fix: reduce register usage, or add __launch_bounds__(blockSize, minBlocks)</span>
+<span class="comment"># or --maxrregcount=64 compile flag</span>
+
+<span class="comment"># Low occupancy due to shared memory:</span>
+Achieved Occupancy:            33.3%
+Occupancy Limit (shared mem): 33.3%  <span class="comment"># shared memory is the bottleneck</span>
+Shared Memory per Block:        64 KB <span class="comment"># 3 blocks max per SM (3 * 64 = 192 KB)</span>
+
+<span class="comment"># Fix: reduce shared memory per block, or use smaller tiles</span>
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="key-metrics">Key Metrics Cheat Sheet</h2>
+
+      <table class="address-table">
+        <thead><tr><th>Metric</th><th>Good Value</th><th>If Bad: Look For</th></tr></thead>
+        <tbody>
+          <tr><td>Memory throughput %</td><td>&gt;80% for mem-bound</td><td>Uncoalesced access, cache misses</td></tr>
+          <tr><td>SM throughput %</td><td>&gt;80% for compute-bound</td><td>Low occupancy, instruction mix</td></tr>
+          <tr><td>Achieved occupancy</td><td>&gt;50%</td><td>Register spill, large shared mem, block too small</td></tr>
+          <tr><td>DRAM throughput</td><td>Near 2 TB/s for streaming</td><td>Uncoalesced, cache pollution</td></tr>
+          <tr><td>Sectors/request (global)</td><td>1.0</td><td>Coalescing issues</td></tr>
+          <tr><td>Bank conflicts</td><td>0</td><td>Add +1 padding to shared mem arrays</td></tr>
+          <tr><td>Local memory bytes</td><td>0</td><td>Register spilling, reduce --maxrregcount</td></tr>
+          <tr><td>Thread predication ratio</td><td>1.0</td><td>Warp divergence, reorder data</td></tr>
+        </tbody>
+      </table>
+
+      <div class="series-nav">
+        <span><a href="cuda-phase4-dynamic-parallelism.html">&larr; 4.5 &mdash; Dynamic Parallelism</a></span>
+        <span><a href="cuda-phase6-interview-prep.html">6 &mdash; Interview Preparation &rarr;</a></span>
+      </div>
     </div>
   </main>
-  <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
-  </footer>
 </body>
 </html>

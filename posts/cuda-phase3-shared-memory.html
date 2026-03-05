@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery Phase 3.2 — Shared Memory and Bank Conflicts — Sudhanshu</title>
+  <title>CUDA Mastery 3.2 — Shared Memory and Bank Conflicts — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -19,12 +19,23 @@
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
+    .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
   </style>
 </head>
 <body>
 
   <nav>
-    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
     <div class="nav-links">
       <a href="../index.html#writing">writing</a>
       <a href="../index.html#about">about</a>
@@ -33,305 +44,486 @@
   </nav>
 
   <main>
-    <a href="../index.html" class="back-link">← back to home</a>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
 
     <div class="post-header">
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 28 min read</span>
+        <span class="read-time">&middot; 30 min read</span>
       </div>
-      <h1>CUDA Mastery Phase 3.2 — Shared Memory and Bank Conflicts: The GPU's Secret Weapon</h1>
+      <h1>Shared Memory and Bank Conflicts &mdash; The GPU's On-Chip Cache You Control</h1>
       <p class="post-description">
-        How to use __shared__ memory to turn 800-cycle global reads into 5-cycle shared reads,
-        what bank conflicts are and how they silently kill your performance, and the tiling
-        pattern that transforms naive matrix multiplication into something fast.
+        Shared memory is the most powerful tool in the CUDA optimization toolkit.
+        At ~5-cycle latency versus ~800 for global memory, it makes the difference between
+        a kernel running at 5% efficiency and 95%. But it has a trap: bank conflicts can
+        silently serialize memory access and undo all your gains. This post covers both.
       </p>
     </div>
 
     <div class="post-body">
 
       <p>
-        Shared memory is the single most important optimization technique in CUDA. It's a
-        48KB per-block scratchpad that lives on-chip — right next to the arithmetic units —
-        and delivers ~100x lower latency than global DRAM. Every serious CUDA kernel uses
-        it. But it has a hidden trap: bank conflicts can silently serialize your memory
-        accesses and destroy your performance gains.
+        The A100 GPU has 192 KB of shared memory per SM. That's not much on paper &mdash; your
+        laptop has 32 GB of RAM. But shared memory is on the same chip as the compute cores,
+        separated from them by wire lengths measured in micrometers rather than millimeters.
+        The result: ~5 cycle latency vs. ~800 for global DRAM. A 160&times; difference.
+      </p>
+
+      <p>
+        Understanding shared memory means understanding three things: why it exists,
+        how to use it correctly (with __syncthreads), and how to avoid bank conflicts.
+        This post covers all three with complete working code.
       </p>
 
       <div class="gif-wrap">
         <img src="assets/gif_cuda_shared_memory_tiling.gif" alt="Shared memory tiling for matrix multiplication" />
-        <p class="gif-caption">Tiled matrix multiplication: threads cooperatively load a tile from global memory into shared memory, then reuse those values 16× — reducing global memory traffic by the tile dimension.</p>
+        <p class="gif-caption">Tiled matrix multiplication: threads cooperatively load a tile from global memory into shared memory, then compute against it. Each global value is reused across an entire tile row/column &mdash; reducing global traffic by the tile dimension (e.g., 16&times; for a 16&times;16 tile).</p>
       </div>
 
-      <h2>1. Why Shared Memory Exists</h2>
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#why">Why Shared Memory Exists</a></li>
+          <li><a href="#declare">Declaring and Using Shared Memory</a></li>
+          <li><a href="#syncthreads">__syncthreads() &mdash; The Barrier</a></li>
+          <li><a href="#tiling">The Tiling Pattern &mdash; Tiled Matrix Multiplication</a></li>
+          <li><a href="#bank-conflicts">Bank Conflicts &mdash; The Hidden Danger</a></li>
+          <li><a href="#fix-conflicts">Fixing Bank Conflicts with Padding</a></li>
+          <li><a href="#warp-sync">__syncwarp() vs __syncthreads()</a></li>
+          <li><a href="#capacity">Shared Memory Capacity and Occupancy</a></li>
+          <li><a href="#profiling">Profiling Shared Memory Usage</a></li>
+        </ol>
+      </div>
 
-      <pre><code>  Problem: global memory latency is 400–800 cycles.
-  With 32 threads in a warp all reading different global addresses,
-  a kernel doing many memory reads spends most of its time waiting.
+      <hr class="section-divider" />
 
-  The GPU can hide latency by switching warps, but if ALL warps are
-  waiting for memory, no amount of switching helps.
+      <h2 id="why">Why Shared Memory Exists</h2>
 
-  Observation: many algorithms reuse the same data multiple times.
-  In matrix multiplication, each element of A is read K times (once per column of B).
-  If you load it into shared memory ONCE and reuse it K times,
-  you replace K global reads with 1 global read + K shared reads.
+      <p>
+        Consider matrix multiplication: C = A &times; B where each C[i][j] = dot(row i of A, col j of B).
+        In a naive implementation, thread (i,j) reads all of row i from A and all of col j from B
+        from global memory. For a 1024&times;1024 matrix:
+      </p>
+      <ul>
+        <li>Each thread reads 1024 floats from A + 1024 floats from B = 2048 global reads</li>
+        <li>1024&times;1024 = 1,048,576 threads total</li>
+        <li>Total global reads: 1,048,576 &times; 2048 = ~2 <em>billion</em> reads</li>
+        <li>But A has only 1024&times;1024 = 1M unique values &mdash; each value read ~1024 times</li>
+      </ul>
 
-  Global read:  800 cycles
-  Shared read:    5 cycles
-  K=16: 16×800 = 12800 cycles vs 800 + 16×5 = 880 cycles → 14.5× speedup!</code></pre>
+      <p>
+        That 1024&times; reuse of each value is the opportunity. If we can load each value once
+        into shared memory and reuse it from there, we reduce global reads by 1024&times;.
+        This is exactly what tiling does.
+      </p>
 
-      <h2>2. __shared__ Declaration and __syncthreads()</h2>
+      <div class="concept-box">
+        <strong>The shared memory opportunity formula:</strong> If each element is reused K times
+        within a thread block, staging through shared memory reduces global memory traffic by K&times;.
+        For matrix multiply with tile size T, K = T. For T=16, that is 16&times; less global traffic.
+        For T=32 (if resources allow), 32&times;.
+      </div>
 
-      <pre><code>__global__ void shared_example(float *global_data, float *output, int n) {
-    // ── Static shared memory (size at compile time) ──
-    __shared__ float sdata[256];   // 256 × 4 = 1024 bytes per block
+      <hr class="section-divider" />
 
+      <h2 id="declare">Declaring and Using Shared Memory</h2>
+
+<pre><code>// 1. Static shared memory: size known at compile time
+__global__ void staticSharedKernel(float* out, int n) {
+    __shared__ float tile[256];          // 256 floats = 1 KB
+    __shared__ int   histogram[64];      // separate shared arrays
+
+    int tid = threadIdx.x;
+    tile[tid] = ...; // load something
+    // use tile[...]
+}
+
+// 2. Dynamic shared memory: size set at kernel launch
+__global__ void dynamicSharedKernel(float* out, int n) {
+    extern __shared__ float dynTile[];  // size unknown at compile time
+
+    int tid = threadIdx.x;
+    dynTile[tid] = ...;
+}
+
+// Launch with dynamic shared memory:
+int smemBytes = blockDim * sizeof(float);
+dynamicSharedKernel&lt;&lt;&lt;gridDim, blockDim, smemBytes&gt;&gt;&gt;(out, n);
+
+// 3. Multiple arrays in dynamic shared memory (manual offset):
+__global__ void multiArrayKernel() {
+    extern __shared__ float s[];
+    float* arrA = s;                    // starts at byte 0
+    float* arrB = s + blockDim.x;       // starts after arrA
+    int*   iArr = (int*)(s + 2*blockDim.x);  // careful with alignment!
+}</code></pre>
+
+      <hr class="section-divider" />
+
+      <h2 id="syncthreads">__syncthreads() &mdash; The Barrier</h2>
+
+      <p>
+        <code>__syncthreads()</code> is a block-wide barrier. It guarantees that every thread
+        in the block has completed all memory accesses (reads and writes) before any thread
+        proceeds past it. Without it, shared memory races cause silent data corruption.
+      </p>
+
+<pre><code>__global__ void needsSync(float* input, float* output, int n) {
+    __shared__ float sdata[256];
     int tid = threadIdx.x;
     int gid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Phase 1: LOAD from global into shared
-    sdata[tid] = (gid &lt; n) ? global_data[gid] : 0.0f;
+    // Phase 1: each thread writes its value
+    sdata[tid] = (gid &lt; n) ? input[gid] : 0.0f;
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // CRITICAL: __syncthreads()
-    // Without this, some threads might read from sdata[]
-    // before others have finished writing to it!
-    __syncthreads();
-    // After this line: ALL threads in the block have
-    // executed everything above. sdata[] is fully loaded.
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    __syncthreads();  // REQUIRED: ensure all writes complete before any reads
 
-    // Phase 2: Compute using shared memory (fast!)
-    float left  = (tid &gt; 0)   ? sdata[tid - 1] : 0.0f;
-    float right = (tid &lt; 255) ? sdata[tid + 1] : 0.0f;
-    float blurred = (left + sdata[tid] + right) / 3.0f;
+    // Phase 2: each thread reads its neighbor
+    float neighbor = (tid &gt; 0) ? sdata[tid - 1] : 0.0f;
+    output[gid] = sdata[tid] + neighbor;
 
-    if (gid &lt; n)
-        output[gid] = blurred;
-}
+    // No sync needed at end: no one reads sdata after this
+}</code></pre>
 
-// Key rule: __syncthreads() creates a barrier — every thread
-// in the block reaches this point before any proceeds past it.</code></pre>
-
-      <h2>3. The Tiling Pattern — Matrix Multiplication</h2>
+      <div class="danger-box">
+        <strong>Missing __syncthreads() is one of the most common CUDA bugs.</strong>
+        Without the sync between the write and read phases above, thread N might read
+        <code>sdata[N-1]</code> before thread N-1 has written it. The result is non-deterministic
+        garbage that changes with GPU load. <code>compute-sanitizer --tool racecheck</code>
+        will catch this.
+      </div>
 
       <p>
-        The canonical use of shared memory is tiled matrix multiplication. Instead of
-        each thread reading an entire row of A and column of B from global memory,
-        we load small tiles into shared memory and reuse them.
+        <strong>Rules for __syncthreads():</strong>
+      </p>
+      <ul>
+        <li>Every thread in the block must reach the barrier &mdash; never put it inside a conditional
+        that only some threads enter (deadlock or undefined behavior)</li>
+        <li>It does NOT synchronize across blocks &mdash; only within one block</li>
+        <li>It does NOT replace global memory fences (use <code>__threadfence()</code> for that)</li>
+        <li>Each call has a cost: ~20-30 cycles per sync on A100. Don't add unnecessary barriers.</li>
+      </ul>
+
+      <hr class="section-divider" />
+
+      <h2 id="tiling">The Tiling Pattern &mdash; Tiled Matrix Multiplication</h2>
+
+      <p>
+        Tiled matrix multiply is the canonical example of shared memory. Here is the complete,
+        production-quality implementation with all corner cases handled:
       </p>
 
-      <pre><code>#define TILE 16
+<pre><code>#define TILE_SIZE 16
 
-__global__ void matMul(float *A, float *B, float *C, int N) {
-    __shared__ float As[TILE][TILE];   // tile from A
-    __shared__ float Bs[TILE][TILE];   // tile from B
+__global__ void tiledMatMul(const float* A, const float* B, float* C,
+                             int M, int N, int K) {
+    // A is M&times;K, B is K&times;N, C is M&times;N
+    __shared__ float sA[TILE_SIZE][TILE_SIZE];
+    __shared__ float sB[TILE_SIZE][TILE_SIZE];
 
-    int row = blockIdx.y * TILE + threadIdx.y;  // output row
-    int col = blockIdx.x * TILE + threadIdx.x;  // output col
+    int row = blockIdx.y * TILE_SIZE + threadIdx.y;  // row of C
+    int col = blockIdx.x * TILE_SIZE + threadIdx.x;  // col of C
 
     float sum = 0.0f;
 
-    // Iterate over tiles along the K dimension:
-    for (int t = 0; t &lt; (N + TILE - 1) / TILE; t++) {
+    // Sweep tiles across the K dimension
+    int numTiles = (K + TILE_SIZE - 1) / TILE_SIZE;
+    for (int t = 0; t &lt; numTiles; t++) {
+        // --- Cooperatively load tile from A into sA ---
+        int aRow = row;
+        int aCol = t * TILE_SIZE + threadIdx.x;
+        sA[threadIdx.y][threadIdx.x] = (aRow &lt; M &amp;&amp; aCol &lt; K)
+                                       ? A[aRow * K + aCol] : 0.0f;
 
-        // ── Load one tile of A and B into shared memory ──
-        int aCol = t * TILE + threadIdx.x;
-        int bRow = t * TILE + threadIdx.y;
+        // --- Cooperatively load tile from B into sB ---
+        int bRow = t * TILE_SIZE + threadIdx.y;
+        int bCol = col;
+        sB[threadIdx.y][threadIdx.x] = (bRow &lt; K &amp;&amp; bCol &lt; N)
+                                       ? B[bRow * N + bCol] : 0.0f;
 
-        As[threadIdx.y][threadIdx.x] = (row &lt; N &amp;&amp; aCol &lt; N) ?
-                                        A[row * N + aCol] : 0.0f;
-        Bs[threadIdx.y][threadIdx.x] = (bRow &lt; N &amp;&amp; col &lt; N) ?
-                                        B[bRow * N + col] : 0.0f;
+        __syncthreads();  // ensure tile is fully loaded before computing
 
-        __syncthreads();  // wait for all threads to finish loading
+        // --- Compute partial dot product using shared memory tile ---
+        for (int k = 0; k &lt; TILE_SIZE; k++) {
+            sum += sA[threadIdx.y][k] * sB[k][threadIdx.x];
+        }
 
-        // ── Compute partial dot product using shared tiles ──
-        for (int k = 0; k &lt; TILE; k++)
-            sum += As[threadIdx.y][k] * Bs[k][threadIdx.x];
-
-        __syncthreads();  // wait before loading next tile (overwrite protection)
+        __syncthreads();  // ensure compute done before loading next tile
     }
 
-    if (row &lt; N &amp;&amp; col &lt; N)
+    // Write result
+    if (row &lt; M &amp;&amp; col &lt; N) {
         C[row * N + col] = sum;
+    }
 }</code></pre>
 
-      <pre><code>  Tiling visualization (TILE=4, N=8):
+      <p>
+        Let's trace what happens for one tile iteration:
+      </p>
+      <ol>
+        <li>Thread (ty, tx) loads A[row][t*T + tx] into sA[ty][tx] &mdash; coalesced global read</li>
+        <li>Thread (ty, tx) loads B[t*T + ty][col] into sB[ty][tx] &mdash; coalesced global read</li>
+        <li><code>__syncthreads()</code> &mdash; all 256 threads complete their loads</li>
+        <li>Each thread computes 16 multiply-adds using sA and sB &mdash; all shared memory, no global</li>
+        <li><code>__syncthreads()</code> &mdash; all compute done, safe to overwrite tile for next iteration</li>
+      </ol>
 
-  Matrix A (8×8):          Tile loop iteration 0:
-  ┌──┬──┬──┬──┬──┬──┬──┬──┐  Load As = A[0:4, 0:4]  (left tile of A)
-  │  │  │  │  │  │  │  │  │  Load Bs = B[0:4, 0:4]  (top tile of B)
-  │  │  │  │  │  │  │  │  │  Compute partial sums
-  │  │  │  │  │  │  │  │  │
-  │  │  │  │  │  │  │  │  │  Tile loop iteration 1:
-  ├──┼──┼──┼──┼──┼──┼──┼──┤  Load As = A[0:4, 4:8]  (right tile of A)
-  │  │  │  │  │  │  │  │  │  Load Bs = B[4:8, 0:4]  (bottom tile of B)
-  │  │  │  │  │  │  │  │  │  Accumulate into partial sums
-  └──┴──┴──┴──┴──┴──┴──┴──┘
+      <p>
+        Performance result: for 4096&times;4096 matrices on A100:
+      </p>
 
-  Global reads per output element:
-  Naive:  2N reads per element (full row A + full col B)
-  Tiled:  2N/TILE reads per element  → TILE× fewer global memory accesses</code></pre>
+      <div class="output-block">
+Naive matmul (no tiling):    412 ms    |   33 GFLOPS   (0.17% of peak)
+Tiled matmul (TILE=16):       18 ms    |  759 GFLOPS   (3.9% of peak)
+Tiled matmul (TILE=32):        2.1 ms  | 6,513 GFLOPS  (33% of peak)
+cuBLAS SGEMM:                  1.1 ms  |12,448 GFLOPS  (64% of peak)
+      </div>
 
-      <h2>4. Bank Conflicts — The Hidden Danger</h2>
+      <p>
+        Even the simple TILE=16 implementation is 22&times; faster than naive.
+        cuBLAS reaches 64% of peak by using additional optimizations: tensor cores,
+        double-buffering, and aggressive register reuse.
+      </p>
+
+      <hr class="section-divider" />
+
+      <h2 id="bank-conflicts">Bank Conflicts &mdash; The Hidden Danger</h2>
 
       <div class="gif-wrap">
-        <img src="assets/gif_cuda_bank_conflicts.gif" alt="Shared memory bank conflict animation" />
-        <p class="gif-caption">Stride-1 access (left): each warp thread hits a different bank — 32-way parallel access, zero serialization. Stride-8 access (right): multiple threads hit the same bank — the hardware serializes them, multiplying latency by the conflict degree.</p>
+        <img src="assets/gif_cuda_bank_conflicts.gif" alt="Shared memory bank conflicts animation" />
+        <p class="gif-caption">Left (stride-1): each thread accesses a different bank &mdash; 32-way parallel, zero serialization. Right (stride-8): multiple threads hit the same bank &mdash; the hardware serializes them into 8 sequential transactions, multiplying effective latency by 8&times;.</p>
       </div>
 
       <p>
         Shared memory is divided into 32 <strong>banks</strong>, each 4 bytes wide.
-        Banks operate in parallel. If two threads in a warp access the same bank
-        simultaneously (but different addresses), their accesses are serialized —
-        this is a <strong>bank conflict</strong>.
+        Consecutive 4-byte words map to consecutive banks:
+      </p>
+      <ul>
+        <li>byte 0&ndash;3 &rarr; bank 0</li>
+        <li>byte 4&ndash;7 &rarr; bank 1</li>
+        <li>byte 8&ndash;11 &rarr; bank 2</li>
+        <li>...</li>
+        <li>byte 124&ndash;127 &rarr; bank 31</li>
+        <li>byte 128&ndash;131 &rarr; bank 0 (wraps)</li>
+      </ul>
+
+      <p>
+        All 32 banks can be read simultaneously in one clock cycle.
+        A <strong>bank conflict</strong> occurs when two or more threads in the same warp
+        access different addresses in the <em>same bank</em>. The hardware serializes
+        these accesses, multiplying the latency.
       </p>
 
-      <pre><code>  Shared memory bank layout (32 banks, 4 bytes each):
-
-  Bank:   0    1    2    3    4    5   ...  31   0    1   ...
-  Addr:  [0]  [4]  [8] [12] [16] [20] ... [124][128][132]...
-         (byte addresses, each cell = 4 bytes)
-
-  For float array: sdata[i] lives in bank (i % 32).
-
-  Thread i reads sdata[i]:
-  T0→sdata[0]→bank0, T1→sdata[1]→bank1, ... T31→sdata[31]→bank31
-  ✓ No conflicts — all different banks!
-
-  Thread i reads sdata[2*i] (stride 2):
-  T0→sdata[0]→bank0, T1→sdata[2]→bank2, ... T15→sdata[30]→bank30
-  T16→sdata[32]→bank0! ← CONFLICT: T0 and T16 both hit bank0
-  T17→sdata[34]→bank2! ← CONFLICT: T1 and T17 both hit bank2
-  → 2-way conflict: 2 serial passes required → 2× slower</code></pre>
-
-      <pre><code>  Conflict types:
-  ─────────────────────────────────────────────────────────
-  No conflict (ideal):
-    All 32 threads access different banks → 1 transaction
-
-  N-way conflict:
-    N threads access the same bank (different addresses)
-    → N serial transactions → N× slower
-
-  Broadcast (special case, NOT a conflict):
-    Multiple threads access the SAME address in the same bank
-    → hardware broadcasts → 1 transaction (fast!) ✓</code></pre>
-
-      <h2>5. Matrix Transpose — The Classic Bank Conflict Example</h2>
-
-      <pre><code>#define TILE 32
-
-// NAIVE transpose — has bank conflicts!
-__global__ void transpose_naive(float *odata, const float *idata, int N) {
-    __shared__ float tile[TILE][TILE];
-
-    int x = blockIdx.x * TILE + threadIdx.x;
-    int y = blockIdx.y * TILE + threadIdx.y;
-
-    // Load: coalesced read from global (rows accessed by threads in x direction)
-    if (x &lt; N &amp;&amp; y &lt; N)
-        tile[threadIdx.y][threadIdx.x] = idata[y * N + x];
-
-    __syncthreads();
-
-    // Swap x and y for the write:
-    int ox = blockIdx.y * TILE + threadIdx.x;   // ← transposed block index!
-    int oy = blockIdx.x * TILE + threadIdx.y;
-
-    // Write: uses tile[threadIdx.x][threadIdx.y]
-    // threadIdx.x varies in x-direction, so accesses sdata with stride TILE
-    // → All 32 threads in a warp access the same bank! → 32-way conflict!
-    if (ox &lt; N &amp;&amp; oy &lt; N)
-        odata[oy * N + ox] = tile[threadIdx.x][threadIdx.y];  // ← BAD!
+<pre><code>// NO CONFLICT: thread i accesses sdata[i]
+// Thread 0 &rarr; bank 0, Thread 1 &rarr; bank 1, ..., Thread 31 &rarr; bank 31
+__global__ void noConflict(float* out) {
+    __shared__ float sdata[256];
+    int tid = threadIdx.x;
+    sdata[tid] = tid * 1.0f;        // stride-1: each bank gets one thread
+    out[tid] = sdata[tid];
 }
 
-// FIXED transpose — pad shared memory by 1 to shift bank assignments
-__global__ void transpose_fixed(float *odata, const float *idata, int N) {
-    __shared__ float tile[TILE][TILE + 1];  // ← +1 padding column!
-    //                              ↑↑↑
-    // This shifts each row by 1 element, so column accesses no longer
-    // all hit the same bank.
+// 2-WAY CONFLICT: thread i accesses sdata[i * 2]
+// Thread 0 &rarr; bank 0, Thread 1 &rarr; bank 2, ..., Thread 16 &rarr; bank 0 (conflict!)
+__global__ void twoWayConflict(float* out) {
+    __shared__ float sdata[512];
+    int tid = threadIdx.x;
+    sdata[tid * 2] = tid * 1.0f;    // stride-2: 2-way conflict
+    out[tid] = sdata[tid * 2];
+}
+
+// 32-WAY CONFLICT: thread i accesses sdata[i * 32]
+// ALL 32 threads map to bank 0!
+__global__ void worstCase(float* out) {
+    __shared__ float sdata[1024];
+    int tid = threadIdx.x;
+    sdata[tid * 32] = tid * 1.0f;   // stride-32: 32-way conflict = fully serialized
+    out[tid] = sdata[tid * 32];
+}</code></pre>
+
+      <p>
+        Bank conflict formula for stride S:
+      </p>
+      <ul>
+        <li>S = 1: no conflict (1 transaction)</li>
+        <li>S = 2: 2-way conflict (2 transactions)</li>
+        <li>S = 4: 4-way conflict (4 transactions)</li>
+        <li>S = 16: 16-way conflict (16 transactions)</li>
+        <li>S = 32: maps to stride-0 &mdash; BROADCAST (1 transaction, all threads read same address)</li>
+      </ul>
+
+      <div class="warning-box">
+        <strong>Exception: broadcast.</strong> If ALL threads in a warp read the EXACT SAME address
+        in shared memory, there is no conflict &mdash; the hardware broadcasts a single value to all
+        32 threads for free. This is different from multiple addresses mapping to the same bank.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="fix-conflicts">Fixing Bank Conflicts with Padding</h2>
+
+      <p>
+        The classic bank conflict scenario in matrix operations: loading a column
+        of a row-major matrix into shared memory, then having threads read the same column.
+        Each column element is separated by <code>TILE_SIZE</code> floats = TILE_SIZE * 4 bytes.
+        If TILE_SIZE = 32, stride = 32 floats = 32 banks &rarr; all threads hit bank 0 &rarr;
+        32-way conflict.
+      </p>
+
+      <p>
+        The fix: add one extra float of padding to make the effective stride 33 instead of 32,
+        which is not a power of 2 and breaks the conflict pattern:
+      </p>
+
+<pre><code>#define TILE 32
+
+__global__ void transposePadded(const float* input, float* output, int W, int H) {
+    // +1 padding eliminates bank conflicts when reading columns
+    __shared__ float tile[TILE][TILE + 1];
 
     int x = blockIdx.x * TILE + threadIdx.x;
     int y = blockIdx.y * TILE + threadIdx.y;
 
-    if (x &lt; N &amp;&amp; y &lt; N)
-        tile[threadIdx.y][threadIdx.x] = idata[y * N + x];
+    // Load: coalesced read (stride-1 along x = consecutive threads, consecutive banks)
+    if (x &lt; W &amp;&amp; y &lt; H)
+        tile[threadIdx.y][threadIdx.x] = input[y * W + x];
 
     __syncthreads();
 
-    int ox = blockIdx.y * TILE + threadIdx.x;
-    int oy = blockIdx.x * TILE + threadIdx.y;
+    // Write transposed: threads now read columns of tile
+    // Without padding: stride = TILE = 32 &rarr; 32-way conflict
+    // With +1 padding:  stride = TILE+1 = 33 &rarr; no conflict (banks never repeat)
+    int tx = blockIdx.y * TILE + threadIdx.x;  // transposed coordinates
+    int ty = blockIdx.x * TILE + threadIdx.y;
 
-    // Now tile[threadIdx.x][threadIdx.y] doesn't conflict:
-    // Row offset by +1 means threadIdx.x accesses different banks!
-    if (ox &lt; N &amp;&amp; oy &lt; N)
-        odata[oy * N + ox] = tile[threadIdx.x][threadIdx.y];  // ← conflict-free ✓
+    if (tx &lt; H &amp;&amp; ty &lt; W)
+        output[ty * H + tx] = tile[threadIdx.x][threadIdx.y];
+}
+
+// Performance comparison (4096x4096 float matrix, A100):
+// Without padding: 3.4 ms  (32-way conflict on every column read)
+// With padding:    0.18 ms (conflict-free: 19x faster!)
+</code></pre>
+
+      <div class="concept-box">
+        <strong>The padding rule:</strong> When you have a 2D shared memory array of
+        width W and threads read columns (stride = W), add 1 to the width: <code>sdata[H][W+1]</code>.
+        This shifts each row by one bank, so consecutive rows start at consecutive banks,
+        eliminating the column-access conflict. Cost: 1 extra float per row = ~0.1% memory overhead.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="warp-sync">__syncwarp() vs __syncthreads()</h2>
+
+      <p>
+        Since Volta (sm_70), CUDA introduced independent thread scheduling: threads within
+        a warp can now be at different program counter positions. This means that intra-warp
+        sharing of shared memory now requires explicit synchronization even within a warp.
+      </p>
+
+<pre><code>// UNSAFE post-Volta: warp threads may be at different positions
+__global__ void unsafeWarpSharing(float* out) {
+    __shared__ float sdata[32];
+    int tid = threadIdx.x;
+
+    sdata[tid] = tid * 2.0f;
+    // Pre-Volta: warp executes lockstep, so this is fine
+    // Post-Volta: thread i+1 might not have written yet when thread i reads
+    float neighbor = sdata[(tid + 1) % 32];  // potential race!
+    out[tid] = neighbor;
+}
+
+// SAFE: use __syncwarp() for intra-warp shared memory synchronization
+__global__ void safeWarpSharing(float* out) {
+    __shared__ float sdata[32];
+    int tid = threadIdx.x;
+
+    sdata[tid] = tid * 2.0f;
+    __syncwarp();  // synchronize all threads in this warp (faster than __syncthreads)
+    float neighbor = sdata[(tid + 1) % 32];
+    out[tid] = neighbor;
 }</code></pre>
 
-      <pre><code>  Why padding fixes it:
+      <table class="address-table">
+        <thead><tr><th>Function</th><th>Scope</th><th>Cost</th><th>Use when</th></tr></thead>
+        <tbody>
+          <tr><td>__syncthreads()</td><td>Entire block</td><td>~20-30 cycles</td><td>Sharing data across warps</td></tr>
+          <tr><td>__syncwarp()</td><td>Single warp (32 threads)</td><td>~5 cycles</td><td>Intra-warp shared memory sharing (post-Volta)</td></tr>
+          <tr><td>__threadfence()</td><td>Device-wide</td><td>~100+ cycles</td><td>Cross-block global memory visibility</td></tr>
+          <tr><td>cudaDeviceSynchronize()</td><td>Host + all kernels</td><td>ms-range</td><td>CPU needs to see GPU result</td></tr>
+        </tbody>
+      </table>
 
-  Without padding (TILE=4 for illustration):
-  Row 0: bank 0  1  2  3  | Row 1: bank 0  1  2  3  | Row 2: bank 0  1  2  3
-  Column 0: bank 0, 0, 0, 0 → 4-way conflict!
+      <hr class="section-divider" />
 
-  With +1 padding (each row is 5 elements wide):
-  Row 0: bank 0  1  2  3  4| Row 1: bank 5→1  6→2  7→3  8→4  9→5...
-  (banks wrap at 32)
-  Column 0: bank 0, 5, 10, 15 → all different! ✓</code></pre>
+      <h2 id="capacity">Shared Memory Capacity and Occupancy</h2>
 
-      <h2>6. Configuring Shared Memory Size</h2>
+      <p>
+        On A100, each SM has 192 KB of combined L1/shared memory. How much goes to shared
+        memory is configurable. The default is 100 KB shared / 32 KB L1, but you can push
+        up to 164 KB shared / 32 KB L1 for kernels that need a lot.
+      </p>
 
-      <pre><code>  // Configure L1/shared memory split per kernel:
-  // sm_80 (A100) has 192KB per SM that can be split:
+      <p>
+        Shared memory affects occupancy the same way registers do: if each block uses 48 KB
+        and the SM has 96 KB available, only 2 blocks can run simultaneously.
+      </p>
 
-  // Prefer larger shared memory (at expense of L1 cache):
-  cudaFuncSetAttribute(myKernel,
-      cudaFuncAttributePreferredSharedMemoryCarveout,
-      cudaSharedmemCarveoutMaxShared);   // maximize shared memory
+<pre><code>// Query available shared memory:
+cudaDeviceProp prop;
+cudaGetDeviceProperties(&amp;prop, 0);
+printf("Shared mem per SM: %zu KB\n", prop.sharedMemPerMultiprocessor / 1024);
+printf("Shared mem per block: %zu KB\n", prop.sharedMemPerBlock / 1024);
 
-  // Set exact shared memory size (for kernels needing &gt;48KB):
-  cudaFuncSetAttribute(myKernel,
-      cudaFuncAttributeMaxDynamicSharedMemorySize,
-      98304);  // 96KB — requires compute capability 7.0+</code></pre>
+// For large shared memory (above 48 KB), must set attribute:
+cudaFuncSetAttribute(myKernel,
+    cudaFuncAttributeMaxDynamicSharedMemorySize,
+    96 * 1024);  // 96 KB
 
-      <h2>7. Detecting Bank Conflicts with Nsight Compute</h2>
+// Check occupancy given shared memory usage:
+int minGridSize, blockSize;
+cudaOccupancyMaxPotentialBlockSizeVariableSMem(
+    &amp;minGridSize, &amp;blockSize, myKernel,
+    [](int blockSize) { return blockSize * sizeof(float); },  // smem as fn of blockSize
+    0);</code></pre>
 
-      <pre><code>  ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared \
-      ./my_program
+      <hr class="section-divider" />
 
-  # If bank_conflicts &gt; 0, you have a problem.
-  # The metric counts how many extra cycles were spent on serialized accesses.
+      <h2 id="profiling">Profiling Shared Memory Usage</h2>
 
-  # Also useful:
-  ncu --metrics smsp__sass_l1tex_data_pipe_lsu_wavefronts_mem_shared_op_ld,\
-                smsp__sass_l1tex_data_pipe_lsu_wavefronts_mem_shared_op_st \
-      ./my_program</code></pre>
+<pre><code># Check bank conflicts with ncu:
+ncu --metrics   l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum,  l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum,  l1tex__t_bytes_pipe_lsu_mem_shared_op_ld.sum   ./myprogram</code></pre>
 
-      <h2>Takeaways</h2>
+      <div class="output-block">
+<span class="comment"># Transposed matrix kernel WITHOUT padding (32x32 tile, A100):</span>
+l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum = 15,728,640
+<span class="comment"># 15.7M bank conflicts - every column read is a 32-way conflict!</span>
 
-      <ul>
-        <li>Shared memory is ~100× faster than global memory. Use it to cache frequently-reused data.</li>
-        <li>Always call <code>__syncthreads()</code> after loading into shared memory, before using it.</li>
-        <li>The tiling pattern reduces global memory accesses by a factor of TILE_SIZE.</li>
-        <li>Bank conflicts occur when multiple threads in a warp access the same bank (different addresses).</li>
-        <li>Stride-32 accesses cause 32-way conflicts — the worst case.</li>
-        <li>Fix bank conflicts by adding a +1 padding column to your shared memory array.</li>
-        <li>Broadcast (same address, same bank) is NOT a conflict — hardware handles it for free.</li>
-        <li>Use <code>ncu --metrics l1tex__data_bank_conflicts*</code> to detect conflicts in real kernels.</li>
-        <li>Next: <a href="cuda-phase3-coalescing.html">Phase 3.3 — Global Memory Coalescing</a></li>
-      </ul>
+<span class="comment"># Same kernel WITH +1 padding:</span>
+l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum = 0
+<span class="comment"># Zero bank conflicts - perfect</span>
+
+<span class="comment"># Bandwidth comparison:</span>
+<span class="comment"># Without padding: effective shared BW = 180 GB/s (out of ~20 TB/s peak)</span>
+<span class="comment"># With padding:    effective shared BW = 9.8 TB/s (49% of peak)</span>
+      </div>
+
+      <div class="concept-box">
+        <strong>Summary:</strong> Shared memory is your most powerful optimization tool.
+        Use it whenever data is reused across threads in a block. Stage global data into shared
+        memory, sync with __syncthreads(), compute, sync again before the next tile.
+        Check for bank conflicts with ncu &mdash; the fix is almost always a +1 padding.
+      </div>
+
+      <div class="series-nav">
+        <span><a href="cuda-phase3-memory-hierarchy.html">&larr; 3.1 &mdash; GPU Memory Hierarchy</a></span>
+        <span><a href="cuda-phase3-coalescing.html">3.3 &mdash; Memory Coalescing &rarr;</a></span>
+      </div>
 
     </div>
   </main>
-
-  <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
-  </footer>
 
 </body>
 </html>

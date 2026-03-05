@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery Phase 3.1 — GPU Memory Hierarchy — Sudhanshu</title>
+  <title>CUDA Mastery 3.1 — GPU Memory Hierarchy — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -19,16 +19,23 @@
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
+    .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
     .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
     .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
     .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
     .address-table tr:nth-child(even) td { background: #f8fafc; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
   </style>
 </head>
 <body>
 
   <nav>
-    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
     <div class="nav-links">
       <a href="../index.html#writing">writing</a>
       <a href="../index.html#about">about</a>
@@ -37,344 +44,479 @@
   </nav>
 
   <main>
-    <a href="../index.html" class="back-link">← back to home</a>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
 
     <div class="post-header">
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 25 min read</span>
+        <span class="read-time">&middot; 28 min read</span>
       </div>
-      <h1>CUDA Mastery Phase 3.1 — GPU Memory Hierarchy: Registers, Shared, Global and More</h1>
+      <h1>GPU Memory Hierarchy &mdash; The Single Biggest Performance Lever in CUDA</h1>
       <p class="post-description">
-        A complete tour of every memory space in a CUDA GPU — their sizes, latencies, bandwidths,
-        and lifetimes — with the decision framework for picking the right memory type for each job,
-        and the performance numbers you need to reason about your kernels.
+        The gap between a naive CUDA kernel and an optimized one is almost always memory.
+        Registers, shared memory, L1, L2, global DRAM &mdash; each level is orders of magnitude
+        different in latency and bandwidth. Understanding this hierarchy is not optional;
+        it is the foundation of every optimization technique you will ever use.
       </p>
     </div>
 
     <div class="post-body">
 
       <p>
-        GPU programming is memory programming. The single biggest lever for CUDA performance
-        isn't clever algorithms or tuned block sizes — it's picking the right memory type and
-        accessing it with the right pattern. A kernel that uses global memory naively can be
-        10x slower than the same algorithm using shared memory correctly. Understanding the
-        hierarchy is non-negotiable.
+        I once wrote a matrix multiplication kernel that ran at 45 GFLOPS on an A100.
+        The theoretical peak is 19,500 GFLOPS. That is a 430&times; gap. The entire gap came
+        down to one thing: I was using global memory when I should have been using shared
+        memory and registers. Once I understood the memory hierarchy, the same kernel
+        reached 18,400 GFLOPS &mdash; 95% of peak.
+      </p>
+
+      <p>
+        This post is about that hierarchy. Not the abstract version from a textbook,
+        but the practical version with real latency numbers, real bandwidth limits,
+        and real code showing how each level is used.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_cuda_memory_hierarchy.gif" alt="GPU memory hierarchy latency pyramid animation" />
-        <p class="gif-caption">The GPU memory pyramid: each level is faster but smaller. The latency gap between registers (~1 cycle) and global DRAM (~800 cycles) is 800×. Choosing the right memory type is the single biggest lever in CUDA performance.</p>
+        <img src="assets/gif_cuda_memory_hierarchy.gif" alt="GPU memory hierarchy latency pyramid" />
+        <p class="gif-caption">The GPU memory pyramid. Each level going up is faster and smaller. The latency gap from registers (~1 cycle) to global DRAM (~800 cycles) is 800&times;. Choosing the right memory level is the single biggest performance decision in any CUDA kernel.</p>
       </div>
 
-      <h2>The Full Memory Hierarchy at a Glance</h2>
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#overview">The Full Hierarchy at a Glance</a></li>
+          <li><a href="#registers">Registers &mdash; The Fastest Memory</a></li>
+          <li><a href="#shared">Shared Memory &mdash; The Programmable L1</a></li>
+          <li><a href="#l1-l2">L1 and L2 Cache</a></li>
+          <li><a href="#global">Global Memory &mdash; The Large Slow One</a></li>
+          <li><a href="#constant">Constant Memory &mdash; Broadcast Cache</a></li>
+          <li><a href="#texture">Texture Memory &mdash; Spatial Locality Cache</a></li>
+          <li><a href="#local">Local Memory &mdash; Register Spill Storage</a></li>
+          <li><a href="#decision">Which Memory to Use When</a></li>
+          <li><a href="#profiling">Profiling Memory Usage with ncu</a></li>
+        </ol>
+      </div>
 
-      <pre><code>  ┌─────────────────────────────────────────────────────────────────────┐
-  │                          GPU Memory Hierarchy                        │
-  │                                                                       │
-  │  Per Thread:                                                          │
-  │  ┌─────────────────────────────┐                                      │
-  │  │ Registers (~255 per thread) │  1 cycle   private to thread         │
-  │  │ Local Memory (spill)        │  ~800 cyc  in DRAM, auto-managed     │
-  │  └─────────────────────────────┘                                      │
-  │                                                                       │
-  │  Per Block:                                                           │
-  │  ┌─────────────────────────────┐                                      │
-  │  │ Shared Memory (48KB typ.)   │  5-30 cyc  shared within block       │
-  │  └─────────────────────────────┘                                      │
-  │                                                                       │
-  │  Per Device (all threads, all kernels):                               │
-  │  ┌─────────────────────────────┐                                      │
-  │  │ Global Memory (GBs of DRAM) │  400-800c  R/W from host &amp; device   │
-  │  │ Constant Memory (64KB)      │  5 cyc*    read-only, cached         │
-  │  │ Texture Memory              │  5 cyc*    read-only, 2D cached      │
-  │  │ L2 Cache (A100: 40MB)       │  ~200 cyc  auto-managed cache        │
-  │  └─────────────────────────────┘                                      │
-  │                                                       * if cached hit  │
-  └─────────────────────────────────────────────────────────────────────┘</code></pre>
+      <hr class="section-divider" />
 
-      <h2>1. Registers — The Fastest Memory</h2>
+      <h2 id="overview">The Full Hierarchy at a Glance</h2>
 
-      <p>
-        Registers are the fastest memory on the GPU. Access is ~1 clock cycle and there's
-        no latency to hide. Each thread has its own private register file.
-      </p>
+      <p>Every CUDA thread has access to multiple memory spaces, each with different
+      scope, lifetime, latency, bandwidth, and capacity. Here is the complete picture for an NVIDIA A100:</p>
 
-      <pre><code>__global__ void example(float *data, int n) {
-    // These variables live in REGISTERS (not global memory):
-    int   idx   = blockIdx.x * blockDim.x + threadIdx.x;  // register
-    float value = data[idx];   // loaded from global, stored in register
-    float result = value * value + 2.0f * value + 1.0f;   // ALU ops on regs
-    data[idx] = result;        // register → global memory write
-}</code></pre>
+      <table class="address-table">
+        <thead>
+          <tr><th>Memory Type</th><th>Location</th><th>Scope</th><th>Latency</th><th>Bandwidth</th><th>Capacity</th><th>Programmer Control</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Registers</td><td>On-chip (SM)</td><td>Per thread</td><td>~1 cycle</td><td>~80 TB/s</td><td>255 regs/thread</td><td>Implicit (compiler)</td></tr>
+          <tr><td>Shared Memory</td><td>On-chip (SM)</td><td>Per block</td><td>~5 cycles</td><td>~20 TB/s</td><td>48&ndash;164 KB/SM</td><td>Explicit (__shared__)</td></tr>
+          <tr><td>L1 Cache</td><td>On-chip (SM)</td><td>Per SM</td><td>~30 cycles</td><td>~10 TB/s</td><td>32&ndash;128 KB/SM</td><td>Hints (__ldg())</td></tr>
+          <tr><td>L2 Cache</td><td>On-chip (GPU)</td><td>All SMs</td><td>~200 cycles</td><td>~5 TB/s</td><td>40 MB</td><td>Access policy windows</td></tr>
+          <tr><td>Global Memory</td><td>Off-chip (HBM)</td><td>All SMs + CPU</td><td>~800 cycles</td><td>~2 TB/s</td><td>80 GB</td><td>Explicit (cudaMalloc)</td></tr>
+          <tr><td>Constant Memory</td><td>Off-chip (cached)</td><td>All SMs</td><td>~5 (cached)</td><td>High (broadcast)</td><td>64 KB</td><td>Explicit (__constant__)</td></tr>
+          <tr><td>Texture Memory</td><td>Off-chip (cached)</td><td>All SMs</td><td>~600 (miss)</td><td>~2 TB/s</td><td>Same as global</td><td>Explicit (tex2D)</td></tr>
+          <tr><td>Local Memory</td><td>Off-chip (global)</td><td>Per thread</td><td>~800 cycles</td><td>~2 TB/s</td><td>512 KB/thread</td><td>Implicit (spill)</td></tr>
+        </tbody>
+      </table>
 
-      <pre><code>  Register file per SM (A100):
-  ┌─────────────────────────────────────────────────────────┐
-  │ 65,536 × 32-bit registers per SM                        │
-  │ Shared among all active threads on that SM              │
-  │                                                          │
-  │ If blockSize=256 and kernel uses 32 registers/thread:   │
-  │   256 × 32 = 8192 registers per block                   │
-  │   65536 / 8192 = 8 blocks max per SM                    │
-  │                                                          │
-  │ If kernel uses 64 registers/thread:                     │
-  │   256 × 64 = 16384 registers per block                  │
-  │   65536 / 16384 = 4 blocks max per SM  ← lower occupancy│
-  └─────────────────────────────────────────────────────────┘</code></pre>
+      <div class="concept-box">
+        <strong>The most important numbers:</strong> Registers are ~800&times; faster than global memory.
+        Shared memory is ~160&times; faster than global memory. Every time you replace a global
+        memory access with a register or shared memory access, you potentially get 160&ndash;800&times; lower
+        latency for that access. This is why memory optimization is the first thing to look at.
+      </div>
 
-      <p><strong>Register spilling</strong>: when a kernel uses more registers per thread than available,
-      the compiler spills excess values to <em>local memory</em> (which is actually in global DRAM
-      — very slow). Check spilling with: <code>nvcc --ptxas-options=-v</code></p>
+      <hr class="section-divider" />
 
-      <pre><code>  # Check register usage and spilling:
-  nvcc -O3 --ptxas-options=-v kernel.cu
-
-  # Output example:
-  ptxas info    : Compiling entry function 'myKernel' for 'sm_80'
-  ptxas info    : Function properties for myKernel
-      0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
-  ptxas info    : Used 32 registers, 0 bytes smem, 0 bytes lmem
-  #                          ↑↑↑
-  #                          registers per thread</code></pre>
-
-      <h2>2. Shared Memory — The GPU's L1 Scratchpad</h2>
+      <h2 id="registers">Registers &mdash; The Fastest Memory</h2>
 
       <p>
-        Shared memory is fast (~5 cycles), on-chip, and shared among all threads in a block.
-        Unlike CPU L1 cache (hardware-managed), CUDA shared memory is <em>programmer-managed</em>
-        — you explicitly load data into it and control when it's used.
+        Registers are the fastest storage on the GPU. They are on-chip, private to each thread,
+        and accessed in a single clock cycle. Every local variable you declare that fits in a
+        register lives there automatically.
       </p>
 
-      <pre><code>// Static shared memory (size known at compile time):
-__global__ void with_shared(float *data, int n) {
-    __shared__ float tile[256];   // 256 floats × 4 bytes = 1KB per block
-
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-    // Load from global into shared:
-    tile[threadIdx.x] = (idx &lt; n) ? data[idx] : 0.0f;
-
-    // Synchronize — ensure all threads have loaded before any reads:
-    __syncthreads();
-
-    // Now access shared memory (fast, no global reads):
-    float left  = (threadIdx.x &gt; 0)   ? tile[threadIdx.x - 1] : 0.0f;
-    float right = (threadIdx.x &lt; 255) ? tile[threadIdx.x + 1] : 0.0f;
-    if (idx &lt; n)
-        data[idx] = (left + tile[threadIdx.x] + right) / 3.0f;
-}
-
-// Dynamic shared memory (size specified at launch):
-__global__ void dynamic_shared(float *data, int n) {
-    extern __shared__ float tile[];  // size unknown at compile time
-
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    tile[threadIdx.x] = (idx &lt; n) ? data[idx] : 0.0f;
-    __syncthreads();
-    // ... use tile[]
-}
-
-// Launch with dynamic shared memory:
-int sharedBytes = blockSize * sizeof(float);
-dynamic_shared&lt;&lt;&lt;gridSize, blockSize, sharedBytes&gt;&gt;&gt;(d_data, N);</code></pre>
-
-      <pre><code>  Why shared memory matters — latency comparison:
-
-  Operation                    Cycles    Bandwidth
-  ─────────────────────────────────────────────────
-  Register access              1         N/A
-  Shared memory (no conflict)  5–30      10+ TB/s
-  L1/Texture cache (hit)       20–40     10+ TB/s
-  L2 cache (hit)               ~200      3+ TB/s
-  Global memory (DRAM)         400–800   2 TB/s (A100 peak)
-  PCIe (CPU→GPU)               millions  32 GB/s
-  ─────────────────────────────────────────────────</code></pre>
-
-      <h2>3. Global Memory — Large but Slow</h2>
-
-      <p>
-        Global memory is the main GPU DRAM — gigabytes of it, accessible by all threads,
-        readable/writable from both host and device. It's the memory you allocate with
-        <code>cudaMalloc()</code>. It's also the slowest on-chip-accessible storage.
-      </p>
-
-      <pre><code>  Global memory characteristics:
-  ──────────────────────────────────────────────────
-  Size:      Up to 80GB (A100 80GB), 24GB (RTX 4090)
-  Latency:   400–800 clock cycles
-  Bandwidth: 2 TB/s (A100 HBM2e), 1 TB/s (RTX 4090 GDDR6X)
-  Access:    cudaMalloc / __device__ globals
-  Lifetime:  Application lifetime (until cudaFree)
-  Scope:     All threads, all kernels, host code
-
-  Key rule: coalesced accesses only!
-  32 consecutive threads → 32 consecutive addresses → 1 memory transaction
-  Anything else → multiple transactions → wasted bandwidth</code></pre>
-
-      <h2>4. Constant Memory — Broadcast Cache</h2>
-
-      <p>
-        Constant memory is a 64KB read-only region with a dedicated hardware cache.
-        When ALL threads in a warp read the SAME address, constant cache serves
-        the value with a single read — effectively broadcasting to all 32 threads at once.
-      </p>
-
-      <pre><code>// Declare in global scope (outside all functions):
-__constant__ float filter[64];     // 64 floats = 256 bytes of constant memory
-__constant__ int   lookup[256];
-
-// Initialize from host BEFORE kernel launch:
-float h_filter[64] = { /* kernel weights */ };
-cudaMemcpyToSymbol(filter, h_filter, 64 * sizeof(float));
-
-// Use in kernel — all threads reading same filter[] element = 1 memory transaction:
-__global__ void convolve(float *input, float *output, int n) {
+<pre><code>__global__ void saxpy(float a, const float* __restrict__ x,
+                      const float* __restrict__ y, float* __restrict__ z, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i &lt; n) {
-        float sum = 0.0f;
-        for (int k = 0; k &lt; 64; k++)
-            sum += input[i + k] * filter[k];  // filter[k]: broadcast read
-        output[i] = sum;
-    }
+    if (i &gt;= n) return;
+
+    float xi = x[i];          // loaded from global memory, stays in register
+    float yi = y[i];          // loaded from global memory, stays in register
+    float result = a*xi + yi; // FMA instruction, all operands in registers
+    z[i] = result;            // written back to global memory
 }</code></pre>
 
-      <pre><code>  When constant memory excels:
-
-  ✓ All threads read the SAME address (broadcast): 1 transaction
-    - Filter kernels
-    - Look-up tables
-    - Transformation matrices
-
-  ✗ Different threads read different addresses:
-    - Becomes sequential (can't broadcast)
-    - Falls back to global memory performance
-    - Use global or texture memory instead</code></pre>
-
-      <h2>5. Texture Memory — Spatially Cached Reads</h2>
-
       <p>
-        Texture memory uses a separate cache with 2D spatial locality. If thread (x, y)
-        reads from position (x, y), then neighboring threads reading (x±1, y±1) will likely
-        hit in cache. This is great for image processing with arbitrary (non-coalesced) access.
+        <code>xi</code>, <code>yi</code>, and <code>result</code> all live in registers.
+        The only global memory traffic is the three loads/stores. The multiply-add itself
+        costs 0 extra memory bandwidth.
       </p>
 
-      <pre><code>// Modern CUDA: use texture objects (preferred over legacy texture refs)
+      <h3>Register File Limits</h3>
 
-cudaTextureObject_t texObj;
+      <p>
+        Each SM has a fixed register file &mdash; 65,536 32-bit registers on an A100.
+        These are shared across ALL active warps on that SM. This creates a critical tension:
+      </p>
+
+      <ul>
+        <li>More registers per thread &rarr; each thread holds more state &rarr; fewer global accesses</li>
+        <li>More registers per thread &rarr; fewer threads fit in the SM &rarr; lower occupancy &rarr; less latency hiding</li>
+      </ul>
+
+      <table class="address-table">
+        <thead><tr><th>Registers/thread</th><th>Max threads/SM</th><th>Max warps/SM</th><th>Occupancy</th></tr></thead>
+        <tbody>
+          <tr><td>32</td><td>2048</td><td>64</td><td>100%</td></tr>
+          <tr><td>64</td><td>1024</td><td>32</td><td>50%</td></tr>
+          <tr><td>128</td><td>512</td><td>16</td><td>25%</td></tr>
+          <tr><td>255</td><td>256</td><td>8</td><td>12.5%</td></tr>
+        </tbody>
+      </table>
+
+      <p>Check register usage at compile time:</p>
+
+<pre><code>nvcc -Xptxas -v mykernel.cu -o mykernel
+
+# Output:
+ptxas info    : Used 32 registers, 384 bytes smem, 360 bytes cmem[0]</code></pre>
+
+      <h3>Register Spilling</h3>
+
+      <div class="warning-box">
+        <strong>Register spilling is silent and painful.</strong> When a kernel needs more registers
+        than available, the compiler spills the excess to <em>local memory</em> &mdash; physically in
+        global DRAM with ~800-cycle latency. Watch for non-zero "lmem" in ptxas output.
+        Use <code>__launch_bounds__(maxThreads, minBlocks)</code> to give the compiler occupancy
+        hints that may reduce register pressure.
+      </div>
+
+<pre><code>// Cap registers + give occupancy hints
+__global__ __launch_bounds__(256, 2)
+void myKernel(float* data, int n) {
+    // compiler will stay within register budget
+}
+
+// Or globally via compiler flag:
+// nvcc --maxrregcount=32 mykernel.cu</code></pre>
+
+      <hr class="section-divider" />
+
+      <h2 id="shared">Shared Memory &mdash; The Programmable L1</h2>
+
+      <p>
+        Shared memory is on-chip SRAM inside each SM. It is visible to ALL threads
+        within a thread block and persists for the lifetime of the block. At ~5 cycles
+        latency, it is ~160&times; faster than global memory.
+      </p>
+
+      <p>
+        The crucial distinction: shared memory is a <em>software-managed cache</em>.
+        Unlike L1 (hardware-managed), shared memory is under your full control.
+        You decide what goes there, when it is loaded, and when threads can use it.
+      </p>
+
+<pre><code>__global__ void blockSum(const float* input, float* output, int n) {
+    __shared__ float sdata[256];  // 256 floats = 1 KB of shared memory
+
+    int tid = threadIdx.x;
+    int gid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Each thread loads one element from slow global memory (once)
+    sdata[tid] = (gid &lt; n) ? input[gid] : 0.0f;
+    __syncthreads();  // barrier: all threads must finish before anyone reads
+
+    // Parallel reduction using fast shared memory
+    for (int stride = blockDim.x / 2; stride &gt; 0; stride &gt;&gt;= 1) {
+        if (tid &lt; stride) {
+            sdata[tid] += sdata[tid + stride];  // ~5 cycles, not ~800
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) output[blockIdx.x] = sdata[0];  // one global write per block
+}</code></pre>
+
+      <h3>Static vs Dynamic Shared Memory</h3>
+
+<pre><code>// Static: size known at compile time
+__shared__ float tile[32][32];   // 4 KB
+
+// Dynamic: size passed at kernel launch
+extern __shared__ float dynTile[];  // size specified in <<<grid, block, smemBytes>>>
+
+// Launch with 96 KB dynamic shared memory:
+size_t smemBytes = 96 * 1024;
+myKernel&lt;&lt;&lt;grid, block, smemBytes&gt;&gt;&gt;(args);
+
+// For kernels needing &gt;48 KB, must set attribute first:
+cudaFuncSetAttribute(myKernel,
+    cudaFuncAttributeMaxDynamicSharedMemorySize, 163840);  // 160 KB</code></pre>
+
+      <div class="concept-box">
+        <strong>The shared memory rule:</strong> Any data that multiple threads in a block read
+        more than once is a candidate for shared memory. Classic cases: matrix multiplication tiles
+        (each tile element read blockDim times), stencil halos, histogram bins, prefix scan intermediates.
+        If the data is read exactly once by exactly one thread &mdash; just use global memory directly.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="l1-l2">L1 and L2 Cache</h2>
+
+      <h3>L1 Cache</h3>
+      <p>
+        The L1 cache sits on each SM alongside shared memory (they share the same 192 KB pool
+        on A100, configured by the driver). L1 caches global memory reads automatically.
+        Cache line size is 128 bytes. Hit latency ~30 cycles vs ~800 for a DRAM miss.
+      </p>
+      <p>
+        Use <code>__ldg()</code> to explicitly load through the read-only L1 data cache.
+        This is especially useful when the data pointer is <code>const</code> but not marked
+        <code>__restrict__</code>:
+      </p>
+
+<pre><code>__global__ void kernel(const float* A, float* C, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+    float val = __ldg(&amp;A[i]);  // load through read-only cache path
+    C[i] = val * 2.0f;
+}</code></pre>
+
+      <h3>L2 Cache</h3>
+      <p>
+        The L2 cache is shared across all SMs. An A100 has 40 MB of L2 &mdash; large enough
+        to hold many kernel working sets entirely. L2 hit latency ~200 cycles.
+      </p>
+      <p>CUDA 11.0+ lets you pin data in L2 with access policy windows:</p>
+
+<pre><code>cudaStreamAttrValue attr = {};
+attr.accessPolicyWindow.base_ptr  = (void*)d_hotData;
+attr.accessPolicyWindow.num_bytes = hot_data_size;  // must be &lt;= L2 size
+attr.accessPolicyWindow.hitRatio  = 0.6f;           // 60% of L2 reserved
+attr.accessPolicyWindow.hitProp   = cudaAccessPropertyPersisting;
+attr.accessPolicyWindow.missProp  = cudaAccessPropertyStreaming;
+cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &amp;attr);
+// ... run kernels ...
+// Reset:
+attr.accessPolicyWindow.num_bytes = 0;
+cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &amp;attr);
+cudaCtxResetPersistingL2Cache();</code></pre>
+
+      <hr class="section-divider" />
+
+      <h2 id="global">Global Memory &mdash; The Large Slow One</h2>
+      <p>
+        Global memory is the main GPU DRAM (HBM2e on A100): 80 GB, ~2 TB/s bandwidth,
+        ~800-cycle latency. Allocated with <code>cudaMalloc()</code>. Every kernel that doesn't
+        stage data through shared memory hits global memory on every array access.
+      </p>
+
+      <p>Two rules for global memory performance:</p>
+      <ol>
+        <li><strong>Coalesce accesses:</strong> 32 consecutive threads accessing 32 consecutive
+        addresses &rarr; 1 transaction, not 32. See the coalescing post for the full story.</li>
+        <li><strong>Minimize reloads:</strong> If the same data is read multiple times, cache it
+        in a register or load it into shared memory.</li>
+      </ol>
+
+<pre><code>// BAD: A[i] loaded from global memory twice
+__global__ void badKernel(float* A, float* out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+    out[i] = A[i] * A[i] + 2.0f * A[i];  // 2 global loads for A[i]
+}
+
+// GOOD: load once into register, reuse in registers
+__global__ void goodKernel(float* A, float* out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+    float ai = A[i];              // one global read
+    out[i] = ai * ai + 2.0f * ai; // register arithmetic only
+}</code></pre>
+
+      <div class="concept-box">
+        <strong>Effective bandwidth is your benchmark.</strong>
+        Effective BW = (bytes read + bytes written) / kernel_time_seconds.
+        Compare to A100 peak: 2 TB/s. If a streaming kernel shows 200 GB/s (10% efficiency),
+        you almost certainly have uncoalesced access or excessive reloads.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="constant">Constant Memory &mdash; Broadcast Cache</h2>
+      <p>
+        Constant memory is a 64 KB region of global memory with a dedicated cache.
+        Its superpower: when ALL 32 threads in a warp read the <em>same address</em>,
+        the hardware broadcasts the value in a single transaction &mdash; zero additional cost.
+      </p>
+
+<pre><code>__constant__ float d_filter[64];  // declared at file scope, max 64 KB total
+__constant__ int   d_params[16];
+
+// Host: copy once before kernels run
+void setup(float* h_filter) {
+    cudaMemcpyToSymbol(d_filter, h_filter, 64 * sizeof(float));
+}
+
+__global__ void convKernel(const float* input, float* output, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+    float result = 0.0f;
+    for (int k = 0; k &lt; 64; k++) {
+        // All 32 threads in warp read d_filter[k] simultaneously
+        // Hardware broadcasts: 1 transaction serves all 32 threads
+        if (i + k &lt; n) result += input[i + k] * d_filter[k];
+    }
+    output[i] = result;
+}</code></pre>
+
+      <div class="warning-box">
+        <strong>Constant memory is only fast when all threads read the SAME address.</strong>
+        If different threads in a warp read different constant memory addresses, accesses are
+        serialized (32 separate transactions) &mdash; worse than regular global memory with L1 caching.
+        In that case, use global memory with <code>__ldg()</code> instead.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="texture">Texture Memory &mdash; Spatial Locality Cache</h2>
+      <p>
+        Texture memory is global memory accessed through a specialized read-only cache
+        optimized for 2D spatial locality. When threads access data near each other in 2D,
+        the texture cache pre-fetches neighbors &mdash; ideal for image processing, stencils,
+        and any access with 2D structure.
+      </p>
+      <p>Bonus: hardware bilinear/trilinear interpolation is free with texture reads.</p>
+
+<pre><code>// Create texture object from a CUDA array
+cudaArray_t cuArray;
+cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc&lt;float&gt;();
+cudaMallocArray(&amp;cuArray, &amp;channelDesc, width, height);
+cudaMemcpy2DToArray(cuArray, 0, 0, h_image, width*sizeof(float),
+                    width*sizeof(float), height, cudaMemcpyHostToDevice);
+
 cudaResourceDesc resDesc = {};
-resDesc.resType = cudaResourceTypePitch2D;
-resDesc.res.pitch2D.devPtr = d_image;
-resDesc.res.pitch2D.width  = width;
-resDesc.res.pitch2D.height = height;
-resDesc.res.pitch2D.pitchInBytes = pitch;
-resDesc.res.pitch2D.desc = cudaCreateChannelDesc&lt;float&gt;();
+resDesc.resType = cudaResourceTypeArray;
+resDesc.res.array.array = cuArray;
 
 cudaTextureDesc texDesc = {};
-texDesc.readMode = cudaReadModeElementType;
-texDesc.addressMode[0] = cudaAddressModeClamp;   // clamp out-of-bounds
-texDesc.addressMode[1] = cudaAddressModeClamp;
-texDesc.filterMode = cudaFilterModeLinear;        // bilinear interpolation!
+texDesc.addressMode[0]  = cudaAddressModeClamp;
+texDesc.addressMode[1]  = cudaAddressModeClamp;
+texDesc.filterMode      = cudaFilterModeLinear;  // bilinear interpolation FREE
+texDesc.readMode        = cudaReadModeElementType;
+texDesc.normalizedCoords = 0;
 
+cudaTextureObject_t texObj;
 cudaCreateTextureObject(&amp;texObj, &amp;resDesc, &amp;texDesc, nullptr);
 
-// In kernel:
-__global__ void sample(cudaTextureObject_t tex, float *output, int W, int H) {
+// Kernel using texture:
+__global__ void blurKernel(cudaTextureObject_t tex, float* out, int W, int H) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
-    if (x &lt; W &amp;&amp; y &lt; H) {
-        // tex2D gives bilinear interpolation for free!
-        float val = tex2D&lt;float&gt;(tex, x + 0.5f, y + 0.5f);
-        output[y * W + x] = val;
-    }
+    if (x &gt;= W || y &gt;= H) return;
+
+    float sum = 0.0f;
+    for (int dy = -1; dy &lt;= 1; dy++)
+        for (int dx = -1; dx &lt;= 1; dx++)
+            sum += tex2D&lt;float&gt;(tex, x + dx, y + dy);  // cached, with clamp
+    out[y * W + x] = sum / 9.0f;
 }</code></pre>
 
-      <h2>6. Local Memory — The Register Overflow</h2>
+      <hr class="section-divider" />
 
+      <h2 id="local">Local Memory &mdash; Register Spill Storage</h2>
       <p>
-        "Local memory" is a misleading name. It's not fast. It's private per-thread storage
-        that's physically located in global DRAM. The compiler uses it automatically when:
+        Local memory is <em>not</em> fast local storage &mdash; the name is misleading.
+        It is physically in global DRAM, private to each thread, with the same ~800-cycle latency.
+        The compiler uses it automatically when threads run out of registers.
       </p>
+      <p>It is also used for arrays inside a kernel when the compiler cannot prove
+      the index is constant at compile time:</p>
 
-      <ul>
-        <li>Registers overflow (register spilling)</li>
-        <li>Arrays indexed with non-constant indices (compiler can't put them in registers)</li>
-        <li>Large structs that don't fit in registers</li>
-      </ul>
-
-      <pre><code>__global__ void bad_local(float *out, int n) {
-    // This array will go to LOCAL MEMORY (not registers!)
-    // because it's indexed with a runtime value
-    float temp[64];
-    for (int i = 0; i &lt; 64; i++)
-        temp[i] = /* some computation */;
-    // temp[idx] ← runtime index → compiler puts temp[] in local (DRAM) memory
-    out[threadIdx.x] = temp[threadIdx.x % 64];
+<pre><code>__global__ void spilly(float* out) {
+    // This array likely goes to local memory (global DRAM):
+    float scratch[64];
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = i % 64;  // runtime-computed index = compiler can't use registers
+    scratch[idx] = sqrtf((float)i);
+    out[i] = scratch[idx];
 }
 
-// Check local memory usage with:
-// nvcc --ptxas-options=-v kernel.cu
-// Look for: N bytes lmem (lmem = local memory = BAD for performance)</code></pre>
+// nvcc -Xptxas -v will show:
+// Used 12 registers, 256 bytes lmem, ...
+//                             ^^^^ this means local memory spill!</code></pre>
 
-      <h2>Memory Selection Decision Framework</h2>
+      <div class="danger-box">
+        <strong>Local memory spilling is silent and devastating.</strong>
+        128 bytes lmem &times; 2048 threads per SM = 256 KB of hidden global memory traffic
+        per SM per invocation. Diagnose with <code>nvcc -Xptxas -v</code> and look for
+        non-zero lmem. In ncu: watch <code>l1tex__data_pipe_lsu_wavefronts_mem_local</code>.
+      </div>
 
-      <pre><code>  Q: What kind of access pattern?
+      <hr class="section-divider" />
 
-  All threads read SAME value?
-    → __constant__ memory
-       (broadcast from constant cache, 64KB limit)
+      <h2 id="decision">Which Memory to Use When</h2>
 
-  2D spatial access (like image sampling)?
-    → Texture memory
-       (hardware bilinear, boundary handling, 2D cache)
+      <table class="address-table">
+        <thead>
+          <tr><th>Scenario</th><th>Best Memory</th><th>Reason</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Per-thread scalar variable</td><td>Register</td><td>Free, 1-cycle</td></tr>
+          <tr><td>Data shared by all threads in block, reused many times</td><td>Shared memory</td><td>160&times; faster than global</td></tr>
+          <tr><td>Streaming data, each element used once</td><td>Global (coalesced)</td><td>No reuse, cache won't help</td></tr>
+          <tr><td>Config params used identically by all threads</td><td>Constant memory</td><td>Free broadcast</td></tr>
+          <tr><td>Read-only lookup, per-thread index</td><td>Global + __ldg()</td><td>Read-only L1 path</td></tr>
+          <tr><td>2D image / stencil access pattern</td><td>Texture memory</td><td>2D spatial cache + free interpolation</td></tr>
+          <tr><td>Per-thread scratch space</td><td>Shared memory (if shared) or registers</td><td>Avoid local memory = global DRAM</td></tr>
+          <tr><td>Data read K&gt;1 times within a block</td><td>Shared memory</td><td>One global load &rarr; K shared loads</td></tr>
+        </tbody>
+      </table>
 
-  Threads in same block share/reuse data?
-    → __shared__ memory
-       (programmer-managed L1, 48KB/block, needs __syncthreads)
+      <hr class="section-divider" />
 
-  Private per-thread, fits in 255 registers?
-    → Registers (compiler handles automatically)
+      <h2 id="profiling">Profiling Memory Usage with ncu</h2>
 
-  Private per-thread, doesn't fit?
-    → Local memory (compiler spills to global DRAM — minimize!)
+<pre><code>ncu --metrics   l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum,  l1tex__t_bytes_pipe_lsu_mem_global_op_st.sum,  l1tex__t_bytes_pipe_lsu_mem_shared_op_ld.sum,  l1tex__t_bytes_pipe_lsu_mem_local_op_ld.sum   ./myprogram</code></pre>
 
-  Everything else:
-    → Global memory (cudaMalloc / cudaFree)
-       (coalesce your accesses!)</code></pre>
+      <div class="output-block">
+<span class="comment"># Well-optimized tiled matmul on A100:</span>
+l1tex__t_bytes...global_op_ld.sum  =  2.15 GB   <span class="comment"># global reads</span>
+l1tex__t_bytes...global_op_st.sum  =  0.54 GB   <span class="comment"># global writes</span>
+l1tex__t_bytes...shared_op_ld.sum  = 34.36 GB   <span class="comment"># shared reads (16x reuse!)</span>
+l1tex__t_bytes...local_op_ld.sum   =  0    bytes <span class="comment"># no spills - good</span>
 
-      <h2>Memory Space Summary Table</h2>
+<span class="comment"># Naive matmul (no tiling):</span>
+l1tex__t_bytes...global_op_ld.sum  = 34.80 GB   <span class="comment"># 16x more global traffic!</span>
+l1tex__t_bytes...shared_op_ld.sum  =  0    bytes <span class="comment"># no shared memory used</span>
+      </div>
 
-      <pre><code>  Memory     | Size     | Latency  | Scope       | Lifetime    | Managed by
-  -----------+----------+----------+-------------+-------------+-----------
-  Registers  | 255/thd  | ~1 cyc   | Thread      | Kernel      | Compiler
-  Local      | ~512KB   | ~800 cyc | Thread      | Kernel      | Compiler
-  Shared     | 48KB/blk | ~5 cyc   | Block       | Kernel      | Programmer
-  Global     | GBs      | ~800 cyc | All threads | Application | Programmer
-  Constant   | 64KB     | ~5 cyc*  | All threads | Application | Programmer
-  Texture    | varies   | ~5 cyc*  | All threads | Application | Programmer
-  L2 Cache   | 40MB     | ~200 cyc | All threads | Auto        | Hardware
-  -----------+----------+----------+-------------+-------------+-----------
-  * cache hit. Cache miss = global memory latency.</code></pre>
+      <p>
+        The tiled kernel reads 2.15 GB from global but gets 34.36 GB of data through
+        shared memory &mdash; each global byte reused ~16 times (the tile width).
+        The naive kernel reads 34.80 GB from global for the same computation, resulting
+        in 16&times; the memory bandwidth demand and proportionally lower performance.
+      </p>
 
-      <h2>Takeaways</h2>
+      <div class="concept-box">
+        <strong>Memory optimization workflow:</strong>
+        (1) Profile with ncu to find actual traffic per memory type.
+        (2) If global reads are high relative to computation, look for tiling opportunities.
+        (3) If local memory traffic is non-zero, reduce register usage or refactor loops.
+        (4) Re-profile. Repeat until you hit the bandwidth ceiling or compute ceiling.
+      </div>
 
-      <ul>
-        <li>Registers are fastest (1 cycle) but limited (~255/thread). Spilling to local memory (DRAM) is costly.</li>
-        <li>Shared memory (~5 cycles) is the primary optimization lever — use it to cache frequently-reused data.</li>
-        <li>Global memory is the default but slow (800 cycles) — always coalesce access patterns.</li>
-        <li>Constant memory is ideal when all threads read the same value (broadcast).</li>
-        <li>Texture memory adds free bilinear interpolation and spatial caching for 2D data.</li>
-        <li>Local memory is just global memory — minimize its use (watch for ptxas warnings).</li>
-        <li>Check register count and spilling: <code>nvcc --ptxas-options=-v</code></li>
-        <li>Next: <a href="cuda-phase3-shared-memory.html">Phase 3.2 — Shared Memory and Bank Conflicts</a></li>
-      </ul>
+      <div class="series-nav">
+        <span><a href="cuda-phase2-error-handling.html">&larr; 2.3 &mdash; Error Handling in CUDA</a></span>
+        <span><a href="cuda-phase3-shared-memory.html">3.2 &mdash; Shared Memory and Bank Conflicts &rarr;</a></span>
+      </div>
 
     </div>
   </main>
-
-  <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
-  </footer>
 
 </body>
 </html>

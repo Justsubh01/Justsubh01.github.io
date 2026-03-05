@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery Phase 4.1 — Warps and Warp Divergence — Sudhanshu</title>
+  <title>CUDA Mastery 4.1 — Warps, SIMT, and Warp Divergence — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -19,11 +19,22 @@
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
+    .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
   </style>
 </head>
 <body>
   <nav>
-    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
     <div class="nav-links">
       <a href="../index.html#writing">writing</a>
       <a href="../index.html#about">about</a>
@@ -31,278 +42,361 @@
     </div>
   </nav>
   <main>
-    <a href="../index.html" class="back-link">← back to home</a>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
     <div class="post-header">
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 22 min read</span>
+        <span class="read-time">&middot; 28 min read</span>
       </div>
-      <h1>CUDA Mastery Phase 4.1 — Warps, SIMT, and Warp Divergence: Thinking in Groups of 32</h1>
+      <h1>Warps, SIMT, and Warp Divergence &mdash; The Execution Model Under the Hood</h1>
       <p class="post-description">
-        Why GPUs execute threads in groups of 32 called warps, how the SIMT model secretly
-        handles if/else by running both branches, why this can halve your throughput, and
-        the patterns that eliminate divergence in real kernels.
+        Every CUDA performance conversation eventually comes back to warps. A warp is 32
+        threads executing the same instruction in lockstep. Understanding how warps are
+        scheduled, what happens when they diverge, and how the SM hides memory latency
+        through warp switching is essential for writing fast kernels.
       </p>
     </div>
     <div class="post-body">
 
       <p>
-        The warp is the fundamental execution unit of the GPU. Not the thread. Not the block.
-        The warp. Everything about GPU performance — divergence, occupancy, memory coalescing,
-        shuffle operations — is defined at the warp level. If you understand warps, you
-        understand CUDA.
+        Threads are the CUDA abstraction. Warps are the CUDA reality.
+        The hardware never actually runs individual threads &mdash; it runs warps of 32 threads
+        in lockstep. Every performance characteristic of a CUDA kernel &mdash; occupancy,
+        latency hiding, divergence cost, register pressure &mdash; is ultimately a warp-level story.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_cuda_warp_divergence.gif" alt="Warp divergence serialization animation" />
-        <p class="gif-caption">Without divergence (left): all 32 threads execute the same path simultaneously — full SIMT efficiency. With divergence (right): threads taking different branches are serialized — the warp executes both paths sequentially, cutting throughput by up to 2×.</p>
+        <img src="assets/gif_cuda_warp_divergence.gif" alt="Warp divergence serialization" />
+        <p class="gif-caption">Without divergence (left): all 32 threads execute the same path simultaneously &mdash; full SIMT throughput. With if/else divergence (right): the warp serializes both paths, masking inactive threads on each pass. For equal-probability branches, effective throughput is halved.</p>
       </div>
 
-      <h2>1. What a Warp Is</h2>
-
-      <pre><code>  A warp = 32 consecutive threads from the same block.
-
-  When a block of 256 threads is assigned to an SM, it's split into warps:
-  Warp 0:  threads  0-31
-  Warp 1:  threads 32-63
-  Warp 2:  threads 64-95
-  ...
-  Warp 7:  threads 224-255
-
-  The SM's warp scheduler issues ONE instruction to ALL 32 threads in a warp
-  simultaneously, every clock cycle. All 32 threads execute in lockstep.
-
-  SIMT = Single Instruction, Multiple Threads
-  (analogous to CPU's SIMD, but the "width" is hidden from the programmer)</code></pre>
-
-      <h2>2. Warp Scheduling — Latency Hiding</h2>
-
-      <div class="gif-wrap">
-        <img src="assets/gif_cuda_warp_scheduling.gif" alt="SM warp scheduling and latency hiding animation" />
-        <p class="gif-caption">The SM's warp scheduler switches between ready warps every cycle. When warp A issues a memory load (800-cycle latency), the scheduler immediately runs warp B, C, D... — hiding the stall. High occupancy = more warps to switch between = more latency hidden.</p>
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#what-is-warp">What Is a Warp</a></li>
+          <li><a href="#simt">SIMT Execution Model</a></li>
+          <li><a href="#scheduling">Warp Scheduling &mdash; Latency Hiding</a></li>
+          <li><a href="#occupancy">Occupancy &mdash; How Many Warps Are Active</a></li>
+          <li><a href="#divergence">Warp Divergence in Depth</a></li>
+          <li><a href="#eliminate">Eliminating Divergence</a></li>
+          <li><a href="#primitives">Warp-Level Primitives</a></li>
+          <li><a href="#measuring">Measuring Divergence with ncu</a></li>
+        </ol>
       </div>
 
-      <pre><code>  An SM has 4 warp schedulers, each can issue 1 instruction/cycle.
-  Each SM can hold up to 64 active warps (2048 threads).
+      <hr class="section-divider" />
 
-  When a warp stalls (e.g., waiting for global memory — 800 cycles):
-    → Scheduler picks a DIFFERENT ready warp to issue
-    → The stalled warp waits in the background
-    → When its memory returns, it becomes "ready" again
-
-  Timeline (simplified):
-  Cycle:   1    2    3   ...  800  801  802
-  Warp 0: [MEM_LOAD] ─────────────► [ready, resumes]
-  Warp 1:       [ISSUE inst] [ISSUE]
-  Warp 2:            [ISSUE inst] [ISSUE]
-  ...
-  Warp 0 didn't "stall" the SM — other warps kept it busy!
-
-  This is why GPUs don't need large L1 caches:
-  instead of caching to reduce latency, they use many warps to HIDE it.</code></pre>
-
-      <h2>3. Occupancy — How Many Warps Are Active</h2>
-
-      <pre><code>  Occupancy = (active warps per SM) / (max warps per SM)
-
-  Max warps per SM: 64 (A100)
-  If your kernel has 256 threads/block and 4 blocks fit per SM:
-    Active warps = 4 blocks × (256/32) = 4 × 8 = 32 warps
-    Occupancy = 32/64 = 50%
-
-  Higher occupancy → more warps to hide memory latency → better throughput
-
-  What limits occupancy:
-  1. Registers/thread: 32 regs/thread × 256 threads = 8192 regs/block
-     65536 regs per SM / 8192 = 8 blocks max → 8×8 = 64 warps = 100% ✓
-
-  2. Shared memory: if kernel uses 32KB/block and SM has 96KB:
-     96KB / 32KB = 3 blocks max → 3×8 = 24 warps = 37.5% ← limited!
-
-  3. Block size: if blockSize=1024, only 2 blocks fit (2048/1024=2)
-     → 2×32 = 64 warps = 100% ✓ (but huge block may have divergence)</code></pre>
-
-      <h2>4. Warp Divergence — The SIMT Trap</h2>
-
-      <pre><code>  When threads in a warp take different paths in an if/else,
-  the GPU executes BOTH paths, masking out inactive threads.
-  This is called warp divergence, and it serializes execution.
-
-  Example:
-  if (threadIdx.x &lt; 16) {
-      do_branch_A();   // threads 0-15 active
-  } else {
-      do_branch_B();   // threads 16-31 active
-  }
-
-  What the hardware does:
-  Pass 1: threads 0-15 execute branch A, threads 16-31 are MASKED OUT (idle)
-  Pass 2: threads 0-15 are MASKED OUT (idle), threads 16-31 execute branch B
-
-  Total time = time(branch A) + time(branch B)
-  vs ideal   = max(time(branch A), time(branch B))
-  → Up to 2× slower for this balanced split</code></pre>
-
-      <pre><code>  Worst case: each of the 32 threads takes a different path
-  → 32 sequential passes!
-  → Effective throughput: 1/32 of peak
-
-  Divergence cost:
-  ─────────────────────────────────────────────────────────
-  Splits | Paths | Time multiplier
-  ───────┼───────┼─────────────────
-     1   |  2    |       2×
-     2   |  3    |       3×
-    ...  |  ...  |      ...
-    31   |  32   |      32×
-  ─────────────────────────────────────────────────────────</code></pre>
-
-      <h2>5. Detecting Divergence</h2>
-
-      <pre><code>  # Nsight Compute metric for divergent branches:
-  ncu --metrics smsp__sass_branch_targets_threads_divergent.sum \
-      ./my_program
-
-  # Or use the "Warp State Statistics" section in Nsight Compute GUI
-  # Look for "Not Selected" cycles — these are cycles where a warp
-  # was eligible but another warp was chosen (mild divergence effect)</code></pre>
-
-      <h2>6. Patterns to Eliminate Divergence</h2>
-
-      <h3>Pattern 1: Sort data before processing</h3>
-      <pre><code>  // Bad: random data causes divergence
-  if (data[idx] &gt; threshold) {
-      expensive_path(data[idx]);
-  } else {
-      cheap_path(data[idx]);
-  }
-  // If data is random: warps contain mixed above/below threshold → divergence
-
-  // Fix: sort data by threshold first
-  // Now warps 0..K contain all "above" elements, warps K+1..N all "below"
-  // → No divergence within any warp</code></pre>
-
-      <h3>Pattern 2: Branch on blockIdx, not threadIdx</h3>
-      <pre><code>  // Bad: divergence within a warp
-  if (threadIdx.x % 2 == 0) { ... } else { ... }
-  // threads 0,2,4... take one path; threads 1,3,5... take other
-  // → 2-way divergence in every warp!
-
-  // Better: ensure all threads in a warp take the same path
-  if (blockIdx.x % 2 == 0) { ... } else { ... }
-  // entire blocks take same path → no divergence within a block</code></pre>
-
-      <h3>Pattern 3: Use predication instead of branching</h3>
-      <pre><code>  // Instead of:
-  if (idx &lt; n) {
-      result[idx] = compute(data[idx]);
-  }
-
-  // For simple operations, predication (conditional move) avoids a branch:
-  float val = (idx &lt; n) ? compute(data[idx]) : 0.0f;
-  if (idx &lt; n) result[idx] = val;
-  // Compiler often generates a conditional move (PREDICATED INSTRUCTION)
-  // which executes both paths but writes only the "active" result
-  // → No serialization, just one extra instruction</code></pre>
-
-      <h2>7. Warp-Level Primitives</h2>
+      <h2 id="what-is-warp">What Is a Warp</h2>
 
       <p>
-        Since CUDA 9.0, warp-level intrinsics use a <strong>mask</strong> to specify which
-        threads participate. Always use <code>__activemask()</code> or the full mask
-        <code>0xffffffff</code> for non-divergent code.
+        A <strong>warp</strong> is a group of 32 consecutive threads scheduled and executed together.
+        When you launch a block of 256 threads, the hardware automatically divides them into 8 warps
+        of 32: threads 0&ndash;31 in warp 0, threads 32&ndash;63 in warp 1, etc.
       </p>
 
-      <h3>__shfl_sync — Warp Shuffle (Register Exchange)</h3>
-      <pre><code>  // __shfl_sync: thread reads a value from another thread's register
-  // NO shared memory needed!
-
-  float val = my_value;
-  unsigned mask = 0xffffffff;  // all 32 threads participate
-
-  // Broadcast: all threads get thread 0's value:
-  float broadcast = __shfl_sync(mask, val, 0);
-
-  // Lane shift down: thread i gets value from thread i+delta:
-  float shifted = __shfl_down_sync(mask, val, 1);
-  // Thread 0 gets val from thread 1, thread 1 from thread 2, etc.
-
-  // Lane shift up: thread i gets value from thread i-delta:
-  float shifted_up = __shfl_up_sync(mask, val, 1);
-
-  // XOR swap pattern (butterfly for reductions):
-  float swapped = __shfl_xor_sync(mask, val, 1);  // 0↔1, 2↔3, 4↔5...</code></pre>
-
-      <h3>Warp Reduction with Shuffles (No Shared Memory)</h3>
-      <pre><code>  // Sum reduction of 32 values in a warp:
-  __device__ float warpReduceSum(float val) {
-      unsigned mask = 0xffffffff;
-      for (int offset = 16; offset &gt; 0; offset /= 2)
-          val += __shfl_down_sync(mask, val, offset);
-      return val;  // thread 0 holds the sum of all 32 values
-  }
-
-  // Visualization (for 8 threads, simplified):
-  // Initial: [1 2 3 4 5 6 7 8]
-  // offset=4: each thread adds value from +4 lanes:
-  //           [1+5  2+6  3+7  4+8  5  6  7  8] = [6 8 10 12 ...]
-  // offset=2: [6+10  8+12  10  12  ...] = [16 20 ...]
-  // offset=1: [16+20  20  ...] = [36 ...]
-  // Thread 0 holds 36 = 1+2+3+4+5+6+7+8 ✓</code></pre>
-
-      <h3>__ballot_sync — Vote Which Threads Are Active</h3>
-      <pre><code>  // Returns a 32-bit mask where bit i=1 if thread i's predicate is true:
-  unsigned active = __ballot_sync(0xffffffff, my_condition);
-
-  // Count active threads:
-  int count = __popc(active);   // popcount = number of set bits
-
-  // Check if ANY thread satisfies condition:
-  bool any = __any_sync(0xffffffff, my_condition);
-
-  // Check if ALL threads satisfy condition:
-  bool all = __all_sync(0xffffffff, my_condition);</code></pre>
-
-      <h2>8. The "Warp is the Execution Unit" Rule</h2>
-
-      <pre><code>  Rules to remember:
-
-  1. Threads in a warp execute IN LOCKSTEP — same instruction every cycle.
-
-  2. A __syncthreads() barrier is per-BLOCK, not per-warp.
-     All warps in the block must reach it.
-
-  3. Memory accesses are coalesced at the WARP level (32 threads together).
-
-  4. Warp shuffles (__shfl_sync) communicate between threads WITHOUT
-     shared memory — zero shared memory needed for intra-warp operations.
-
-  5. Divergent warps serialize. Non-divergent warps parallelize fully.
-
-  6. occupancy is measured in warps per SM, not threads.
-
-  7. The warp size is ALWAYS 32 on all current NVIDIA GPUs.
-     Never hardcode 32 — use the constant:
-     const int WARP_SIZE = 32;  // or query: cudaDeviceGetAttribute</code></pre>
-
-      <h2>Takeaways</h2>
-
+      <p>Key warp facts:</p>
       <ul>
-        <li>A warp = 32 consecutive threads that execute the same instruction in lockstep (SIMT).</li>
-        <li>Warp scheduling hides memory latency by switching to other warps while one stalls.</li>
-        <li>Warp divergence (if/else with mixed outcomes in a warp) serializes execution — up to 32× slower.</li>
-        <li>Eliminate divergence: sort data, branch on blockIdx not threadIdx, use predication.</li>
-        <li><code>__shfl_sync()</code> exchanges registers between threads in a warp without shared memory.</li>
-        <li><code>__ballot_sync()</code> returns a bitmask of which threads satisfy a condition.</li>
-        <li>Warp size is always 32 — memory coalescing, divergence, occupancy all defined at this level.</li>
-        <li>Next: <a href="cuda-phase4-reduction.html">Phase 4.2 — Parallel Reduction</a></li>
+        <li>Warp size is always 32 &mdash; this has been true since CUDA 1.0 and is architecturally fixed</li>
+        <li>Blocks are always a multiple of 32 threads in effective scheduling (a block of 33 threads has 2 warps, with 31 active in the second warp)</li>
+        <li>The lane ID of a thread within its warp is <code>threadIdx.x % 32</code></li>
+        <li>The warp ID within a block is <code>threadIdx.x / 32</code></li>
+        <li>All 32 threads in a warp issue the same instruction each cycle (SIMT)</li>
       </ul>
 
+<pre><code>__global__ void warpInfo() {
+    int tid    = threadIdx.x;
+    int laneId = tid % 32;        // position within warp (0-31)
+    int warpId = tid / 32;        // which warp within block
+    int globalWarpId = (blockIdx.x * blockDim.x + tid) / 32;
+
+    printf("thread %3d: lane=%2d, warp_in_block=%d, global_warp=%d\n",
+           tid, laneId, warpId, globalWarpId);
+}</code></pre>
+
+      <hr class="section-divider" />
+
+      <h2 id="simt">SIMT Execution Model</h2>
+
+      <p>
+        SIMT stands for Single Instruction, Multiple Threads. All 32 threads in a warp
+        execute the same instruction at the same time, but each operates on different data
+        (different register values, different memory addresses computed from their thread index).
+      </p>
+
+      <p>
+        This is similar to SIMD (Single Instruction Multiple Data, as in x86 AVX), but
+        with a key difference: SIMT threads can <em>diverge</em> (take different code paths
+        through if/else). SIMD cannot &mdash; all SIMD lanes must execute the same operation.
+      </p>
+
+      <table class="address-table">
+        <thead><tr><th>Feature</th><th>SIMD (x86 AVX)</th><th>SIMT (CUDA)</th></tr></thead>
+        <tbody>
+          <tr><td>Vector width</td><td>8 floats (256-bit)</td><td>32 threads</td></tr>
+          <tr><td>Divergence allowed?</td><td>No &mdash; all lanes must do same op</td><td>Yes &mdash; with serialization penalty</td></tr>
+          <tr><td>Programmer model</td><td>Explicit vectorization (intrinsics)</td><td>Scalar code, hardware vectorizes</td></tr>
+          <tr><td>Masking</td><td>Explicit mask registers</td><td>Automatic predication</td></tr>
+          <tr><td>Lane communication</td><td>Via shuffle/permute intrinsics</td><td>Via __shfl_sync() intrinsics</td></tr>
+        </tbody>
+      </table>
+
+      <hr class="section-divider" />
+
+      <h2 id="scheduling">Warp Scheduling &mdash; Latency Hiding</h2>
+
+      <div class="gif-wrap">
+        <img src="assets/gif_cuda_warp_scheduling.gif" alt="SM warp scheduling latency hiding" />
+        <p class="gif-caption">The SM's 4 warp schedulers interleave warps every cycle. When warp A issues a memory load and stalls for ~800 cycles, the scheduler immediately switches to warp B, C, D... &mdash; keeping the execution units busy. By the time the scheduler returns to warp A, the data has (ideally) arrived.</p>
+      </div>
+
+      <p>
+        An A100 SM has 4 independent warp schedulers, each capable of issuing one instruction
+        per cycle. Each SM can hold up to 64 warps (2048 threads) simultaneously.
+        When a warp stalls (waiting for a memory load, a function call, or a sync),
+        the scheduler immediately switches to another ready warp &mdash; zero idle cycles.
+      </p>
+
+      <p>
+        This is the GPU's primary latency-hiding mechanism. Global memory latency is ~800 cycles.
+        If you have 20 warps active per SM, and each warp issues a load every 40 instructions,
+        you have 20 &times; 40 = 800 instructions of other work to execute while each warp waits.
+        The GPU never stalls &mdash; it just keeps switching.
+      </p>
+
+      <div class="concept-box">
+        <strong>The warp scheduler timeline:</strong><br/>
+        Cycle 1: Warp 0 issues load (800-cycle stall starts)<br/>
+        Cycle 2: Warp 1 executes arithmetic<br/>
+        Cycle 3: Warp 2 executes arithmetic<br/>
+        ...<br/>
+        Cycle 800: Warp 0's data arrives, scheduler can issue next instruction<br/>
+        &rarr; Zero cycles wasted if enough warps are active
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="occupancy">Occupancy &mdash; How Many Warps Are Active</h2>
+
+      <p>
+        <strong>Occupancy</strong> = (active warps on SM) / (maximum warps on SM).
+        For an A100: max warps = 64, so occupancy = active_warps / 64.
+      </p>
+
+      <p>Three resources limit occupancy:</p>
+      <ol>
+        <li><strong>Registers:</strong> 65,536 total per SM &divide; registers_per_thread &divide; 32 = max warps</li>
+        <li><strong>Shared memory:</strong> total_smem / smem_per_block = max blocks (each block has at least 1 warp)</li>
+        <li><strong>Block size:</strong> max_threads_per_SM / threads_per_block = max blocks</li>
+      </ol>
+
+      <table class="address-table">
+        <thead><tr><th>Registers/thread</th><th>Max threads/SM</th><th>Occupancy</th><th>Typical performance impact</th></tr></thead>
+        <tbody>
+          <tr><td>32</td><td>2048 (64 warps)</td><td>100%</td><td>Maximum latency hiding</td></tr>
+          <tr><td>64</td><td>1024 (32 warps)</td><td>50%</td><td>Usually fine (&gt;90% of peak)</td></tr>
+          <tr><td>128</td><td>512 (16 warps)</td><td>25%</td><td>Starts hurting for memory-bound kernels</td></tr>
+          <tr><td>255</td><td>256 (8 warps)</td><td>12.5%</td><td>Likely performance problem</td></tr>
+        </tbody>
+      </table>
+
+<pre><code>// Query optimal block size for a kernel:
+int minGridSize, blockSize;
+cudaOccupancyMaxPotentialBlockSize(&amp;minGridSize, &amp;blockSize, myKernel, 0, 0);
+printf("Optimal block size: %d\n", blockSize);
+printf("Suggested grid size: %d\n", minGridSize);
+
+// Query actual occupancy for a given launch config:
+int activeWarps, maxWarps;
+cudaOccupancyMaxActiveBlocksPerMultiprocessor(&amp;activeWarps, myKernel, blockSize, smemBytes);
+cudaDeviceProp prop;
+cudaGetDeviceProperties(&amp;prop, 0);
+maxWarps = prop.maxThreadsPerMultiProcessor / 32;
+printf("Occupancy: %.1f%%\n", (float)(activeWarps * blockSize / 32) / maxWarps * 100);</code></pre>
+
+      <hr class="section-divider" />
+
+      <h2 id="divergence">Warp Divergence in Depth</h2>
+
+      <p>
+        Warp divergence occurs when threads within the same warp take different code paths
+        through an <code>if/else</code>, <code>switch</code>, or loop with variable iteration count.
+      </p>
+
+      <p>How the hardware handles it:</p>
+      <ol>
+        <li>Warp reaches branch: evaluate predicate for all 32 threads</li>
+        <li>32-bit mask created: 1 = thread takes branch, 0 = thread skips</li>
+        <li>Execute "if" body with threads where mask=1, others are masked off (no-op)</li>
+        <li>Execute "else" body with threads where mask=0, others are masked off</li>
+        <li>Warp reconverges at merge point</li>
+      </ol>
+
+<pre><code>// Example: 50% divergence
+__global__ void divergentKernel(float* out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+
+    // Threads 0-15 in each warp take if, threads 16-31 take else
+    // Both paths execute sequentially with half the threads masked
+    if (i % 2 == 0) {
+        out[i] = sqrtf(out[i]);     // heavy: only even threads active
+    } else {
+        out[i] = out[i] * 2.0f;    // light: only odd threads active
+    }
+    // Reconverge here
+}
+
+// Effective throughput: ~50% of non-divergent version</code></pre>
+
+      <p>
+        The performance cost depends on the balance between branches. Worst case:
+        50/50 split (half the warp idles during each branch). Best case: one branch
+        is essentially a no-op (the masked threads do nothing meaningful).
+      </p>
+
+      <div class="warning-box">
+        <strong>Bounds-check divergence is fine.</strong> The most common divergence pattern &mdash;
+        <code>if (i &gt;= N) return;</code> &mdash; only affects the last warp of a grid when N is not
+        a multiple of 32. This is at most 1 warp out of thousands and has negligible impact.
+        Don't over-optimize this.
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="eliminate">Eliminating Divergence</h2>
+
+      <p>Three strategies:</p>
+
+      <h3>1. Sort data so threads in same warp do the same thing</h3>
+
+<pre><code>// DIVERGENT: sparse operation, each thread may or may not work
+__global__ void sparseNaive(float* data, int* mask, float* out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+    if (mask[i]) {          // some threads skip, some don't &rarr; divergence
+        out[i] = sqrtf(data[i]);
+    }
+}
+
+// BETTER: pre-sort active indices, all threads always work
+// (requires prefix sum to compact active indices)
+__global__ void sparseCompact(float* data, int* activeIdx, float* out, int nActive) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= nActive) return;
+    int idx = activeIdx[i];     // all threads take same path, no divergence
+    out[idx] = sqrtf(data[idx]);
+}</code></pre>
+
+      <h3>2. Hoist branches out of loops</h3>
+
+<pre><code>// SLOW: branch inside loop re-evaluated every iteration
+__global__ void branchInLoop(float* A, float* B, float* C, int n, bool useA) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    for (int j = 0; j &lt; n; j++) {
+        if (useA) C[i] += A[j];   // branch evaluated n times
+        else      C[i] += B[j];
+    }
+}
+
+// FAST: branch hoisted, separate kernels, no divergence
+__global__ void useAKernel(float* A, float* C, int n) { ... }
+__global__ void useBKernel(float* B, float* C, int n) { ... }
+// Choose kernel on CPU, zero divergence in either</code></pre>
+
+      <h3>3. Use arithmetic instead of branches</h3>
+
+<pre><code>// DIVERGENT: if/else inside hot loop
+__global__ void withBranch(float* out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+    if (out[i] &lt; 0.0f) out[i] = 0.0f;  // ReLU with branch
+}
+
+// NO DIVERGENCE: arithmetic equivalent (compiler often does this automatically)
+__global__ void noBranch(float* out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= n) return;
+    out[i] = fmaxf(out[i], 0.0f);  // no branch, single instruction
+}</code></pre>
+
+      <hr class="section-divider" />
+
+      <h2 id="primitives">Warp-Level Primitives</h2>
+
+      <p>
+        Since Volta (compute capability 7.0), CUDA provides direct warp-level intrinsics
+        that let threads within a warp communicate without shared memory. These are faster
+        than shared memory for intra-warp communication.
+      </p>
+
+<pre><code>// __shfl_sync: broadcast a value from one lane to all others
+__global__ void broadcastFromLane0(float* out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    float val = (threadIdx.x % 32 == 0) ? out[i] : 0.0f;  // only lane 0 has data
+    // Broadcast lane 0's value to all other lanes in the warp
+    val = __shfl_sync(0xFFFFFFFF, val, 0);  // srcLane = 0
+    out[i] = val;
+}
+
+// __shfl_down_sync: shift values down (for reduction)
+__device__ float warpReduceSum(float val) {
+    unsigned mask = 0xFFFFFFFF;  // all 32 lanes participate
+    for (int offset = 16; offset &gt; 0; offset /= 2) {
+        val += __shfl_down_sync(mask, val, offset);
+    }
+    return val;  // lane 0 has the sum of all 32 lanes
+}
+
+// __ballot_sync: which threads have predicate true?
+__global__ void countActive(int* data, int* count, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    bool active = (i &lt; n) &amp;&amp; (data[i] &gt; 0);
+    // 32-bit mask: bit k = 1 if thread k in this warp has active=true
+    unsigned mask = __ballot_sync(0xFFFFFFFF, active);
+    if (threadIdx.x % 32 == 0) {
+        atomicAdd(count, __popc(mask));  // popcount = number of active threads
+    }
+}</code></pre>
+
+      <table class="address-table">
+        <thead><tr><th>Intrinsic</th><th>What it does</th><th>Use case</th></tr></thead>
+        <tbody>
+          <tr><td>__shfl_sync(mask, val, src)</td><td>Broadcast from lane src to all</td><td>Broadcasting a common value</td></tr>
+          <tr><td>__shfl_up_sync(mask, val, delta)</td><td>Copy from lane (i-delta)</td><td>Prefix scan patterns</td></tr>
+          <tr><td>__shfl_down_sync(mask, val, delta)</td><td>Copy from lane (i+delta)</td><td>Reduction patterns</td></tr>
+          <tr><td>__shfl_xor_sync(mask, val, lane_mask)</td><td>Exchange with XOR-partner</td><td>Butterfly reductions</td></tr>
+          <tr><td>__ballot_sync(mask, pred)</td><td>32-bit active mask from predicate</td><td>Counting, compaction</td></tr>
+          <tr><td>__any_sync(mask, pred)</td><td>True if any thread has pred=true</td><td>Early exit conditions</td></tr>
+          <tr><td>__all_sync(mask, pred)</td><td>True if all threads have pred=true</td><td>Uniform path detection</td></tr>
+        </tbody>
+      </table>
+
+      <hr class="section-divider" />
+
+      <h2 id="measuring">Measuring Divergence with ncu</h2>
+
+<pre><code>ncu --metrics   smsp__thread_inst_executed_pred_on_per_inst_executed.ratio,  smsp__average_warp_latency_per_inst_issued.ratio   ./myprogram</code></pre>
+
+      <div class="output-block">
+<span class="comment"># No divergence kernel:</span>
+smsp__thread_inst_executed_pred_on_per_inst_executed.ratio = 1.000
+<span class="comment"># 1.0 means all 32 threads active on every instruction = perfect</span>
+
+<span class="comment"># 50% divergence kernel (alternating if/else by thread index):</span>
+smsp__thread_inst_executed_pred_on_per_inst_executed.ratio = 0.500
+<span class="comment"># 0.5 means on average only 16/32 threads active = 2x wasted work</span>
+
+<span class="comment"># Bounds-check only (if i >= N return, last warp partial):</span>
+smsp__thread_inst_executed_pred_on_per_inst_executed.ratio = 0.998
+<span class="comment"># 0.998 = negligible, don't worry about it</span>
+      </div>
+
+      <div class="series-nav">
+        <span><a href="cuda-phase3-unified-memory.html">&larr; 3.4 &mdash; Unified Memory</a></span>
+        <span><a href="cuda-phase4-reduction.html">4.2 &mdash; Parallel Reduction &rarr;</a></span>
+      </div>
     </div>
   </main>
-  <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
-  </footer>
 </body>
 </html>

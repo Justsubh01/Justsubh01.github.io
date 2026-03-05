@@ -3,36 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery Phase 6 — Interview Prep — Sudhanshu</title>
+  <title>CUDA Mastery 6 — Interview Preparation — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
     .concept-box { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
     .warning-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
-    .danger-box { background: #fff1f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
     .output-block { background: #0f172a; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-family: monospace; font-size: 0.85rem; color: #a3e635; overflow-x: auto; border: 1px solid #1e293b; }
     .output-block .comment { color: #64748b; }
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
-    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
-    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
-    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
-    .address-table tr:nth-child(even) td { background: #f8fafc; }
-    .gif-wrap { text-align: center; margin: 2.5rem 0; }
-    .gif-wrap img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
-    .gif-caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; font-style: italic; line-height: 1.5; }
     .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
     .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .toc ol { margin: 0; padding-left: 1.2rem; }
     .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
     .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
+    .qa-block { border: 1px solid var(--border); border-radius: 8px; margin: 1.5rem 0; overflow: hidden; }
+    .qa-question { background: #f8fafc; padding: 0.85rem 1.1rem; font-weight: 600; font-size: 0.95rem; border-bottom: 1px solid var(--border); }
+    .qa-answer { padding: 0.9rem 1.1rem; font-size: 0.92rem; line-height: 1.6; }
   </style>
 </head>
 <body>
   <nav>
-    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
     <div class="nav-links">
       <a href="../index.html#writing">writing</a>
       <a href="../index.html#about">about</a>
@@ -40,480 +41,578 @@
     </div>
   </nav>
   <main>
-    <a href="../index.html" class="back-link">← back to home</a>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
     <div class="post-header">
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 35 min read</span>
+        <span class="read-time">&middot; 35 min read</span>
       </div>
-      <h1>CUDA Mastery Phase 6 — NVIDIA Interview Prep: Questions, Coding Problems, and What to Study</h1>
+      <h1>CUDA Interview Preparation &mdash; 40 Questions and Complete Answers</h1>
       <p class="post-description">
-        The complete preparation guide for NVIDIA and GPU-computing interviews — 25+ conceptual
-        Q&amp;As, full solutions to 6 coding problems, system design patterns, and the study
-        schedule that gets you ready in 4 weeks.
+        These 40 questions cover everything interviewers ask about GPU programming:
+        thread hierarchy, memory hierarchy, coalescing, warps, reduction, streams,
+        profiling, and architecture. For each question I give the answer I would give
+        in an interview &mdash; direct, technical, and with numbers.
       </p>
     </div>
     <div class="post-body">
 
-      <p>
-        NVIDIA interviews for GPU software roles are deep. They expect you to reason about
-        hardware at the warp level, write optimized kernels from scratch, and design
-        full GPU pipelines. I've compiled the most common questions from public sources,
-        Discord communities, and my own prep. This is the guide I wish I had.
-      </p>
+      <div class="toc">
+        <h4>Sections</h4>
+        <ol>
+          <li><a href="#basics">Thread Model and Execution (Q1&ndash;10)</a></li>
+          <li><a href="#memory">Memory Hierarchy (Q11&ndash;20)</a></li>
+          <li><a href="#optimization">Optimization Patterns (Q21&ndash;30)</a></li>
+          <li><a href="#profiling-q">Profiling and Architecture (Q31&ndash;40)</a></li>
+          <li><a href="#coding">Coding Challenges</a></li>
+        </ol>
+      </div>
 
-      <h2>Part 1 — Conceptual Questions</h2>
+      <hr class="section-divider" />
 
-      <h3>Q1: What is a warp? How many threads does it contain?</h3>
-      <p>
-        A warp is the fundamental execution unit of the GPU: a group of 32 consecutive threads
-        from the same block that execute the same instruction in lockstep (SIMT). The warp size
-        is always 32 on all current NVIDIA GPU architectures. All performance concepts —
-        coalescing, divergence, occupancy — are defined at the warp level.
-      </p>
+      <h2 id="basics">Thread Model and Execution (Q1&ndash;10)</h2>
 
-      <h3>Q2: What is warp divergence? How do you detect and avoid it?</h3>
-      <p>
-        Warp divergence occurs when threads in the same warp take different paths through an
-        if/else branch. The hardware executes both paths sequentially, masking out inactive
-        threads — up to 32× slower in the worst case. Detect it with <code>ncu --metrics
-        smsp__sass_branch_targets_threads_divergent.sum</code>. Avoid it by: sorting data so
-        warps contain homogeneous values, branching on blockIdx instead of threadIdx, or
-        restructuring algorithms to eliminate conditional branches.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q1. What is a warp, and why is it 32?</div>
+        <div class="qa-answer">
+          A warp is a group of 32 threads that are scheduled and executed together on an SM.
+          The hardware executes all 32 threads in lockstep &mdash; same instruction, different data (SIMT).
+          The size 32 is a hardware design choice that balances SIMT width against die area;
+          it has been 32 since CUDA 1.0 and is unlikely to change. Key implications:
+          (1) block sizes should be multiples of 32 to avoid partial warps wasting capacity,
+          (2) threads within a warp can use __shfl_sync() for zero-cost communication,
+          (3) divergent branches within a warp are serialized.
+        </div>
+      </div>
 
-      <h3>Q3: Explain memory coalescing. What determines a coalesced access?</h3>
-      <p>
-        When a warp issues a global memory access, the hardware coalesces all 32 thread
-        requests into as few 128-byte cache line transactions as possible. A perfectly
-        coalesced access occurs when 32 consecutive threads access 32 consecutive addresses
-        aligned to a 128-byte boundary — resulting in a single transaction. Strided or random
-        access requires multiple transactions, wasting bandwidth. Check with
-        <code>smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct</code> in Nsight Compute.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q2. What is the difference between a thread block and a warp?</div>
+        <div class="qa-answer">
+          A thread block is a programmer-defined unit of up to 1024 threads that share an SM and
+          can communicate via shared memory + __syncthreads(). A warp is a hardware-defined unit
+          of exactly 32 threads that execute in lockstep. A block of 256 threads contains 8 warps.
+          Blocks are software abstractions; warps are hardware execution units. You define blocks;
+          the hardware creates warps from them automatically.
+        </div>
+      </div>
 
-      <h3>Q4: What is the difference between shared memory and global memory?</h3>
-      <pre><code>  Property      | Shared Memory          | Global Memory
-  ──────────────┼────────────────────────┼────────────────────────
-  Location      | On-chip (SM)           | Off-chip (DRAM)
-  Latency       | ~5 cycles              | ~800 cycles
-  Bandwidth     | ~10+ TB/s              | ~2 TB/s (A100)
-  Size          | 48KB per block         | GBs (80GB on A100)
-  Scope         | Block only             | All threads, host
-  Managed by    | Programmer             | Programmer (cudaMalloc)
-  Declaration   | __shared__             | cudaMalloc / __device__
-  Lifetime      | Kernel                 | Application
-  ──────────────┴────────────────────────┴────────────────────────</code></pre>
+      <div class="qa-block">
+        <div class="qa-question">Q3. What is SIMT and how does it differ from SIMD?</div>
+        <div class="qa-answer">
+          SIMT (Single Instruction Multiple Threads) executes the same instruction on 32 threads
+          simultaneously. Unlike SIMD (e.g., x86 AVX), SIMT allows threads to diverge &mdash; take
+          different code paths through if/else &mdash; with a serialization penalty. SIMD requires
+          all lanes to do exactly the same operation. SIMT threads can also be at different memory
+          addresses independently, whereas SIMD typically requires contiguous data. The tradeoff:
+          SIMT is easier to program (write scalar code) but divergence costs throughput.
+        </div>
+      </div>
 
-      <h3>Q5: What is occupancy? What limits it? How do you maximize it?</h3>
-      <p>
-        Occupancy is the ratio of active warps to maximum warps on an SM. Higher occupancy
-        means more warps to hide memory latency. It's limited by: register count per thread
-        (65536 registers / SM), shared memory per block (96KB / SM on A100), and block count
-        per SM (32 max). Maximize it by: reducing register usage (simplify code, check
-        ptxas output), reducing shared memory per block (use smaller tiles), choosing block
-        sizes that fill SM capacity, and using <code>__launch_bounds__</code> to give the
-        compiler a register budget constraint.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q4. What is occupancy and why does it matter?</div>
+        <div class="qa-answer">
+          Occupancy = (active warps on SM) / (maximum warps on SM). For an A100: max = 64 warps.
+          It matters because the GPU hides memory latency by switching between ready warps.
+          More active warps = more latency hiding = better throughput for memory-bound kernels.
+          However, occupancy is not linearly related to performance &mdash; going from 25% to 50%
+          occupancy often has minimal impact once the SM has enough warps to hide L2 latency (~8 warps).
+          Resource limits: registers (65,536/SM &divide; regs/thread), shared memory (192KB/SM &divide; smem/block),
+          and thread count (2048/SM).
+        </div>
+      </div>
 
-      <h3>Q6: What is a bank conflict?</h3>
-      <p>
-        Shared memory is divided into 32 banks, each 4 bytes wide. A bank conflict occurs
-        when multiple threads in a warp access the same bank at different addresses —
-        their accesses serialize. An N-way conflict is N× slower. Fix by padding shared
-        memory arrays: <code>__shared__ float data[TILE][TILE + 1]</code> shifts column
-        accesses to different banks.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q5. What is warp divergence and how do you fix it?</div>
+        <div class="qa-answer">
+          Warp divergence occurs when threads within the same warp take different code paths
+          (if/else, switch). The hardware executes both paths sequentially with inactive threads
+          masked off, reducing effective throughput. For a 50/50 branch, throughput is halved.
+          Fixes: (1) sort data so threads in the same warp always take the same branch,
+          (2) use arithmetic instead of branches (e.g., fmaxf(val, 0) instead of if(val&lt;0) val=0),
+          (3) restructure into separate kernels for different cases,
+          (4) use warp voting (__any_sync, __all_sync) to detect uniform branches.
+          Note: bounds-check divergence (if i &gt;= N return) only affects the last warp and is negligible.
+        </div>
+      </div>
 
-      <h3>Q7: What is the Roofline model?</h3>
-      <p>
-        The Roofline model describes the achievable performance as:
-        <code>Performance = min(Peak_FLOPS, Bandwidth × Arithmetic_Intensity)</code>.
-        Arithmetic Intensity (AI) = FLOPs / bytes transferred from DRAM. If your kernel
-        has AI less than the "ridge point" (Peak_FLOPS / Bandwidth ≈ 10 for A100), it's
-        memory-bound; adding more compute doesn't help. If AI exceeds the ridge point,
-        it's compute-bound; adding bandwidth doesn't help. This determines which
-        optimizations to pursue.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q6. How does the GPU hide memory latency?</div>
+        <div class="qa-answer">
+          The SM has multiple warp schedulers (4 on A100). When a warp issues a global memory
+          load (800-cycle latency), the scheduler immediately switches to another ready warp.
+          If the SM has enough active warps, computation and memory latency overlap completely.
+          This is called latency hiding through multi-threading &mdash; fundamentally different
+          from a CPU's approach (out-of-order execution, cache prefetch). This is why occupancy
+          matters: more active warps = more opportunities to hide latency. A100 can execute
+          64 warps &times; 4 schedulers = up to 256 instructions per cycle if no stalls.
+        </div>
+      </div>
 
-      <h3>Q8: When should you NOT use a GPU?</h3>
-      <p>
-        Don't use a GPU when: the workload is inherently serial (Amdahl's law limits gain),
-        the data is too small (PCIe transfer overhead dominates computation time), the
-        algorithm has lots of irregular branching and pointer-chasing (graphs, trees),
-        the application requires very low latency (&lt;1ms end-to-end), or when frequent
-        CPU↔GPU synchronization would serialize the pipeline.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q7. Why should block sizes be multiples of 32?</div>
+        <div class="qa-answer">
+          Because the hardware schedules warps of 32. A block of 33 threads requires 2 warps &mdash;
+          but the second warp has only 1 active thread and 31 idle threads. Those 31 idle threads
+          still consume SM resources (register file slots, shared memory allocation) while doing
+          no work. The wasted resources reduce occupancy for other blocks. Common good block sizes:
+          128, 256, 512. Avoid odd numbers like 100, 200, or 384 unless there's a specific reason.
+        </div>
+      </div>
 
-      <h3>Q9: What is the difference between __syncthreads() and cudaDeviceSynchronize()?</h3>
-      <pre><code>  __syncthreads():
-  • Barrier within a SINGLE BLOCK
-  • All threads in the block must reach this point
-  • Executes on the GPU (device side)
-  • Cost: a few cycles (stalls until all threads arrive)
-  • Use: after loading data into shared memory
+      <div class="qa-block">
+        <div class="qa-question">Q8. What is the maximum number of threads per block?</div>
+        <div class="qa-answer">
+          1024 threads per block (3D: x&times;y&times;z &le; 1024). This limit exists because all threads
+          in a block must share an SM, and the SM has limited resources: 65,536 registers, 192 KB
+          shared memory, 2048 maximum resident threads. A block of 1024 threads occupies at least
+          1024 register slots per register used. In practice, blocks of 256 or 512 are more
+          common because they leave room for multiple concurrent blocks per SM.
+        </div>
+      </div>
 
-  cudaDeviceSynchronize():
-  • Waits for ALL pending GPU work (all kernels, all streams)
-  • Executes on the CPU (host side — blocks CPU until GPU done)
-  • Cost: hundreds of microseconds (CPU–GPU round trip)
-  • Use: before reading results on CPU, for error checking</code></pre>
+      <div class="qa-block">
+        <div class="qa-question">Q9. What does __syncthreads() do?</div>
+        <div class="qa-answer">
+          __syncthreads() is a block-wide barrier: it stalls each thread until ALL threads in
+          the block have reached the barrier, ensuring all shared memory writes before the barrier
+          are visible to all threads after it. It is essential when threads share data through
+          shared memory: write phase &rarr; __syncthreads() &rarr; read phase. Never put it inside
+          a conditional that only some threads enter (deadlock). It does NOT sync across blocks
+          (there is no cross-block sync in CUDA; use separate kernel launches or cooperative groups).
+        </div>
+      </div>
 
-      <h3>Q10: What is pinned memory and why does it matter for transfers?</h3>
-      <p>
-        Pinned (page-locked) memory is host memory that the OS guarantees will never be
-        swapped to disk. The GPU's DMA engine can transfer directly from pinned memory
-        without CPU involvement, enabling truly asynchronous <code>cudaMemcpyAsync()</code>
-        and achieving near-PCIe-peak bandwidth (~16 GB/s vs ~8 GB/s for pageable).
-        Allocate with <code>cudaMallocHost()</code>; free with <code>cudaFreeHost()</code>.
-        Downside: reduces available RAM for other processes; only pin what you need.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q10. What is the difference between cudaDeviceSynchronize() and cudaStreamSynchronize()?</div>
+        <div class="qa-answer">
+          cudaDeviceSynchronize() blocks the CPU until ALL pending CUDA operations on ALL streams complete.
+          cudaStreamSynchronize(stream) blocks the CPU until all operations in that specific stream complete
+          &mdash; other streams continue running. Use cudaStreamSynchronize() in production to avoid
+          unnecessarily blocking independent work. cudaDeviceSynchronize() is useful for debugging
+          (ensures all errors are surfaced) and for benchmarking (ensures timing is accurate).
+        </div>
+      </div>
 
-      <h3>Q11: What is arithmetic intensity? What is it for vector addition?</h3>
-      <p>
-        Arithmetic Intensity = FLOPs performed / bytes transferred from main memory.
-        For vector addition (c = a + b): 1 FLOP (add) per element, 3 float reads/writes
-        (12 bytes) per element. AI = 1/12 ≈ 0.083 FLOPs/byte. Vector addition is deeply
-        memory-bound — the GPU spends most time waiting for DRAM, not computing.
-      </p>
+      <hr class="section-divider" />
 
-      <h3>Q12: How does the SM schedule warps?</h3>
-      <p>
-        Each SM has 4 warp schedulers. Each cycle, each scheduler selects one "ready"
-        warp (not waiting for memory or other resources) and issues one instruction to
-        its 32 threads. The SM can hold up to 64 warps simultaneously. When a warp stalls
-        (e.g., waiting 800 cycles for global memory), the scheduler switches to another
-        ready warp, hiding the latency. With enough active warps, the SM stays busy
-        continuously — this is how GPUs tolerate high memory latency without large caches.
-      </p>
+      <h2 id="memory">Memory Hierarchy (Q11&ndash;20)</h2>
 
-      <h3>Q13: What is register pressure?</h3>
-      <p>
-        Register pressure occurs when a kernel uses more registers per thread than the
-        hardware supports (255 on modern GPUs, but shared among all blocks on an SM).
-        When registers overflow, the compiler spills them to "local memory" — which is
-        actually in global DRAM — causing ~800 cycle read/write latencies for each
-        spilled value. Check with <code>nvcc --ptxas-options=-v</code>; the output shows
-        <code>N bytes lmem</code> if spilling occurs.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q11. What are the main memory types in CUDA and their access latencies?</div>
+        <div class="qa-answer">
+          Registers: ~1 cycle (on-chip, per-thread). Shared memory: ~5 cycles (on-chip, per-block).
+          L1 cache: ~30 cycles (on-chip, per-SM). L2 cache: ~200 cycles (on-chip, all SMs).
+          Global memory: ~800 cycles (off-chip HBM). Constant memory: ~5 cycles cached, ~800 uncached.
+          Local memory: ~800 cycles (global DRAM, used for register spill). The 800&times; gap between
+          registers and global memory is the central challenge of CUDA performance engineering.
+        </div>
+      </div>
 
-      <h3>Q14: How do streams enable overlap?</h3>
-      <p>
-        CUDA streams are ordered queues of GPU operations. Operations in the same stream
-        execute sequentially; operations in different streams can execute concurrently
-        if hardware resources allow. By splitting data into chunks and assigning each chunk
-        to a different stream, you can overlap H→D transfer (chunk N+1) with kernel
-        execution (chunk N) with D→H transfer (chunk N-1) simultaneously. Requires pinned
-        host memory for async copies.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q12. What is coalesced memory access?</div>
+        <div class="qa-answer">
+          When 32 consecutive threads in a warp access 32 consecutive memory addresses, the hardware
+          combines them into a single 128-byte L2 transaction. This is called coalesced access and
+          achieves peak bandwidth. If threads access scattered addresses, each thread may need its
+          own transaction &mdash; up to 32 transactions for a single warp, reducing effective bandwidth
+          by 32&times;. Diagnosis: ncu sectors/request ratio should be 1.0 for coalesced, 32.0 for worst case.
+          Fix: ensure thread i accesses data[i] (not data[i*stride]).
+        </div>
+      </div>
 
-      <h3>Q15: Explain Amdahl's Law in the context of CUDA</h3>
-      <p>
-        Amdahl's Law: max speedup = 1 / (serial_fraction + parallel_fraction / N).
-        If 10% of your code cannot be parallelized, the maximum possible GPU speedup is
-        10×, regardless of how many cores you throw at it. In CUDA: if your data
-        pre-processing on CPU takes 10ms and the GPU kernel takes 1ms, optimizing the
-        kernel further won't help — profile the whole pipeline and find the actual bottleneck.
-      </p>
+      <div class="qa-block">
+        <div class="qa-question">Q13. What are shared memory bank conflicts?</div>
+        <div class="qa-answer">
+          Shared memory is divided into 32 banks (4 bytes each). All 32 banks can be accessed
+          simultaneously. A bank conflict occurs when two or more threads in the same warp access
+          different addresses in the SAME bank &mdash; the hardware serializes these into multiple
+          transactions. A 32-way conflict (all threads in the same bank) is 32&times; slower than
+          conflict-free access. Classic cause: accessing a column of a 32-wide 2D shared array
+          (stride=32 &rarr; all threads map to bank 0). Fix: add +1 padding to the array width.
+        </div>
+      </div>
 
-      <h2>Part 2 — Coding Problems</h2>
+      <div class="qa-block">
+        <div class="qa-question">Q14. What is the purpose of constant memory?</div>
+        <div class="qa-answer">
+          Constant memory is a 64 KB read-only memory space with a dedicated cache that can
+          broadcast a single value to all 32 threads in a warp in one transaction (vs. 32 separate
+          transactions from global memory). It is ideal for data that all threads read simultaneously:
+          kernel configuration parameters, convolution filters, camera matrices. Declared with
+          __constant__ at file scope, populated from CPU with cudaMemcpyToSymbol(). Performance
+          degrades to global memory when different threads read different addresses in constant memory.
+        </div>
+      </div>
 
-      <h3>Problem 1: Vector Addition</h3>
-      <pre><code>// Write a kernel to compute c[i] = a[i] + b[i] for N elements.
-// Handle the case where N is not a multiple of blockSize.
+      <div class="qa-block">
+        <div class="qa-question">Q15. What is local memory in CUDA?</div>
+        <div class="qa-answer">
+          Despite the name, local memory is NOT fast. It is physically located in global DRAM
+          with ~800-cycle latency. It is private to each thread. The compiler uses it automatically
+          for register spill (when a kernel needs more registers than available) and for arrays
+          indexed with non-constant indices at runtime. Detect with nvcc -Xptxas -v (look for
+          non-zero "lmem") or ncu (l1tex__data_pipe_lsu_wavefronts_mem_local). Fix: reduce
+          register usage, use __launch_bounds__, or restructure to use shared memory.
+        </div>
+      </div>
 
-__global__ void vectorAdd(const float *a, const float *b, float *c, int n) {
+      <div class="qa-block">
+        <div class="qa-question">Q16. When would you use texture memory?</div>
+        <div class="qa-answer">
+          Texture memory is useful when: (1) access has 2D spatial locality (image processing,
+          stencils) &mdash; the texture cache pre-fetches spatially nearby elements; (2) you need
+          hardware bilinear/trilinear interpolation for free; (3) you need automatic boundary
+          handling (clamp, mirror, wrap) at no cost; (4) the data is read-only. Modern CUDA
+          recommendation: use __ldg() for simple read-only caching, use texture objects for 2D
+          data needing interpolation or boundary modes.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q17. What is Unified Memory and when should you use it?</div>
+        <div class="qa-answer">
+          Unified Memory (cudaMallocManaged) creates a single virtual address space accessible
+          from both CPU and GPU. The driver migrates pages via PCIe on demand using page faults.
+          Use it for: prototyping (less code), complex pointer-based data structures (trees, graphs),
+          iterative algorithms where CPU and GPU alternate. Avoid in production when: performance
+          is critical (explicit cudaMemcpy is more predictable), large streaming datasets
+          (migration overhead per fault), or tight kernel loops. Always prefetch with
+          cudaMemPrefetchAsync to avoid page fault stalls during kernel execution.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q18. What is register spilling and how do you fix it?</div>
+        <div class="qa-answer">
+          Register spilling occurs when a kernel needs more registers than available on the SM
+          (65,536 on A100 / threads_per_SM). Excess register state is written to local memory
+          (global DRAM), causing hidden bandwidth overhead. Detect with nvcc -Xptxas -v (non-zero lmem).
+          Fix: (1) reduce register usage by simplifying the kernel or breaking it into multiple passes,
+          (2) add __launch_bounds__(maxThreadsPerBlock, minBlocksPerSM) to give the compiler occupancy
+          hints, (3) use nvcc --maxrregcount=N to hard-cap registers (may cause explicit spill),
+          (4) restructure to move data through shared memory instead of keeping it in registers.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q19. What is the L2 cache size on an A100 and how can you control it?</div>
+        <div class="qa-answer">
+          The A100 has 40 MB of L2 cache shared across all 108 SMs. This is large enough to hold
+          many practical working sets. CUDA 11.0+ allows L2 persistence: cudaStreamSetAttribute with
+          cudaStreamAttributeAccessPolicyWindow lets you pin a data region in L2 (hitRatio controls
+          what fraction of L2 is reserved, hitProp=cudaAccessPropertyPersisting). This is useful
+          when a kernel repeatedly accesses a hot dataset that fits in L2 but would otherwise be
+          evicted by other traffic.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q20. Explain AOS vs SOA and when each is appropriate.</div>
+        <div class="qa-answer">
+          AOS (Array of Structures): struct Point{float x,y,z;} pts[N]. SOA (Structure of Arrays):
+          float px[N], py[N], pz[N]. AOS causes stride-3 access when reading only one field (e.g.,
+          all x values) &mdash; cache lines load 3 fields but only 1 is used, wasting 67% bandwidth.
+          SOA gives coalesced access: all px[i] are adjacent, one cache line load serves all threads.
+          Use SOA when: kernels access one or two fields at a time (most GPU kernels).
+          Use AOS when: kernels always access all fields of each element together (rare on GPU).
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="optimization">Optimization Patterns (Q21&ndash;30)</h2>
+
+      <div class="qa-block">
+        <div class="qa-question">Q21. Explain the tiled matrix multiplication optimization.</div>
+        <div class="qa-answer">
+          Naive matmul has each thread load an entire row and column from global memory (O(N) loads per thread, O(N^3) total). Tiled matmul divides the matrices into tiles of size T&times;T. All T^2 threads in a block cooperatively load one tile of A and one tile of B into shared memory (~5 cycle access), compute the partial dot product, then load the next tile. Each global memory value is loaded once per tile sweep but used T times from shared memory. This reduces global traffic by T&times; (e.g., T=32 &rarr; 32&times; fewer global loads) and achieves near-peak bandwidth utilization.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q22. What is the warp shuffle and when do you use it?</div>
+        <div class="qa-answer">
+          Warp shuffle intrinsics (__shfl_sync, __shfl_down_sync, etc.) allow threads within a warp
+          to directly read another thread's register without going through shared memory. This is
+          faster than shared memory (no load/store, no bank conflict possible, no __syncthreads
+          needed). Use for: warp-level reduction (6 __shfl_down_sync iterations reduces 32 values to 1),
+          prefix scan within a warp, broadcasting a single value to all lanes, butterfly patterns.
+          Requires sm_30+ and a synchronization mask (usually 0xFFFFFFFF for all lanes).
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q23. Describe the 6 reduction optimizations from Mark Harris's paper.</div>
+        <div class="qa-answer">
+          (1) Interleaved addressing: works but causes divergence (50% threads idle each step).
+          (2) Sequential addressing: reverse stride order, eliminates divergence.
+          (3) First-add-on-load: each thread loads 2 elements and adds them immediately, halving idle threads.
+          (4) Unroll last warp: last 6 reduction steps don't need __syncthreads (warp already in lockstep), save 5 barriers.
+          (5) Complete unroll with templates: compile-time unrolling eliminates all loop overhead.
+          (6) Warp shuffle: replace last 5 shared memory steps with __shfl_down_sync &mdash; no shared memory needed.
+          Cumulative speedup: ~15-30&times; from step 1 to step 6. CUB::DeviceReduce adds another 2&times; with hardware-specific tuning.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q24. What are CUDA streams and what can they overlap?</div>
+        <div class="qa-answer">
+          A CUDA stream is a sequence of operations that execute in order. Multiple streams
+          execute concurrently. An A100 has separate hardware engines for: H&rarr;D PCIe copy,
+          D&rarr;H PCIe copy, and kernel execution. By putting these in different streams,
+          all three can run simultaneously. Classic use: chunk large data, pipeline H&rarr;D copy
+          of chunk N+1 with kernel execution of chunk N and D&rarr;H copy of chunk N-1.
+          Requires pinned (page-locked) host memory for async copies to work. Default stream
+          (stream 0) is a global sync point &mdash; use non-default streams for overlap.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q25. How do CUDA atomic operations work and what is their performance cost?</div>
+        <div class="qa-answer">
+          Atomic operations perform read-modify-write as an indivisible hardware transaction,
+          preventing race conditions. The hardware serializes competing atomics to the same address.
+          Performance depends entirely on contention: with 1 unique address and 2048 threads/SM,
+          atomics serialize into 2048 sequential operations (devastating). With 1024+ unique addresses,
+          atomics approach non-atomic performance. Optimization: use shared memory atomics to reduce
+          to one atomic per block per bin (shared atomics are fast), then one global atomic per block.
+          For global counters, use warp aggregation to reduce 32 atomics to 1.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q26. What is the Roofline model?</div>
+        <div class="qa-answer">
+          The Roofline model bounds achievable performance as min(peak_FLOPS, bandwidth &times; AI).
+          Arithmetic Intensity (AI) = FLOPs / bytes. For an A100: peak = 19.5 TFLOPS, bandwidth = 2 TB/s,
+          ridge point = 9.75 FLOPs/byte. Kernels below the ridge point are memory-bandwidth-limited;
+          above it, compute-limited. Vector add (AI=0.08) can achieve at most 0.08 &times; 2000 = 160 GFLOPS,
+          not 19,500. This tells you: to make vector add faster, increase AI through data reuse &mdash;
+          not by making the adds faster.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q27. What is dynamic parallelism and when should you use it?</div>
+        <div class="qa-answer">
+          Dynamic parallelism allows GPU kernels to launch child kernels without CPU involvement.
+          Use it when: the amount of work is data-dependent and only known after some GPU processing
+          (adaptive mesh refinement, BFS with variable frontier size, recursive algorithms). Don't use it
+          when: fixed-size sub-problems exist (just launch a larger grid from CPU), or when the overhead
+          is prohibitive (child kernel launch costs ~50&mu;s vs ~5&mu;s for CPU launch). Requires
+          -rdc=true compilation and -lcudadevrt linking. Alternatives: persistent kernels with work queues,
+          compaction + second launch from CPU.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q28. How do you time CUDA kernels accurately?</div>
+        <div class="qa-answer">
+          CPU timers (gettimeofday, std::chrono) are wrong for GPU kernels because kernel launches
+          are asynchronous &mdash; the CPU timer captures launch time, not execution time. Use
+          CUDA events: cudaEventRecord(start) before the kernel, cudaEventRecord(stop) after,
+          cudaEventSynchronize(stop) to block until stop is recorded, then cudaEventElapsedTime(&amp;ms, start, stop).
+          This measures actual GPU execution time. For multiple kernel runs, warm up with 1-2 runs first
+          (JIT compilation, cache warming) then average 10-100 runs for stable timing.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q29. What is __launch_bounds__ and when do you use it?</div>
+        <div class="qa-answer">
+          __launch_bounds__(maxThreadsPerBlock, minBlocksPerSM) is a kernel qualifier that gives
+          the compiler occupancy hints. maxThreadsPerBlock tells the compiler the maximum block
+          size you will use &mdash; it can then spill registers to stay within the register budget
+          for that occupancy level. minBlocksPerSM tells the compiler the minimum concurrent blocks
+          you want &mdash; it limits register allocation to ensure this occupancy is achievable.
+          Use it when: (1) your kernel uses many registers and has low occupancy, (2) you want to
+          prevent the compiler from over-allocating registers, (3) you need reproducible register
+          counts across compiler versions.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q30. What are grid-stride loops and why are they preferred?</div>
+        <div class="qa-answer">
+          A grid-stride loop processes multiple elements per thread: <code>for (int i = blockIdx.x * blockDim.x + threadIdx.x; i &lt; N; i += gridDim.x * blockDim.x)</code>.
+          Each thread processes elements at stride = total thread count. Benefits: (1) works correctly
+          for any N, even N much smaller than total threads; (2) works correctly for any grid size;
+          (3) easy to scale &mdash; increase grid size and each thread does less work; (4) enables
+          persistent kernels where N is unbounded. The alternative (one thread per element, return
+          if out of bounds) requires precise grid size calculation and breaks if grid size is wrong.
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="profiling-q">Profiling and Architecture (Q31&ndash;40)</h2>
+
+      <div class="qa-block">
+        <div class="qa-question">Q31. What is the difference between nsys and ncu?</div>
+        <div class="qa-answer">
+          nsys (Nsight Systems) profiles at system level: shows timeline of all CPU threads,
+          GPU kernels, memory copies, NVTX annotations. Use it first to find which kernel is hottest.
+          5-10% overhead. ncu (Nsight Compute) profiles individual kernels with hardware performance
+          counters: memory throughput, occupancy, stall reasons, instruction mix, cache efficiency.
+          5-20&times; overhead. Workflow: nsys to find bottleneck &rarr; ncu on that kernel &rarr; optimize &rarr; repeat.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q32. How many SMs does an A100 have and what are its key specs?</div>
+        <div class="qa-answer">
+          A100: 108 SMs, 6,912 CUDA cores (64 FP32 per SM), 432 Tensor Cores (4 per SM), 40 MB L2,
+          80 GB HBM2e, ~2 TB/s memory bandwidth, 19.5 TFLOPS FP32, 312 TFLOPS TF32 Tensor,
+          624 TFLOPS FP16 Tensor. Each SM: 65,536 registers (256 KB), 192 KB shared/L1, 4 warp schedulers,
+          max 1024 threads / 32 warps / 2048 threads. NVLink 3.0: 600 GB/s bidirectional.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q33. What is compute capability and why does it matter?</div>
+        <div class="qa-answer">
+          Compute capability (e.g., sm_80 for A100) identifies the GPU architecture and feature set.
+          Higher compute capability = newer features: sm_30 added dynamic parallelism, sm_60 added
+          FP64 atomic add, sm_70 added Tensor Cores and independent thread scheduling (SIMT divergence
+          model change), sm_80 added TF32 and BF16. Specify with nvcc -arch=sm_80. Using -arch=sm_75
+          on an A100 compiles slower code and misses A100-specific instructions. Use -arch=native
+          to compile for the current GPU automatically.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q34. What is compute-sanitizer and what does it detect?</div>
+        <div class="qa-answer">
+          compute-sanitizer is NVIDIA's GPU memory debugger (successor to cuda-memcheck).
+          It has four modes: memcheck (out-of-bounds accesses, use-after-free, uninitialized reads),
+          racecheck (shared memory races, reads before __syncthreads), synccheck (missing or mismatched
+          __syncthreads), initcheck (uninitialized global memory reads). Run with:
+          <code>compute-sanitizer ./myprogram</code>. Overhead: 5-10&times; slower. Use during development;
+          not production. Catches ~80% of CUDA memory bugs that cause silent corruption.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q35. What is arithmetic intensity and how do you calculate it?</div>
+        <div class="qa-answer">
+          Arithmetic Intensity = (number of floating-point operations) / (bytes transferred from/to global memory). Example for SAXPY (y = a*x + y, N elements): FLOPs = 2N (1 multiply + 1 add per element), Bytes = 3N*4 (read x, read y, write y = 3 arrays of N floats). AI = 2N / 12N = 0.17 FLOPs/byte. For matrix multiply (N&times;N): FLOPs = 2N^3, Bytes = 3N^2*4 (read A, read B, write C). AI = 2N^3 / 12N^2 = N/6. For N=1024: AI = 171, well above A100 ridge point (9.75) &rarr; compute-bound.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q36. Why is pinned memory required for async memory copies?</div>
+        <div class="qa-answer">
+          The GPU's DMA engine accesses host memory directly via PCIe. It requires the host pages
+          to be pinned (page-locked) &mdash; guaranteed to remain at fixed physical addresses.
+          Regular malloc memory is pageable: the OS can swap it to disk or move it in physical memory
+          at any time. If the GPU DMA engine tries to access a swapped-out page, the result is undefined.
+          cudaMallocHost (alias cudaHostAlloc) pins pages via OS mlock. Async copies with pageable
+          memory silently fall back to synchronous copies. Also: pinned memory achieves ~4&times; higher
+          PCIe bandwidth than pageable memory.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q37. What is the HBM2e memory on an A100 and how does it differ from GDDR6?</div>
+        <div class="qa-answer">
+          HBM2e (High Bandwidth Memory 2e) is stacked DRAM connected to the GPU die via silicon interposer
+          with extremely wide buses (5,120-bit on A100 vs 384-bit for GDDR6X). This enables A100's
+          2 TB/s bandwidth vs ~1 TB/s for GDDR6X GPUs (e.g., RTX 3090). Trade-off: HBM is more expensive
+          and physically limited in capacity (80 GB on A100 vs 24 GB on RTX 3090), but bandwidth scales
+          better with width. For bandwidth-limited workloads (most ML training, scientific computing),
+          the 2&times; bandwidth advantage is decisive.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q38. What are Tensor Cores and when can you use them?</div>
+        <div class="qa-answer">
+          Tensor Cores are special matrix-multiply-accumulate units. An A100 Tensor Core executes
+          a 16&times;16 matrix multiply per clock (D = A&times;B + C) in one operation. They support
+          FP16, BF16, TF32, INT8, FP64 data types. Tensor Core throughput: 312 TFLOPS (TF32) vs
+          19.5 TFLOPS (FP32) &mdash; 16&times; faster. Access via: cuBLAS (automatic for gemm),
+          cuDNN (automatic for convolutions), WMMA API (manual: wmma::load_matrix_sync, wmma::mma_sync),
+          or inline PTX. Require: matrix dimensions as multiples of 16 (or 8 for some types),
+          appropriate data types, and sm_70+.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q39. Explain NVLink and when it matters.</div>
+        <div class="qa-answer">
+          NVLink is NVIDIA's high-bandwidth interconnect between GPUs (and between GPU and CPU for
+          Grace Hopper). NVLink 3.0 (A100): 600 GB/s bidirectional vs PCIe 4.0's 64 GB/s &mdash;
+          a 9&times; bandwidth advantage. NVLink matters for: (1) multi-GPU training where gradients
+          must be exchanged (all-reduce operations), (2) peer-to-peer access (one GPU reads another's
+          memory), (3) Unified Memory between GPUs (pages migrated over NVLink instead of PCIe).
+          Without NVLink, multi-GPU communication is PCIe-bottlenecked.
+        </div>
+      </div>
+
+      <div class="qa-block">
+        <div class="qa-question">Q40. What is cooperative groups and how does it extend the CUDA thread model?</div>
+        <div class="qa-answer">
+          Cooperative Groups (CUDA 9+) generalizes the thread synchronization model beyond fixed-size
+          thread blocks. Instead of __syncthreads() (entire block), you can sync at warp level
+          (cooperative_groups::coalesced_threads()), or even grid level (requires cooperative launch:
+          cudaLaunchCooperativeKernel). This enables: flexible warp-level synchronization,
+          grid-wide barriers (for iterative algorithms that previously needed separate kernel launches),
+          and cleaner code for algorithms with irregular thread groupings. The grid_group type allows
+          synchronizing the entire grid in a single kernel, enabling in-place reductions without
+          multiple kernel launches.
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <h2 id="coding">Coding Challenges</h2>
+
+      <p>These are the most common CUDA coding questions asked in interviews. Practice writing them from memory.</p>
+
+      <h3>1. Implement vectorAdd</h3>
+<pre><code>__global__ void vectorAdd(const float* A, const float* B, float* C, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i &lt; n)  // bounds check for last partial block
-        c[i] = a[i] + b[i];
-}
-
-// Host launch:
-void launch_vectorAdd(float *d_a, float *d_b, float *d_c, int n) {
-    int blockSize = 256;
-    int gridSize  = (n + blockSize - 1) / blockSize;
-    vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_a, d_b, d_c, n);
-    CUDA_CHECK(cudaGetLastError());
+    if (i &lt; n) C[i] = A[i] + B[i];
 }</code></pre>
 
-      <h3>Problem 2: Parallel Sum Reduction</h3>
-      <pre><code>// Reduce N floats to their sum. Use shared memory.
-// This is the most commonly asked CUDA coding question.
-
-__global__ void reduce_sum(float *data, float *partial_sums, int n) {
-    extern __shared__ float sdata[];
-    int tid = threadIdx.x;
-    int i   = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
-
-    // Load and first add during load (handles 2 elements per thread):
-    float val = 0.0f;
-    if (i &lt; n)              val  = data[i];
-    if (i + blockDim.x &lt; n) val += data[i + blockDim.x];
-    sdata[tid] = val;
-    __syncthreads();
-
-    // Sequential addressing reduction:
-    for (int s = blockDim.x / 2; s &gt; 32; s &gt;&gt;= 1) {
-        if (tid &lt; s) sdata[tid] += sdata[tid + s];
-        __syncthreads();
-    }
-
-    // Last warp: unroll with shuffle (no __syncthreads needed):
-    if (tid &lt; 32) {
-        volatile float *vsdata = sdata;
-        vsdata[tid] += vsdata[tid + 32];
-        vsdata[tid] += vsdata[tid + 16];
-        vsdata[tid] += vsdata[tid +  8];
-        vsdata[tid] += vsdata[tid +  4];
-        vsdata[tid] += vsdata[tid +  2];
-        vsdata[tid] += vsdata[tid +  1];
-    }
-
-    if (tid == 0) partial_sums[blockIdx.x] = sdata[0];
+      <h3>2. Implement parallel reduction sum</h3>
+<pre><code>__device__ float warpReduceSum(float val) {
+    for (int offset = 16; offset &gt; 0; offset /= 2)
+        val += __shfl_down_sync(0xFFFFFFFF, val, offset);
+    return val;
 }
-
-// Two-pass reduction for large N:
-float gpu_sum(float *d_data, int n) {
-    int blockSize = 256;
-    int gridSize  = (n + blockSize * 2 - 1) / (blockSize * 2);
-    float *d_partial;
-    cudaMalloc(&amp;d_partial, gridSize * sizeof(float));
-
-    reduce_sum&lt;&lt;&lt;gridSize, blockSize, blockSize*sizeof(float)&gt;&gt;&gt;
-               (d_data, d_partial, n);
-
-    // Reduce the partial sums (if gridSize is small enough, do on CPU):
-    float *h_partial = (float*)malloc(gridSize * sizeof(float));
-    cudaMemcpy(h_partial, d_partial, gridSize*sizeof(float), cudaMemcpyDeviceToHost);
-    float total = 0;
-    for (int i = 0; i &lt; gridSize; i++) total += h_partial[i];
-    free(h_partial);
-    cudaFree(d_partial);
-    return total;
+__global__ void blockReduceSum(float* in, float* out, int n) {
+    __shared__ float warpSums[32];
+    int tid = threadIdx.x, lane = tid % 32, warpId = tid / 32;
+    int i = blockIdx.x * blockDim.x + tid;
+    float val = (i &lt; n) ? in[i] : 0.0f;
+    val = warpReduceSum(val);
+    if (lane == 0) warpSums[warpId] = val;
+    __syncthreads();
+    val = (tid &lt; blockDim.x/32) ? warpSums[tid] : 0.0f;
+    if (warpId == 0) val = warpReduceSum(val);
+    if (tid == 0) out[blockIdx.x] = val;
 }</code></pre>
 
-      <h3>Problem 3: Matrix Transpose (Optimized)</h3>
-      <pre><code>// Transpose an NxN matrix. Must be coalesced for both read AND write.
-// Solution: use shared memory as a transposition buffer.
-
-#define TILE 32
-
-__global__ void transpose(float *out, const float *in, int N) {
-    __shared__ float tile[TILE][TILE + 1];  // +1 to avoid bank conflicts
-
-    // Coalesced READ: threads read a tile from input matrix (row by row)
-    int x = blockIdx.x * TILE + threadIdx.x;  // input column
-    int y = blockIdx.y * TILE + threadIdx.y;  // input row
-    if (x &lt; N &amp;&amp; y &lt; N)
-        tile[threadIdx.y][threadIdx.x] = in[y * N + x];
+      <h3>3. Implement matrix transpose using shared memory</h3>
+<pre><code>#define TILE 32
+__global__ void transpose(const float* in, float* out, int W, int H) {
+    __shared__ float tile[TILE][TILE + 1];  // +1 avoids bank conflicts
+    int x = blockIdx.x * TILE + threadIdx.x;
+    int y = blockIdx.y * TILE + threadIdx.y;
+    if (x &lt; W &amp;&amp; y &lt; H) tile[threadIdx.y][threadIdx.x] = in[y * W + x];
     __syncthreads();
-
-    // Coalesced WRITE: write the transposed tile (column → row)
-    // Swap block indices for output position:
-    int ox = blockIdx.y * TILE + threadIdx.x;  // output column
-    int oy = blockIdx.x * TILE + threadIdx.y;  // output row
-    if (ox &lt; N &amp;&amp; oy &lt; N)
-        out[oy * N + ox] = tile[threadIdx.x][threadIdx.y];
-}
-
-// Launch:
-dim3 block(TILE, TILE);
-dim3 grid((N + TILE - 1) / TILE, (N + TILE - 1) / TILE);
-transpose&lt;&lt;&lt;grid, block&gt;&gt;&gt;(d_out, d_in, N);</code></pre>
-
-      <h3>Problem 4: Histogram with Shared Memory</h3>
-      <pre><code>// Compute histogram of unsigned char data (256 bins).
-// Avoid contention with shared memory partial histograms.
-
-__global__ void histogram(const unsigned char *data, int *hist, int n) {
-    __shared__ int s_hist[256];
-
-    // Clear shared histogram:
-    if (threadIdx.x &lt; 256) s_hist[threadIdx.x] = 0;
-    __syncthreads();
-
-    // Build local partial histogram (fast shared memory atomics):
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i &lt; n)
-        atomicAdd(&amp;s_hist[data[i]], 1);
-    __syncthreads();
-
-    // Merge into global histogram (one atomic per bin per block):
-    if (threadIdx.x &lt; 256)
-        atomicAdd(&amp;hist[threadIdx.x], s_hist[threadIdx.x]);
-}
-
-// Launch:
-histogram&lt;&lt;&lt;(n+255)/256, 256&gt;&gt;&gt;(d_data, d_hist, n);</code></pre>
-
-      <h3>Problem 5: Inclusive Prefix Scan (Kogge-Stone)</h3>
-      <pre><code>// Compute inclusive scan: output[i] = sum(input[0..i])
-// Within a single block using shared memory.
-
-__global__ void prefix_scan(float *data, float *output, int n) {
-    extern __shared__ float temp[];
-    int tid = threadIdx.x;
-
-    temp[tid] = (tid &lt; n) ? data[tid] : 0.0f;
-    __syncthreads();
-
-    // Kogge-Stone scan:
-    for (int stride = 1; stride &lt; blockDim.x; stride *= 2) {
-        float val = temp[tid];
-        if (tid &gt;= stride) val += temp[tid - stride];
-        __syncthreads();
-        temp[tid] = val;
-        __syncthreads();
-    }
-
-    if (tid &lt; n) output[tid] = temp[tid];
-}
-
-// For N &gt; blockDim: use two-pass scan (scan blocks, then add block offsets)</code></pre>
-
-      <h3>Problem 6: Dot Product</h3>
-      <pre><code>// Compute dot product of two float vectors.
-// Combines per-thread partial sums with warp reduction.
-
-__global__ void dot_product(const float *a, const float *b,
-                             float *result, int n) {
-    extern __shared__ float sdata[];
-    int tid = threadIdx.x;
-    int i   = blockIdx.x * blockDim.x + threadIdx.x;
-
-    // Each thread computes its contribution:
-    float val = 0.0f;
-    while (i &lt; n) {
-        val += a[i] * b[i];
-        i += blockDim.x * gridDim.x;   // grid-stride loop
-    }
-    sdata[tid] = val;
-    __syncthreads();
-
-    // Reduction:
-    for (int s = blockDim.x / 2; s &gt; 0; s &gt;&gt;= 1) {
-        if (tid &lt; s) sdata[tid] += sdata[tid + s];
-        __syncthreads();
-    }
-
-    if (tid == 0)
-        atomicAdd(result, sdata[0]);
+    int tx = blockIdx.y * TILE + threadIdx.x;
+    int ty = blockIdx.x * TILE + threadIdx.y;
+    if (tx &lt; H &amp;&amp; ty &lt; W) out[ty * H + tx] = tile[threadIdx.x][threadIdx.y];
 }</code></pre>
 
-      <h2>Part 3 — System Design Questions</h2>
-
-      <h3>Design: Real-time image processing for 100 cameras</h3>
-      <pre><code>  Key considerations:
-  • 100 cameras × 1080p × 30fps = huge throughput requirement
-  • Target: &lt;50ms end-to-end latency per frame
-
-  Architecture:
-  ─────────────────────────────────────────────────────────
-  Camera streams → Decode (CPU/NVDEC) → Batch → GPU Pipeline → Output
-
-  Components:
-  1. NVDEC hardware decoder (free GPU decode, no CUDA cores used)
-  2. cudaMemcpyAsync to GPU with pinned host buffers
-  3. Batch multiple camera frames into one kernel launch
-     (reduces kernel launch overhead: 100 launches → 1 batched launch)
-  4. Use CUDA streams per camera for overlap:
-     stream[cam]: decode → upload → process → download
-  5. Result dispatch: atomicAdd to a shared output queue
-
-  Memory:
-  • Use cudaMallocHost (pinned) for frame buffers
-  • Keep processed frames on GPU as long as possible
-  • Async download only final results</code></pre>
-
-      <h3>Design: Matrix multiplication too large for GPU memory</h3>
-      <pre><code>  Problem: A is 100GB×100GB. GPU has 80GB DRAM.
-
-  Solution: Block matrix multiplication
-  ─────────────────────────────────────────────────────────
-  Split A, B into tiles that fit in GPU memory.
-  For C = A × B:
-    for each block row of A (A_block):
-        upload A_block to GPU
-        for each block column of B (B_block):
-            upload B_block to GPU
-            C_block += A_block × B_block (cuBLAS)
-            accumulate result
-
-  Overlap: use streams to upload next block while computing current:
-    Stream 0: compute A_block[i] × B_block[j]
-    Stream 1: upload A_block[i+1]
-    Stream 2: upload B_block[j+1]
-
-  For distributed: use NCCL for multi-GPU, tensor parallelism</code></pre>
-
-      <h2>Part 4 — Common Candidate Mistakes</h2>
-
-      <pre><code>  ✗ Not checking CUDA error codes — makes bugs invisible
-  ✗ Ignoring memory coalescing — 10× performance loss
-  ✗ Using cudaDeviceSynchronize() in a loop — kills async benefits
-  ✗ Off-by-one in kernel index: forgetting (N + blockSize - 1) / blockSize
-  ✗ Assuming cudaMemcpy is asynchronous (it's not! — it blocks the CPU)
-  ✗ Using double when float suffices (double is 2× slower for most ops)
-  ✗ Forgetting __syncthreads() after loading shared memory
-  ✗ Divergent __syncthreads() — illegal and causes hangs
-  ✗ Benchmarking with -G debug flag (10-100× slower than release)
-  ✗ Not considering PCIe bottleneck in total pipeline timing</code></pre>
-
-      <h2>Part 5 — 4-Week Study Plan</h2>
-
-      <pre><code>  Week 1: Foundations
-  ─────────────────────────────────────────────────────────
-  Day 1-2: C memory model (pointers, stack/heap, segments)
-  Day 3-4: CPU vs GPU architecture, memory hierarchy
-  Day 5-7: CUDA basics (thread hierarchy, cudaMalloc/Memcpy, first kernel)
-  Practice: vector add, element-wise ops, bounds checking
-
-  Week 2: Memory Optimization
-  ─────────────────────────────────────────────────────────
-  Day 1-2: Global memory coalescing, SoA vs AoS
-  Day 3-4: Shared memory, bank conflicts, tiled matmul
-  Day 5-6: Constant memory, texture memory
-  Day 7:   Unified memory, profiling basics
-  Practice: matrix transpose (coalesced), tiled GEMM
-
-  Week 3: Parallel Patterns
-  ─────────────────────────────────────────────────────────
-  Day 1-2: Warps, divergence, warp-level primitives
-  Day 3-4: Parallel reduction (all 6 versions)
-  Day 5:   Prefix scan, histogram
-  Day 6:   CUDA streams, async execution
-  Day 7:   Atomic operations
-  Practice: implement reduction from memory, scan, histogram
-
-  Week 4: Advanced + Interview Practice
-  ─────────────────────────────────────────────────────────
-  Day 1-2: Performance profiling (nsys, ncu, roofline)
-  Day 3:   Dynamic parallelism, advanced patterns
-  Day 4-5: Mock coding interviews (timed, no references)
-  Day 6:   System design practice
-  Day 7:   Review weak areas, Q&amp;A review
-
-  Success criteria: write correct, optimized reduction kernel in 20 minutes
-                    explain any memory coalescing scenario on a whiteboard</code></pre>
-
-      <h2>Takeaways</h2>
-
-      <ul>
-        <li>Know the warp: 32 threads, lockstep execution, every perf metric is warp-level.</li>
-        <li>Know the memory hierarchy cold: registers (1 cyc), shared (5 cyc), global (800 cyc).</li>
-        <li>Be able to write reduction, transpose, and histogram from memory in an interview.</li>
-        <li>Know the Roofline model: AI = FLOPs/bytes. Memory-bound vs compute-bound determines fixes.</li>
-        <li>Error checking: CUDA_CHECK on every call, CUDA_KERNEL_CHECK after every launch.</li>
-        <li>The most common mistake: ignoring coalescing → check it first in any slow kernel.</li>
-        <li>In production: cuBLAS, cuDNN, CUB are always faster than hand-written kernels for GEMM/reduction.</li>
-        <li>Back to: <a href="cuda-mastery-hub.html">CUDA Mastery Series Hub</a></li>
-      </ul>
-
+      <div class="series-nav">
+        <span><a href="cuda-phase5-profiling.html">&larr; 5 &mdash; Performance Profiling</a></span>
+        <span><a href="cuda-mastery-hub.html">CUDA Mastery Hub &rarr;</a></span>
+      </div>
     </div>
   </main>
-  <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
-  </footer>
 </body>
 </html>
