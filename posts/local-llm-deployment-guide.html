@@ -26,7 +26,7 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">inference</span>
-        <span class="read-time">· 55 min read</span>
+        <span class="read-time">· 75 min read</span>
       </div>
       <h1>Local LLM Deployment: Ollama vs vLLM vs llama.cpp — The Definitive Deep Dive</h1>
       <p class="post-description">
@@ -1950,6 +1950,886 @@ print(f"Severity: {review.severity}/5")
 print(f"Approved: {review.approved}")
 print(f"Critical issues: {review.critical_issues}")
 print(f"Security flags: {review.security_flags}")</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>8.3 QLoRA — Fine-Tuning 70B Models on a Single GPU</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Standard LoRA requires the base model to be in fp16 (or bf16) during training. For Llama 3.1 8B,
+        that's 16 GB just for the frozen base weights, plus gradients for the adapter, plus optimizer
+        state. The total comes to roughly 20-22 GB — which fits on a 3090, but barely, with no headroom
+        for a reasonable batch size. For a 13B or 70B model, it's simply impossible on a single consumer GPU.
+      </p>
+
+      <p>
+        QLoRA (Dettmers et al., 2023) solves this by combining two ideas: load the base model in 4-bit
+        NF4 (Normal Float 4) quantization, and apply LoRA adapters on top. The base weights consume
+        only a quarter of their fp16 footprint, but training still works because all computation happens
+        in fp16 — QLoRA introduces <strong>double quantization</strong> (quantizing the quantization
+        constants themselves) and <strong>paged optimizers</strong> (offloading optimizer states to CPU
+        RAM when VRAM is tight) to keep gradient computation numerically stable even though the base
+        weights are 4-bit.
+      </p>
+
+      <p>
+        The practical consequence is dramatic: QLoRA enables fine-tuning a 65B parameter model on a
+        single 48 GB GPU, or a 13B model on a single 24 GB RTX 3090. For our purposes — 8B model on
+        a 3090 — QLoRA is overkill (regular LoRA fits fine), but for anyone trying to fine-tune
+        a 13B or 70B model without a multi-GPU setup, QLoRA is the only viable path.
+      </p>
+
+      <p>
+        The key architectural concept behind NF4 is worth understanding. Most quantization schemes
+        (int4, int8) divide the weight range into equal intervals. NF4 instead uses intervals derived
+        from the quantiles of a standard normal distribution — the assumption being that neural network
+        weights approximately follow a bell curve centered at zero. By placing quantization levels
+        where weight values are most dense (near zero), NF4 minimizes quantization error for the
+        majority of weights. The result is that NF4 quality matches int8 in practice, despite using
+        only 4 bits.
+      </p>
+
+      <pre><code">from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from datasets import load_dataset
+import torch
+
+# QLoRA: 4-bit base model + fp16 LoRA adapters
+# This lets you fine-tune Llama 3.1 8B in ~10 GB VRAM instead of 22 GB.
+# Enables batch_size=4-8 on a 3090 where standard LoRA would only allow batch_size=1.
+
+# Step 1: Configure 4-bit NF4 quantization for the base model
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",       # Normal Float 4 — better than standard int4 for weights
+    bnb_4bit_compute_dtype=torch.float16,  # all compute happens in fp16, not 4-bit
+    bnb_4bit_use_double_quant=True,  # double quantization: quantize the scale factors too
+                                      # saves an additional 0.4 bits/param (roughly 400 MB for 8B)
+)
+
+# Step 2: Load the base model in 4-bit — uses ~4 GB instead of ~16 GB
+model = AutoModelForCausalLM.from_pretrained(
+    "meta-llama/Llama-3.1-8B-Instruct",
+    quantization_config=bnb_config,
+    device_map="auto",
+    trust_remote_code=True,
+)
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B-Instruct")
+tokenizer.pad_token = tokenizer.eos_token
+
+# Step 3: Prepare the quantized model for LoRA training.
+# This step enables gradient checkpointing and casts LayerNorm/embeddings
+# to fp32 for numerical stability (4-bit weights can't hold gradients directly).
+model = prepare_model_for_kbit_training(
+    model,
+    use_gradient_checkpointing=True,  # trade compute for VRAM: recompute activations
+                                       # during backward instead of storing them
+)
+
+# Step 4: Define LoRA config — same as regular LoRA
+lora_config = LoraConfig(
+    task_type=TaskType.CAUSAL_LM,
+    r=64,              # Higher rank than typical LoRA because 4-bit base has more error to compensate
+    lora_alpha=128,    # alpha = 2*r rule still holds
+    target_modules=["q_proj", "v_proj", "k_proj", "o_proj",
+                    "gate_proj", "up_proj", "down_proj"],
+    lora_dropout=0.05,
+    bias="none",
+)
+
+model = get_peft_model(model, lora_config)
+
+# Step 5: Print memory usage breakdown
+def print_memory_stats():
+    import torch
+    allocated = torch.cuda.memory_allocated() / 1e9
+    reserved  = torch.cuda.memory_reserved() / 1e9
+    total     = torch.cuda.get_device_properties(0).total_memory / 1e9
+    print(f"GPU Memory: {allocated:.1f} GB allocated / {reserved:.1f} GB reserved / {total:.1f} GB total")
+
+print_memory_stats()
+# Typical output for QLoRA on 8B model:
+# GPU Memory: 7.2 GB allocated / 8.1 GB reserved / 24.0 GB total
+# vs standard LoRA (fp16 base):
+# GPU Memory: 17.8 GB allocated / 19.2 GB reserved / 24.0 GB total
+
+model.print_trainable_parameters()
+# trainable params: 167,772,160 || all params: 8,198,295,552 || 2.046%
+
+# Step 6: Prepare dataset — using chat template format
+dataset = load_dataset("your-dataset", split="train")
+
+def format_instruction(example):
+    return f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+{example['system']}<|eot_id|><|start_header_id|>user<|end_header_id|>
+{example['instruction']}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+{example['output']}<|eot_id|>"""
+
+# Step 7: Training — with paged Adam optimizer for CPU overflow
+from transformers import TrainingArguments
+
+training_args = TrainingArguments(
+    output_dir="./qlora-adapter",
+    per_device_train_batch_size=4,    # QLoRA enables larger batches than regular LoRA
+    gradient_accumulation_steps=4,    # effective batch = 16
+    learning_rate=2e-4,
+    num_train_epochs=3,
+    fp16=True,
+    optim="paged_adamw_32bit",        # paged optimizer: spills optimizer state to CPU RAM
+                                       # when GPU is tight. Transparent to the training loop.
+    lr_scheduler_type="cosine",
+    warmup_ratio=0.03,
+    save_strategy="epoch",
+    logging_steps=25,
+    report_to="none",
+)
+
+trainer = SFTTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset,
+    tokenizer=tokenizer,
+    formatting_func=format_instruction,
+    max_seq_length=2048,
+)
+trainer.train()
+
+# Merge and save — optional, combines adapter into base weights
+# This makes the model larger (~16 GB) but removes the LoRA overhead at inference time
+from peft import PeftModel
+base_model = AutoModelForCausalLM.from_pretrained(
+    "meta-llama/Llama-3.1-8B-Instruct",
+    torch_dtype=torch.float16,
+    device_map="auto"
+)
+merged_model = PeftModel.from_pretrained(base_model, "./qlora-adapter")
+merged_model = merged_model.merge_and_unload()  # fuse adapter weights into base
+merged_model.save_pretrained("./llama-3.1-8b-finetuned")
+tokenizer.save_pretrained("./llama-3.1-8b-finetuned")</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>8.4 Multi-GPU Inference — Tensor, Pipeline, and Data Parallelism</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        When a model doesn't fit on a single GPU, or when you need more throughput than one GPU
+        can provide, you need to distribute computation across multiple devices. There are three
+        fundamentally different ways to do this, and they have radically different performance
+        characteristics, bandwidth requirements, and use cases. Choosing the wrong strategy is
+        a common and expensive mistake.
+      </p>
+
+      <p>
+        <strong>Tensor Parallelism (TP)</strong> splits each individual weight matrix across
+        multiple GPUs. For an attention layer with weight matrices of size [d_model × d_model],
+        tensor parallelism with TP=4 gives each GPU a [d_model × d_model/4] shard. All GPUs
+        process every token, but each only computes a fraction of each layer. After each layer,
+        they exchange partial results via an AllReduce operation. This requires very fast
+        interconnect between GPUs — NVLink (400-600 GB/s per direction on A100/H100) handles
+        this well; PCIe (64 GB/s) introduces a bottleneck that can negate the parallelism benefit.
+        On a multi-3090 system connected via PCIe, tensor parallelism TP=2 is often the practical
+        limit before interconnect becomes the bottleneck.
+      </p>
+
+      <p>
+        <strong>Pipeline Parallelism (PP)</strong> assigns different layers to different GPUs.
+        With PP=4 and a 32-layer model, GPU 0 runs layers 0-7, GPU 1 runs layers 8-15, GPU 2
+        runs layers 16-23, and GPU 3 runs layers 24-31. Data flows through the GPUs like an
+        assembly line. This requires much less inter-GPU bandwidth than tensor parallelism —
+        only the activations between stage boundaries need to transfer, not all-reduce results.
+        The downside is the "pipeline bubble": at any given moment, most GPUs are idle waiting
+        for the previous stage to finish. Microbatching (splitting one batch into many small
+        micro-batches) fills this bubble, but adds latency. Pipeline parallelism is best for
+        extremely large models (100B+) where the pipeline bubble is acceptable, or for
+        PCIe-connected GPU configurations.
+      </p>
+
+      <p>
+        <strong>Data Parallelism (DP)</strong> runs a complete copy of the model on each GPU
+        and distributes different requests across them. GPU 0 handles user A, GPU 1 handles
+        user B. No inter-GPU communication during inference (except optionally for weight
+        synchronization if fine-tuning). This requires each GPU to have enough VRAM to hold
+        the full model, so it doesn't help with VRAM constraints — only with throughput.
+        For serving multiple concurrent users with a model that fits on one GPU, this is the
+        right choice: run separate vLLM instances on each GPU and load-balance at the nginx layer.
+      </p>
+
+      <pre><code"># Tensor Parallelism with vLLM — splits attention heads across GPUs
+# Best for: NVLink-connected GPUs, models too large for 1 GPU, latency-sensitive
+
+# TP=2: Llama 3.1 70B split across 2 GPUs
+# Each GPU holds half the attention heads and half the FFN weights
+# Requires fast interconnect — NVLink strongly recommended
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-70B-Instruct \
+  --dtype float16 \
+  --tensor-parallel-size 2 \
+  --gpu-memory-utilization 0.90 \
+  --max-model-len 8192
+
+# TP=4: split across 4 GPUs (requires 4× NVLink bandwidth)
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-70B-Instruct \
+  --tensor-parallel-size 4
+
+# Pipeline Parallelism with vLLM — assigns layers to GPUs
+# Best for: PCIe-connected GPUs, very large models, throughput-focused
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-70B-Instruct \
+  --pipeline-parallel-size 4 \
+  --max-model-len 4096   # shorter sequences reduce pipeline bubble impact
+
+# Combining TP + PP: 2 TP × 2 PP = 4 GPUs
+# GPU 0+1: layers 0-15 with TP between them
+# GPU 2+3: layers 16-32 with TP between them
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-70B-Instruct \
+  --tensor-parallel-size 2 \
+  --pipeline-parallel-size 2
+
+# Data Parallelism: separate vLLM instances, nginx load balancing
+# Best for: throughput, PCIe GPUs, each model fits on one GPU
+
+# Start vLLM on GPU 0
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --port 8001 &amp;
+
+# Start vLLM on GPU 1
+CUDA_VISIBLE_DEVICES=1 python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --port 8002 &amp;
+
+# nginx upstream for load balancing
+# upstream vllm_pool {
+#     least_conn;   # route to the server with fewest active connections
+#     server 127.0.0.1:8001;
+#     server 127.0.0.1:8002;
+# }
+
+# Decision matrix for multi-GPU strategy:
+# NVLink GPUs + model doesn't fit → Tensor Parallelism
+# PCIe GPUs + model doesn't fit   → Pipeline Parallelism (or quantize to fit 1 GPU)
+# Model fits on 1 GPU + need throughput → Data Parallelism (separate instances)
+# Best of both worlds + NVLink    → TP=2 + DP=2 (2 pairs of TP, load balanced)</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>8.5 RoPE Scaling — Extending Context Beyond Training Length</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Llama 3.1 was trained with a 128K context window. But many models, including fine-tuned
+        variants and older Llama-family models, were trained on shorter contexts (4096 or 8192 tokens).
+        What happens if you try to use them with longer inputs? The answer involves understanding
+        <strong>Rotary Position Embeddings (RoPE)</strong>, the position encoding scheme used by
+        most modern LLMs.
+      </p>
+
+      <p>
+        RoPE encodes position by rotating the query and key vectors in attention by an angle that
+        depends on the token's position. The rotation frequencies are fixed at training time:
+        high-frequency rotations for short-range dependencies, low-frequency rotations for
+        long-range ones. When you feed a model a sequence longer than it was trained on, the
+        low-frequency components rotate further than the model has ever seen — the position
+        encoding lands in an "extrapolation" regime where the model has no training signal.
+        Attention scores become unreliable, and the model produces garbage.
+      </p>
+
+      <p>
+        Several techniques address this without retraining the model from scratch:
+      </p>
+
+      <p>
+        <strong>Linear RoPE scaling (Position Interpolation)</strong>: instead of letting positions
+        go from 0 to N where N &gt; training_max, scale them down by a factor of N/training_max.
+        A token at position 8000 in a model trained to 4096 tokens is mapped to position 4000.
+        This keeps all positions within the trained range. Quality degrades for tasks that require
+        understanding very long-range dependencies, but the model doesn't catastrophically fail.
+        This is what <code>--rope-scaling-factor</code> does in llama.cpp.
+      </p>
+
+      <p>
+        <strong>YaRN (Yet another RoPE extensioN)</strong>: a more sophisticated approach that
+        interpolates only the frequency components that need extending, leaving short-range
+        (high-frequency) components unchanged. Short-range attention continues to work exactly
+        as trained. Long-range attention is interpolated to cover the extended range. YaRN also
+        applies a temperature correction to the attention scores to compensate for the change in
+        softmax behavior. The result: much better quality at long contexts than simple linear
+        scaling, at the cost of slightly more complex implementation.
+      </p>
+
+      <pre><code"># Context extension in llama.cpp
+# For a model trained at 4096 tokens that you want to run at 16384:
+
+# Method 1: Linear scaling (simple, reasonable quality)
+./build/bin/llama-server \
+  -m ./models/model-Q4_K_M.gguf \
+  --ngl 99 \
+  --ctx-size 16384 \                     # 4x the training context
+  --rope-scaling linear \               # linear interpolation
+  --rope-scale 4.0 \                    # scale factor = new_ctx / training_ctx
+  --flash-attn                           # required for long contexts (memory)
+
+# Method 2: YaRN (better quality, more complex)
+./build/bin/llama-server \
+  -m ./models/model-Q4_K_M.gguf \
+  --ngl 99 \
+  --ctx-size 32768 \                     # 8x extension
+  --rope-scaling yarn \                 # YaRN scaling
+  --rope-scale 8.0 \                    # scale factor
+  --yarn-orig-ctx 4096 \               # original training context length
+  --flash-attn
+
+# In Python with HuggingFace Transformers
+from transformers import AutoModelForCausalLM, AutoConfig
+
+config = AutoConfig.from_pretrained("meta-llama/Llama-3.1-8B-Instruct")
+
+# Modify the rope_scaling config before loading the model
+config.rope_scaling = {
+    "type": "yarn",
+    "factor": 4.0,               # extend 4x beyond training context
+    "original_max_position_embeddings": 8192,   # model's training context
+}
+config.max_position_embeddings = 32768          # new maximum
+
+model = AutoModelForCausalLM.from_pretrained(
+    "meta-llama/Llama-3.1-8B-Instruct",
+    config=config,
+    torch_dtype="float16",
+    device_map="auto",
+)
+
+# Important VRAM note: the KV cache scales linearly with context length.
+# A 32768 context with Llama 3.1 8B (8 KV heads, 128 dim):
+kv_per_token_bytes = 2 * 32 * 8 * 128 * 2  # K + V, layers, heads, dim, fp16
+total_kv_bytes = 32768 * kv_per_token_bytes
+print(f"KV cache at 32K context: {total_kv_bytes / 1e9:.1f} GB")
+# KV cache at 32K context: 4.3 GB — still fits on 3090 with Q4_K_M model
+
+# Quality check: perplexity should not spike at long contexts
+# If using YaRN, quality at 4096 tokens should be identical to baseline
+# Quality at extended context degrades gracefully, not catastrophically</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>8.6 RAG — Retrieval-Augmented Generation with Local LLMs</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Retrieval-Augmented Generation (RAG) is the practical solution to LLMs' two biggest
+        weaknesses: knowledge cutoffs (the model doesn't know anything after its training date)
+        and hallucination on domain-specific facts (the model confabulates when it lacks
+        confidence). The concept is simple: before calling the LLM, retrieve relevant documents
+        from a vector database, inject them into the context window, and instruct the model to
+        answer using only the provided context. If the context doesn't contain the answer, the
+        model should say so rather than guess.
+      </p>
+
+      <p>
+        Building RAG on local LLMs has a significant advantage over cloud-based RAG: your
+        documents never leave your machine. This is critical for medical records, financial data,
+        legal documents, or proprietary code. The local embedding model (which converts your
+        documents to vectors) and the local LLM (which generates answers) both run entirely
+        on your hardware.
+      </p>
+
+      <p>
+        The RAG pipeline has two distinct phases. The <strong>indexing phase</strong> (offline,
+        run once per document corpus): chunk your documents, embed each chunk with an embedding
+        model, and store the (chunk, embedding) pairs in a vector database. The
+        <strong>retrieval phase</strong> (online, per-request): embed the user's query, find
+        the k most similar chunks using cosine similarity, and include them in the LLM prompt.
+        The quality of RAG depends heavily on the quality of chunking (too small = no context,
+        too large = irrelevant noise) and the embedding model (must capture semantic similarity,
+        not just keyword overlap).
+      </p>
+
+      <pre><code">pip install sentence-transformers chromadb langchain-community
+
+from sentence_transformers import SentenceTransformer
+import chromadb
+from chromadb.config import Settings
+import requests
+import json
+from pathlib import Path
+
+# ---- PHASE 1: INDEXING ----
+# Run this once to build the vector database from your documents.
+
+# Use a local embedding model — nomic-embed-text is excellent (768-dim, 274 MB)
+# It outperforms OpenAI ada-002 on many retrieval benchmarks while running entirely locally.
+embedding_model = SentenceTransformer(
+    "nomic-ai/nomic-embed-text-v1.5",
+    trust_remote_code=True,
+    device="cuda"           # use GPU for fast embedding generation
+)
+
+# Initialize a local ChromaDB — stores vector index on disk, persists across restarts
+chroma_client = chromadb.PersistentClient(
+    path="./vectordb",
+    settings=Settings(anonymized_telemetry=False)
+)
+collection = chroma_client.get_or_create_collection(
+    name="knowledge_base",
+    metadata={"hnsw:space": "cosine"}   # cosine similarity for text
+)
+
+def chunk_document(text: str, chunk_size: int = 512, overlap: int = 64) -> list[str]:
+    """
+    Split document into overlapping chunks.
+
+    Why overlap? When you split "...sentence A. Sentence B..." at a boundary,
+    the chunk containing sentence A loses its connection to sentence B.
+    Overlap ensures no sentence is orphaned — its neighbors appear in
+    multiple chunks, preserving continuity across boundaries.
+
+    chunk_size=512 tokens (roughly 400 words) is a sweet spot:
+    - Smaller chunks (128-256): more precise retrieval, but each chunk lacks context
+    - Larger chunks (1024+): more context, but vector embeds the "average" meaning,
+      diluting specific facts — a 2000-word chunk about Python might match a query
+      about JavaScript just because both discuss programming.
+    """
+    words = text.split()
+    chunks = []
+    step = chunk_size - overlap
+    for i in range(0, len(words), step):
+        chunk = " ".join(words[i:i + chunk_size])
+        if len(chunk.split()) >= 50:    # skip tiny fragments
+            chunks.append(chunk)
+    return chunks
+
+def index_documents(document_paths: list[str]):
+    """Index a list of document files into ChromaDB."""
+    all_chunks = []
+    all_ids = []
+    all_metadata = []
+
+    for doc_path in document_paths:
+        text = Path(doc_path).read_text(encoding="utf-8", errors="ignore")
+        chunks = chunk_document(text)
+
+        for i, chunk in enumerate(chunks):
+            all_chunks.append(chunk)
+            all_ids.append(f"{doc_path}::{i}")
+            all_metadata.append({"source": doc_path, "chunk_index": i})
+
+    # Batch embed all chunks — much faster than one at a time
+    # nomic-embed-text requires a task prefix for the type of text
+    prefixed = [f"search_document: {chunk}" for chunk in all_chunks]
+    embeddings = embedding_model.encode(
+        prefixed,
+        batch_size=64,          # adjust based on GPU VRAM
+        show_progress_bar=True,
+        normalize_embeddings=True,
+    )
+
+    # Store in ChromaDB — this is persistent, survives restarts
+    collection.add(
+        documents=all_chunks,
+        embeddings=embeddings.tolist(),
+        ids=all_ids,
+        metadatas=all_metadata,
+    )
+    print(f"Indexed {len(all_chunks)} chunks from {len(document_paths)} documents")
+
+# Index your documents (run once, results persist)
+# index_documents(["./docs/manual.txt", "./docs/faq.md", ...])
+
+
+# ---- PHASE 2: RETRIEVAL AND GENERATION ----
+# Run this for every user query.
+
+def retrieve(query: str, top_k: int = 5) -> list[dict]:
+    """
+    Find the most relevant document chunks for a query.
+
+    Uses cosine similarity between the query embedding and all stored chunk embeddings.
+    ChromaDB's HNSW index makes this O(log n) even with millions of chunks.
+    """
+    # Prefix with "search_query" for query embeddings (asymmetric retrieval)
+    query_embedding = embedding_model.encode(
+        f"search_query: {query}",
+        normalize_embeddings=True
+    )
+
+    results = collection.query(
+        query_embeddings=[query_embedding.tolist()],
+        n_results=top_k,
+        include=["documents", "metadatas", "distances"]
+    )
+
+    chunks = []
+    for doc, meta, dist in zip(
+        results["documents"][0],
+        results["metadatas"][0],
+        results["distances"][0]
+    ):
+        chunks.append({
+            "text": doc,
+            "source": meta["source"],
+            "similarity": 1 - dist   # ChromaDB returns distance; convert to similarity
+        })
+
+    return chunks
+
+def rag_query(question: str, min_similarity: float = 0.3) -> str:
+    """
+    Full RAG pipeline: retrieve relevant chunks, then generate an answer.
+
+    min_similarity threshold filters out chunks that aren't relevant enough —
+    better to tell the user "I don't know" than to hallucinate from irrelevant context.
+    """
+    # Retrieve top-5 chunks
+    chunks = retrieve(question, top_k=5)
+
+    # Filter by relevance threshold
+    relevant_chunks = [c for c in chunks if c["similarity"] >= min_similarity]
+
+    if not relevant_chunks:
+        return "I could not find relevant information in the knowledge base to answer this question."
+
+    # Build the context block for the prompt
+    # Include source attribution so users can verify
+    context_parts = []
+    for i, chunk in enumerate(relevant_chunks, 1):
+        context_parts.append(
+            f"[Source {i}: {chunk['source']} (relevance: {chunk['similarity']:.2f})]\n{chunk['text']}"
+        )
+    context = "\n\n---\n\n".join(context_parts)
+
+    # Prompt engineering is critical for RAG quality.
+    # Key instructions:
+    # 1. Explicitly tell the model to use ONLY the provided context
+    # 2. Tell it to say "I don't know" rather than hallucinate
+    # 3. Ask it to cite sources — this forces it to ground answers in the retrieved text
+    prompt = f"""You are a precise assistant that answers questions using only the provided context.
+If the context does not contain enough information to answer the question, say so explicitly.
+Do not use any knowledge outside of the provided context.
+
+CONTEXT:
+{context}
+
+QUESTION: {question}
+
+ANSWER (cite specific sources from the context):"""
+
+    # Call local LLM via OpenAI-compatible API (Ollama or vLLM)
+    response = requests.post(
+        "http://localhost:11434/v1/chat/completions",
+        json={
+            "model": "llama3.1:8b",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,      # low temperature = more faithful to context
+            "max_tokens": 1024,
+        }
+    )
+    return response.json()["choices"][0]["message"]["content"]
+
+# Usage
+answer = rag_query("What is the recommended GPU memory for running Llama 3.1 70B?")
+print(answer)</code></pre>
+
+      <p>
+        There are several RAG failure modes worth knowing. <strong>Semantic drift</strong>: the
+        embedding model embeds the query in a different semantic space than the documents (more
+        common when mixing domains). Fix: use a domain-specific embedding model or fine-tune
+        on your data. <strong>Chunk boundary hallucination</strong>: the answer to the question
+        spans two adjacent chunks, neither of which alone contains the full answer. Fix: use
+        larger chunks or hierarchical retrieval (retrieve at multiple granularities).
+        <strong>Retrieval-faithfulness gap</strong>: you retrieved the right chunks but the LLM
+        still ignores them and answers from training. Fix: stronger prompt instructions, lower
+        temperature, or use a model that's been specifically fine-tuned for RAG (citation-following).
+      </p>
+
+      <!-- ============================================================ -->
+      <h2>8.7 Embeddings — The Foundation of Semantic Search</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Embeddings are dense vector representations of text where semantic similarity corresponds
+        to geometric proximity. A sentence about "GPU memory bandwidth" and a sentence about
+        "VRAM throughput" will produce embedding vectors that are close in high-dimensional space,
+        even though they share no keywords. This is fundamentally different from keyword search
+        (BM25, TF-IDF), which misses synonyms and paraphrases.
+      </p>
+
+      <p>
+        For local deployment, the embedding model runs separately from the LLM — it's a much
+        smaller encoder-only model (typically 0.1-0.5 GB) that doesn't generate text, just
+        transforms text into vectors. You can run the embedding model on CPU if needed, or on
+        GPU for high-throughput batch indexing.
+      </p>
+
+      <pre><code">from sentence_transformers import SentenceTransformer
+import torch
+import numpy as np
+from typing import List
+
+# Model comparison for local deployment:
+#
+# nomic-embed-text-v1.5 (274 MB, 768 dim)
+#   - Best open-source general-purpose embedder
+#   - Supports Matryoshka embeddings (truncate to 256 dim with minimal quality loss)
+#   - Task-specific prefixes: "search_query:", "search_document:", "classification:"
+#
+# bge-m3 (2.3 GB, 1024 dim)
+#   - Multi-lingual (100+ languages), multi-task
+#   - Supports dense + sparse + multi-vector retrieval simultaneously
+#   - Best choice for multilingual RAG systems
+#
+# e5-small-v2 (134 MB, 384 dim)
+#   - Smallest option, still strong for English
+#   - Runs on CPU in real-time — good for edge deployment
+
+model = SentenceTransformer(
+    "nomic-ai/nomic-embed-text-v1.5",
+    trust_remote_code=True,
+    device="cuda",
+)
+
+def embed_for_retrieval(texts: List[str], is_query: bool = False) -> np.ndarray:
+    """
+    Generate embeddings with the correct task prefix for asymmetric retrieval.
+
+    Why asymmetric? Queries and documents have different characteristics:
+    - Queries are short, terse, often missing context: "llm inference speed"
+    - Documents are long, detailed, explicit: "Inference speed for LLMs depends on..."
+    Training with separate prefixes teaches the model to bridge this gap —
+    a short query maps to the same region as its matching long document.
+    """
+    prefix = "search_query: " if is_query else "search_document: "
+    prefixed_texts = [prefix + t for t in texts]
+
+    embeddings = model.encode(
+        prefixed_texts,
+        batch_size=128,                 # adjust for GPU VRAM (128 typically fine)
+        show_progress_bar=len(texts) > 100,
+        normalize_embeddings=True,      # normalize to unit sphere for cosine similarity
+        convert_to_numpy=True,
+    )
+    return embeddings
+
+def batch_embed_documents(document_paths: List[str]) -> dict:
+    """High-throughput batch embedding for large document collections."""
+    from tqdm import tqdm
+
+    all_chunks = {}
+    for path in document_paths:
+        text = open(path).read()
+        chunks = chunk_document(text)   # from previous section
+        all_chunks[path] = chunks
+
+    flat_chunks = [(path, chunk) for path, chunks in all_chunks.items()
+                   for chunk in chunks]
+
+    texts = [chunk for _, chunk in flat_chunks]
+    embeddings = embed_for_retrieval(texts, is_query=False)
+
+    return {
+        "embeddings": embeddings,
+        "metadata": [{"source": path, "text": chunk} for path, chunk in flat_chunks]
+    }
+
+# Matryoshka embeddings: nomic-embed-text supports dimension reduction
+# without retraining — use smaller dimensions for lower memory/faster search
+# at a small quality cost.
+
+full_embedding = model.encode("Example text", normalize_embeddings=True)
+print(f"Full embedding: {full_embedding.shape}")    # (768,)
+
+# Truncate to 256 dimensions — 3x smaller, ~97% of full quality on MTEB benchmark
+truncated = full_embedding[:256]
+truncated = truncated / np.linalg.norm(truncated)  # re-normalize after truncation
+print(f"Truncated: {truncated.shape}")              # (256,)
+
+# Similarity computation
+def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    # Since both are L2-normalized, dot product = cosine similarity
+    return float(np.dot(a, b))
+
+query_emb = embed_for_retrieval(["what is KV cache"], is_query=True)[0]
+doc_emb   = embed_for_retrieval(["KV cache stores the key and value tensors..."], is_query=False)[0]
+print(f"Semantic similarity: {cosine_similarity(query_emb, doc_emb):.3f}")</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>8.8 Production Monitoring — Know What's Failing Before Users Do</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        vLLM exposes a Prometheus metrics endpoint at <code>/metrics</code> that gives you
+        real-time visibility into what's actually happening inside the server. Most teams
+        running local LLMs either don't monitor at all (until something breaks) or only check
+        <code>nvidia-smi</code> occasionally. Neither is good enough for anything serving
+        external users. Here's what each metric actually means and what threshold should
+        trigger an alert.
+      </p>
+
+      <p>
+        The most important metric is <code>vllm:gpu_cache_usage_perc</code> — the fraction
+        of KV cache blocks currently in use. When this approaches 1.0, vLLM starts
+        preempting: it pauses a running sequence, evicts its KV cache to CPU RAM, and continues
+        other requests. When the preempted request is unpaused, it re-runs prefill from scratch
+        to rebuild the KV cache. Preemption is invisible to the user (they just experience
+        higher latency) but shows up as a sudden spike in TTFT for the affected request.
+        If this happens frequently, you're overloaded — increase <code>--gpu-memory-utilization</code>,
+        reduce <code>--max-model-len</code>, or add more GPU capacity.
+      </p>
+
+      <pre><code"># vLLM metrics reference — what to monitor and alert on
+
+# Start vLLM with metrics endpoint enabled (it's on by default at :8000/metrics)
+python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.1-8B-Instruct \
+  --port 8000
+
+# Check raw metrics
+curl http://localhost:8000/metrics
+
+# Key metrics and their meaning:
+
+# 1. KV CACHE UTILIZATION (most critical)
+# vllm:gpu_cache_usage_perc
+# Range: 0.0 (empty) to 1.0 (completely full)
+# Alert threshold: > 0.85 (approaching preemption territory)
+# Action when triggered: reduce max_model_len or add GPU capacity
+
+# 2. REQUEST QUEUE DEPTH
+# vllm:num_requests_waiting
+# How many requests are queued waiting for a slot
+# Alert threshold: > 10 (persistent backlog means you're overloaded)
+# Note: brief spikes to 5-10 during bursts are normal
+
+# 3. PREEMPTIONS (canary for overload)
+# vllm:num_preemptions_total (counter — watch the rate, not the value)
+# Each increment = one sequence had its KV cache evicted and re-run
+# Alert threshold: increasing at rate > 1/min during normal load
+# This is the "check engine light" for your LLM serving capacity
+
+# 4. LATENCY PERCENTILES
+# vllm:time_to_first_token_seconds_bucket  (histogram)
+# vllm:time_per_output_token_seconds_bucket (histogram)
+# PromQL for p99 TTFT:
+#   histogram_quantile(0.99,
+#     rate(vllm:time_to_first_token_seconds_bucket[5m])
+#   )
+# Alert threshold: p99 TTFT > 5 seconds
+
+# 5. THROUGHPUT
+# vllm:num_generation_tokens_total (counter)
+# PromQL for current tokens/sec:
+#   rate(vllm:num_generation_tokens_total[1m])
+# Use this to track capacity utilization over time
+
+# 6. ACTIVE REQUESTS
+# vllm:num_requests_running — sequences actively being processed
+# vllm:num_requests_waiting — in queue
+# Healthy ratio: running/(running+waiting) > 0.8
+
+# Prometheus scrape config — add to prometheus.yml
+# scrape_configs:
+#   - job_name: 'vllm'
+#     static_configs:
+#       - targets: ['localhost:8000']
+#     scrape_interval: 15s
+#     metrics_path: '/metrics'
+
+# Grafana dashboard panel queries:
+
+# Panel 1: GPU Cache Utilization (gauge)
+# vllm:gpu_cache_usage_perc * 100
+
+# Panel 2: Request Throughput (graph)
+# rate(vllm:num_generation_tokens_total[1m])
+
+# Panel 3: TTFT p50/p95/p99 (graph)
+# histogram_quantile(0.50, rate(vllm:time_to_first_token_seconds_bucket[5m]))
+# histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket[5m]))
+# histogram_quantile(0.99, rate(vllm:time_to_first_token_seconds_bucket[5m]))
+
+# Panel 4: Preemption rate (counter rate)
+# rate(vllm:num_preemptions_total[5m])
+
+# Panel 5: Queue depth (gauge)
+# vllm:num_requests_waiting</code></pre>
+
+      <!-- ============================================================ -->
+      <h2>8.9 Model Evaluation — Measuring What You Actually Care About</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Perplexity (PPL) measures how surprised the model is by held-out text. Lower is better.
+        It's the standard quantization quality metric and correlates well with general language
+        quality. But perplexity is not a good proxy for task performance — a model with PPL=5.9
+        vs PPL=5.85 might perform identically on your actual use case, or might differ
+        significantly. The difference depends on whether the quantization happens to affect
+        the specific capabilities you care about.
+      </p>
+
+      <p>
+        The standard benchmarks are designed to isolate specific capabilities. MMLU
+        (Massive Multitask Language Understanding) covers 57 subjects from STEM to law —
+        it measures broad world knowledge. HumanEval tests Python code generation (164 problems).
+        GSM8K tests grade-school math word problems (8500 problems). HellaSwag tests commonsense
+        reasoning. For deployment, pick the benchmark that aligns with your actual use case and
+        run it before and after any model change.
+      </p>
+
+      <pre><code">pip install lm-eval
+
+# LM-Evaluation-Harness: the standard evaluation toolkit for LLMs
+# Supports hundreds of benchmarks, all local, all reproducible.
+
+# Evaluate Llama 3.1 8B fp16 on key benchmarks
+lm_eval --model vllm \
+  --model_args "pretrained=meta-llama/Llama-3.1-8B-Instruct,dtype=float16,gpu_memory_utilization=0.80" \
+  --tasks mmlu,gsm8k,hellaswag,humaneval \
+  --num_fewshot 5 \         # 5-shot evaluation (standard for comparison)
+  --batch_size auto \       # auto-tune batch size for speed
+  --output_path ./eval_results/fp16
+
+# Evaluate the Q4_K_M quantized version for comparison
+lm_eval --model gguf \
+  --model_args "pretrained=./models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf,n_gpu_layers=99" \
+  --tasks mmlu,gsm8k,hellaswag,humaneval \
+  --num_fewshot 5 \
+  --output_path ./eval_results/q4km
+
+# Compare results (example output):
+# Benchmark       fp16     Q4_K_M   Δ
+# MMLU (5-shot)   68.4%    67.9%   -0.5%   ← acceptable degradation
+# GSM8K (5-shot)  79.2%    76.8%   -2.4%   ← math is more sensitive
+# HellaSwag       82.1%    81.7%   -0.4%   ← negligible
+# HumanEval       62.8%    61.4%   -1.4%   ← code slightly more sensitive
+
+# Custom task evaluation — test on your specific domain
+from lm_eval import evaluator, tasks
+from lm_eval.models.vllm_causallms import VLLM
+
+# Register your custom task
+my_task = {
+    "task": "my_qa_task",
+    "dataset_path": "./my_eval_dataset",
+    "doc_to_text": lambda doc: f"Q: {doc['question']}\nA:",
+    "doc_to_target": lambda doc: doc["answer"],
+    "metric_list": [{"metric": "exact_match", "aggregation": "mean"}],
+    "num_fewshot": 0,
+}
+
+# Run evaluation
+model = VLLM(
+    pretrained="meta-llama/Llama-3.1-8B-Instruct",
+    dtype="float16",
+    gpu_memory_utilization=0.85,
+)
+
+results = evaluator.evaluate(
+    lm=model,
+    task_dict=tasks.get_task_dict(["my_qa_task"]),
+    num_fewshot=0,
+    limit=None,   # evaluate on full dataset
+)
+print(results["results"]["my_qa_task"])</code></pre>
 
       <!-- ============================================================ -->
       <h2>Part 9: Optimization — The Full Checklist</h2>
