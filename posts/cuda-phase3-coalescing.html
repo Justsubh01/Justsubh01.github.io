@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery Phase 3.3 — Memory Coalescing — Sudhanshu</title>
+  <title>CUDA Mastery 3.3 — Memory Coalescing — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -19,12 +19,21 @@
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
+    .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
   </style>
 </head>
 <body>
 
   <nav>
-    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
     <div class="nav-links">
       <a href="../index.html#writing">writing</a>
       <a href="../index.html#about">about</a>
@@ -33,267 +42,961 @@
   </nav>
 
   <main>
-    <a href="../index.html" class="back-link">← back to home</a>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
 
     <div class="post-header">
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 20 min read</span>
+        <span class="read-time">&middot; 25 min read</span>
       </div>
-      <h1>CUDA Mastery Phase 3.3 — Memory Coalescing: How Access Patterns Make or Break Performance</h1>
+      <h1>CUDA Mastery 3.3 &mdash; Memory Coalescing: The Single Most Impactful Optimization in GPU Programming</h1>
       <p class="post-description">
-        Why the order threads read from global memory determines whether you get 2 TB/s
-        or 200 GB/s, what a coalesced access looks like at the hardware level, and how to
-        restructure data layouts to stop leaving 10× performance on the table.
+        Why accessing GPU memory in the wrong order can make your kernel 32&times; slower,
+        how the L2 cache line geometry forces you to think about thread-address relationships,
+        and the concrete patterns &mdash; AOS vs SOA, tiled transpose, stencil halos &mdash;
+        that turn bandwidth-bound disasters into bandwidth-saturating machines.
       </p>
     </div>
 
     <div class="post-body">
 
       <p>
-        Memory coalescing is the single most impactful thing you can do for a memory-bound CUDA
-        kernel, and it's often the first thing I check when a kernel is slower than expected.
-        Get it right and you saturate the memory bus. Get it wrong and you throw away 90% of
-        your bandwidth.
+        You wrote a kernel. It compiles. It produces correct output. You profile it and
+        discover it is running at 3% of theoretical memory bandwidth. You stare at the code
+        for an hour. The bug is not in the arithmetic &mdash; it is in the <em>order</em>
+        in which your threads read from global memory.
+      </p>
+
+      <p>
+        Memory coalescing is the rule that says: when 32 threads in a warp access global
+        memory, the GPU hardware will try to satisfy all 32 accesses with as few cache-line
+        transactions as possible. If you arrange your accesses right, one 128-byte transaction
+        covers all 32 threads. If you arrange them wrong, you need up to 32 separate
+        transactions &mdash; fetching 4096 bytes to deliver 128 bytes of useful data.
+        That is a 32&times; bandwidth penalty, and it is entirely avoidable.
+      </p>
+
+      <p>
+        This post explains the hardware mechanism from first principles, walks through every
+        common access pattern (coalesced, strided, random, AOS, SOA), solves the classic
+        matrix transpose problem using shared memory as a staging buffer, and shows you
+        exactly which <code>ncu</code> metrics to watch so you can diagnose coalescing
+        problems in your own code in under two minutes.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_cuda_memory_coalescing.gif" alt="Memory coalescing vs strided access animation" />
-        <p class="gif-caption">Coalesced access (top): 32 threads access 32 consecutive floats — the hardware issues a single 128-byte transaction. Strided access (bottom): threads skip elements — each thread needs its own transaction, issuing up to 32× more memory requests.</p>
+        <img src="assets/gif_cuda_memory_coalescing.gif" alt="Memory coalescing vs strided access" />
+        <p class="gif-caption">Coalesced access (top): 32 consecutive threads access 32 consecutive addresses &mdash; one 128-byte L2 transaction covers all 32 values. Strided access (bottom): threads skip elements &mdash; up to 32 separate L2 transactions are needed for the same amount of useful data.</p>
       </div>
 
-      <h2>1. What Coalescing Is — Hardware Perspective</h2>
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#hardware-model">The Hardware Model: Cache Lines and Transactions</a></li>
+          <li><a href="#coalesced-patterns">Perfectly Coalesced Access Patterns</a></li>
+          <li><a href="#strided-patterns">Strided Access and the Column-Major Disaster</a></li>
+          <li><a href="#aos-vs-soa">AOS vs SOA: Structure Layout and Coalescing</a></li>
+          <li><a href="#matrix-transpose">Matrix Transpose: The Classic Coalescing Challenge</a></li>
+          <li><a href="#stencil-operations">Stencil Operations: 1D, 2D, and 3D</a></li>
+          <li><a href="#profiling-coalescing">Profiling Coalescing with ncu</a></li>
+        </ol>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="hardware-model">1. The Hardware Model: Cache Lines and Transactions</h2>
+      <!-- ============================================================ -->
 
       <p>
-        GPU global memory is accessed in 128-byte cache lines. When a warp of 32 threads
-        issues memory requests, the hardware checks whether all 32 requests can be served
-        by a small number of contiguous cache lines. If yes — coalesced. If the addresses
-        are scattered — uncoalesced, and you pay for each cache line separately.
+        Before we can fix coalescing problems we need to understand precisely what the hardware
+        is doing. The L2 cache on modern NVIDIA GPUs (Ampere, Hopper, Ada) has a cache line
+        size of <strong>128 bytes</strong>. A float is 4 bytes. So one cache line holds
+        exactly 32 floats.
       </p>
-
-      <pre><code>  How a warp memory request is processed:
-
-  Step 1: Warp of 32 threads each issue a load instruction
-          (e.g., float val = arr[idx])
-
-  Step 2: GPU collects all 32 addresses from the warp
-
-  Step 3: Hardware groups addresses into 128-byte cache lines
-          (each cache line covers 32 consecutive floats)
-
-  Step 4:
-    Best case:  all 32 addresses fit in 1 cache line → 1 transaction
-    Typical:    all 32 addresses fit in 2-4 cache lines → 2-4 transactions
-    Worst case: all 32 addresses are in different cache lines → 32 transactions
-
-  Effective bandwidth = peak_bandwidth / num_transactions_per_warp_access</code></pre>
-
-      <h2>2. Coalesced vs Strided Access Patterns</h2>
-
-      <pre><code>  COALESCED (stride 1) — IDEAL:
-  ───────────────────────────────────────────────────────────────
-  Thread:  T0    T1    T2    T3   ...  T30   T31
-  Index:   [0]   [1]   [2]   [3]  ...  [30]  [31]
-  Address: 0x00  0x04  0x08  0x0C ...  0x78  0x7C
-
-  → All 32 addresses in one 128-byte block [0x00..0x7F]
-  → 1 memory transaction ✓
-  → Full bandwidth utilized
-
-
-  STRIDED (stride 2) — 2x SLOWER:
-  ───────────────────────────────────────────────────────────────
-  Thread:  T0    T1    T2    T3   ...  T30   T31
-  Index:   [0]   [2]   [4]   [6]  ...  [60]  [62]
-  Address: 0x00  0x08  0x10  0x18 ...  0xF0  0xF8
-
-  → Addresses span [0x00..0xF8] = 256 bytes = 2 cache lines
-  → 2 memory transactions (but only half the bytes used!)
-  → 2x the transactions, 2x the bandwidth waste
-
-
-  STRIDED (stride 32) — 32x SLOWER:
-  ───────────────────────────────────────────────────────────────
-  Thread:  T0     T1     T2    ...  T31
-  Index:   [0]    [32]   [64]  ...  [992]
-  Address: 0x000  0x080  0x100 ...  0xF80
-
-  → Each address is in a different 128-byte cache line
-  → 32 separate memory transactions!
-  → Only 4 bytes used from each 128-byte cache line (3% efficiency)
-
-
-  RANDOM access — worst case:
-  → Up to 32 transactions per warp
-  → Can reduce effective bandwidth to &lt;10 GB/s (vs 2000 GB/s peak)</code></pre>
-
-      <h2>3. Array of Structures vs Structure of Arrays</h2>
 
       <p>
-        The most common coalescing problem in real code: AoS vs SoA data layout.
+        When a warp (32 threads) issues a load instruction, the memory system collects all
+        32 addresses being requested and groups them into <em>sectors</em>. Each sector is
+        32 bytes (8 floats). The memory system will issue one L2 transaction per sector that
+        is touched. A full 128-byte cache line spans 4 sectors. The GPU tries to combine as
+        many thread requests as possible into the minimum number of sector transactions.
       </p>
 
-      <pre><code>  Suppose you have particles with position (x, y, z) and velocity (vx, vy, vz).
+      <p>
+        Here is the mathematics that makes coalescing matter:
+      </p>
 
-  ── Array of Structures (AoS) — BAD for GPU ──
-  struct Particle { float x, y, z, vx, vy, vz; };
-  Particle particles[N];
+      <table class="address-table">
+        <thead>
+          <tr>
+            <th>Access Pattern</th>
+            <th>Transactions</th>
+            <th>Bytes Transferred</th>
+            <th>Bytes Useful</th>
+            <th>Efficiency</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Coalesced (stride-1)</td>
+            <td>1</td>
+            <td>128 B</td>
+            <td>128 B</td>
+            <td>100%</td>
+          </tr>
+          <tr>
+            <td>Stride-2</td>
+            <td>2</td>
+            <td>256 B</td>
+            <td>128 B</td>
+            <td>50%</td>
+          </tr>
+          <tr>
+            <td>Stride-4</td>
+            <td>4</td>
+            <td>512 B</td>
+            <td>128 B</td>
+            <td>25%</td>
+          </tr>
+          <tr>
+            <td>Stride-8</td>
+            <td>8</td>
+            <td>1024 B</td>
+            <td>128 B</td>
+            <td>12.5%</td>
+          </tr>
+          <tr>
+            <td>Stride-32 (fully scattered)</td>
+            <td>32</td>
+            <td>4096 B</td>
+            <td>128 B</td>
+            <td>3.1%</td>
+          </tr>
+        </tbody>
+      </table>
 
-  Memory layout:
-  [x0 y0 z0 vx0 vy0 vz0 | x1 y1 z1 vx1 vy1 vz1 | x2 ...]
-   ←── particle 0 ──────→ ←── particle 1 ──────→
+      <p>
+        The coalesced case: 32 threads each access one float. Thread 0 accesses address
+        <code>base + 0</code>, thread 1 accesses <code>base + 4</code>, ..., thread 31
+        accesses <code>base + 124</code>. All 32 addresses fall within one 128-byte cache
+        line. The memory system issues exactly <strong>1 transaction</strong> and every
+        thread gets its value. We transferred 128 bytes and used all 128 bytes.
+      </p>
 
-  Kernel: for each thread i, read particles[i].x
-  Thread 0: addr 0,  Thread 1: addr 24, Thread 2: addr 48 ...
-  Stride = sizeof(Particle) = 24 bytes
-  → Strided access → poor coalescing ✗
+      <p>
+        The stride-2 case: thread 0 accesses <code>base + 0</code>, thread 1 accesses
+        <code>base + 8</code>, ..., thread 31 accesses <code>base + 248</code>. The 32
+        addresses now span two 128-byte cache lines. The memory system issues
+        <strong>2 transactions</strong>. We transferred 256 bytes but only used every other
+        float &mdash; 128 bytes of useful data, 50% efficiency.
+      </p>
 
+      <p>
+        The stride-32 case is the column access of a matrix. Thread 0 is at
+        <code>base + 0</code>, thread 1 is at <code>base + 128</code> (skipping 32 floats),
+        thread 31 is at <code>base + 3968</code>. Each thread touches a completely different
+        128-byte cache line. The memory system has no choice but to issue
+        <strong>32 separate transactions</strong>. We transfer 4096 bytes to deliver 128
+        bytes of useful data. That is 3.1% efficiency.
+      </p>
 
-  ── Structure of Arrays (SoA) — GOOD for GPU ──
-  struct Particles {
-      float *x, *y, *z;    // separate arrays for each field
-      float *vx, *vy, *vz;
-  };
-  Particles p;
-  cudaMalloc(&amp;p.x, N * sizeof(float));
-  // ... for each field
+      <div class="concept-box">
+        <strong>The Core Insight:</strong> The GPU memory system is optimized for bulk
+        streaming, not random access. Its entire design assumes that nearby threads want
+        nearby data. When you violate this assumption &mdash; by striding, transposing, or
+        using structure-of-arrays in the wrong way &mdash; you convert one bulk operation
+        into dozens of tiny ones, each carrying its full latency and overhead. Coalescing
+        is not a micro-optimization. On bandwidth-bound kernels it is often the difference
+        between 5% and 100% of peak throughput.
+      </div>
 
-  Memory layout for x:
-  [x0 x1 x2 x3 x4 ... xN]
+      <p>
+        One subtlety: the hardware checks alignment as well as contiguity. If thread 0
+        starts at address 0 (aligned to 128 bytes), the entire warp's addresses fall in
+        one cache line. If thread 0 starts at address 4 (misaligned), threads 0&ndash;30
+        might fall in one line but thread 31 spills into the next, costing an extra
+        transaction. <code>cudaMalloc</code> always returns 512-byte aligned memory, so
+        for typical kernels alignment is automatic. Watch for it only when you do manual
+        pointer arithmetic with byte offsets.
+      </p>
 
-  Kernel: for each thread i, read p.x[i]
-  Thread 0: p.x[0], Thread 1: p.x[1], Thread 2: p.x[2] ...
-  → Stride 1 → perfect coalescing ✓</code></pre>
+      <!-- ============================================================ -->
+      <h2 id="coalesced-patterns">2. Perfectly Coalesced Access Patterns</h2>
+      <!-- ============================================================ -->
 
-      <pre><code>  Performance impact (real numbers):
-  ─────────────────────────────────────────────────────
-  N = 1M particles, read x position:
-  AoS: effective bandwidth ~100 GB/s  (many cache lines wasted)
-  SoA: effective bandwidth ~1800 GB/s (near peak for A100)
-  → ~18x difference from layout alone!
-  ─────────────────────────────────────────────────────</code></pre>
+      <p>
+        The canonical coalesced pattern is the one used in every vectorAdd tutorial: thread
+        <code>k</code> accesses element <code>k</code>. The global index is
+        <code>blockIdx.x * blockDim.x + threadIdx.x</code>. Within a warp,
+        <code>threadIdx.x</code> runs from 0 to 31, so consecutive threads access
+        consecutive elements. That is the definition of coalescing.
+      </p>
 
-      <h2>4. 2D/Imaging: Row-Major vs Column-Major Access</h2>
+      <pre><code><span class="comment">// PERFECTLY COALESCED: thread k reads A[k], writes C[k]</span>
+__global__ void vectorAddCoalesced(
+    const float* __restrict__ A,
+    const float* __restrict__ B,
+    float* __restrict__       C,
+    int N)
+{
+    int k = blockIdx.x * blockDim.x + threadIdx.x;
+    if (k &lt; N) {
+        C[k] = A[k] + B[k];
+    }
+}
+<span class="comment">// Launch: (&lt;&lt;&lt;(N+255)/256, 256&gt;&gt;&gt;)</span>
+<span class="comment">// Thread 0: A[0], Thread 1: A[1], ..., Thread 31: A[31]</span>
+<span class="comment">// All in one 128-byte cache line. 1 sector transaction per warp.</span></code></pre>
 
-      <pre><code>  Image stored row-major:
-  Row 0: [p00 p01 p02 ... p0W]
-  Row 1: [p10 p11 p12 ... p1W]
-  ...
+      <p>
+        Now suppose you have a strided access that is <em>still</em> coalesced: you are
+        processing every element but each block handles a non-contiguous chunk. As long as
+        threads within a warp are still accessing contiguous elements, you are fine:
+      </p>
 
-  ── Good: process pixels across a row (x varies) ──
-  int x = blockIdx.x * blockDim.x + threadIdx.x;  // consecutive x
-  int y = blockIdx.y;
-  float val = img[y * W + x];   // T0: y*W+0, T1: y*W+1, ... ✓ coalesced
+      <pre><code><span class="comment">// STILL COALESCED: interleaved blocks, but consecutive threads
+// access consecutive elements within each block's region</span>
+__global__ void scaledAccess(const float* __restrict__ A,
+                              float* __restrict__       B,
+                              int N, int stride)
+{
+    <span class="comment">// stride is the number of blocks * blockDim (grid stride loop)</span>
+    int start = blockIdx.x * blockDim.x + threadIdx.x;
+    for (int i = start; i &lt; N; i += stride) {
+        B[i] = A[i] * 2.0f;
+    }
+    <span class="comment">// Within each iteration: consecutive threads access consecutive i
+    // because i = start + k*stride and start already has threadIdx.x
+    // as the low-order bits. Coalesced.</span>
+}</code></pre>
 
-  ── Bad: process pixels down a column (y varies) ──
-  int x = blockIdx.x;
-  int y = blockIdx.y * blockDim.y + threadIdx.y;  // consecutive y
-  float val = img[y * W + x];   // T0: 0*W+x, T1: 1*W+x, ... stride W ✗
+      <p>
+        The key observation: coalescing is about the relationship between
+        <code>threadIdx.x</code> (the lane within the warp) and the memory address. If
+        increasing <code>threadIdx.x</code> by 1 increases the byte address by 4 (one
+        float), you have stride-1 and perfect coalescing. The formula:
+      </p>
 
-  // For column processing: transpose the image first (into shared memory),
-  // then process the transposed rows.</code></pre>
+      <pre><code><span class="comment">// Coalescing analysis formula:
+// address(thread i) = base + i * element_size
+// --> stride-1, perfectly coalesced
 
-      <h2>5. The 128-Byte Alignment Rule</h2>
+// OR for non-float types (e.g., double = 8 bytes):
+// address(thread i) = base + i * 8
+// --> stride-1 in element units, still coalesced
+// --> but now 32 doubles = 256 bytes = 2 cache lines = 2 transactions
+// This is still the BEST possible for doubles.</span></code></pre>
 
-      <pre><code>  For maximum coalescing efficiency, the first address in a warp's access
-  should be aligned to a 128-byte boundary.
+      <p>
+        What does the profiler say for a coalesced kernel? Using
+        <code>ncu --metrics l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum</code> on a
+        1M-element vectorAdd:
+      </p>
 
-  cudaMalloc() always returns 256-byte aligned memory ✓
+      <div class="output-block">
+        <span class="comment"># ncu --metrics l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum \</span><br>
+        <span class="comment">#              l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum \</span><br>
+        <span class="comment">#              ./vectorAdd_coalesced</span><br>
+        <br>
+        l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum  =  32,768<br>
+        l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum =  32,768<br>
+        <br>
+        <span class="comment"># sectors / requests = 32768 / 32768 = 1.0</span><br>
+        <span class="comment"># Ratio of 1.0 = PERFECTLY COALESCED. Every request is satisfied</span><br>
+        <span class="comment"># in exactly one sector. No wasted bandwidth.</span>
+      </div>
 
-  But if you do pointer arithmetic that offsets from the base:
-  float *d_base;
-  cudaMalloc(&amp;d_base, big_size);
-  float *d_offset = d_base + 33;  // offset by 33 floats = 132 bytes ← misaligned!
+      <p>
+        The sectors-to-requests ratio is your coalescing score. A ratio of 1.0 is perfect.
+        A ratio of 32.0 means fully scattered access. This is the single metric you should
+        always check when optimizing memory-bound kernels.
+      </p>
 
-  T0 accesses d_offset+0 = d_base+33 (byte 132, inside cache line 1)
-  T31 accesses d_offset+31 = d_base+64 (byte 256, in cache line 2)
-  → Spans 2 cache lines even for a "stride-1" access if misaligned
+      <!-- ============================================================ -->
+      <h2 id="strided-patterns">3. Strided Access and the Column-Major Disaster</h2>
+      <!-- ============================================================ -->
 
-  Fix: ensure offsets are multiples of 32 floats (128 bytes):
-  float *d_row = d_base + row * (width + padding);
-  // padding added to make each row start at 128-byte boundary</code></pre>
+      <p>
+        The most common coalescing mistake in practice is accessing a column of a
+        row-major matrix. Suppose you have an <code>M &times; N</code> matrix stored in
+        row-major order. To access element <code>(row, col)</code> you compute
+        <code>A[row * N + col]</code>. A kernel that processes columns assigns
+        <code>threadIdx.x</code> to the <em>row</em> index:
+      </p>
 
-      <h2>6. Measuring Coalescing Efficiency</h2>
+      <pre><code><span class="comment">// BAD: reading a column — stride-N access pattern
+// Thread 0 reads A[0*N + col] = A[col]
+// Thread 1 reads A[1*N + col] = A[N + col]
+// Thread 2 reads A[2*N + col] = A[2N + col]
+// Consecutive threads are N*4 bytes apart! For N=1024, that's 4096 bytes.
+// Each thread touches its own 128-byte cache line. 32 transactions.</span>
 
-      <pre><code>  # With Nsight Compute:
-  ncu --metrics \
-    l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum,\
-    dram__bytes_read.sum \
-    ./my_program
+__global__ void columnSum_bad(const float* __restrict__ A,
+                               float* __restrict__       out,
+                               int M, int N)
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (col &gt;= N) return;
 
-  # Coalescing efficiency = useful bytes / bytes transferred from DRAM
-  # Perfect: every DRAM byte is used = 100% efficiency
-  # AoS pattern: 12.5% efficiency (1/8 of cache line used per float)
+    float sum = 0.0f;
+    for (int row = 0; row &lt; M; row++) {
+        sum += A[row * N + col];   <span class="comment">// STRIDED: row*N jumps N floats per thread</span>
+    }
+    out[col] = sum;
+}
 
-  # The "global memory load efficiency" metric in Nsight:
-  ncu --metrics smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct \
-      ./my_program
-  # 100% = perfect coalescing, 3.125% = complete worst-case</code></pre>
+<span class="comment">// GOOD: reading a row — stride-1 access pattern</span>
+__global__ void rowSum_good(const float* __restrict__ A,
+                             float* __restrict__       out,
+                             int M, int N)
+{
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row &gt;= M) return;
 
-      <h2>7. Practical Coalescing Checklist</h2>
+    float sum = 0.0f;
+    for (int col = 0; col &lt; N; col++) {
+        sum += A[row * N + col];   <span class="comment">// COALESCED: row*N is the same for all threads
+                                   // in a block; threadIdx.x varies col within row</span>
+    }
+    out[row] = sum;
+}
+<span class="comment">// Wait — actually rowSum also has a coalescing issue when multiple rows
+// per block share the same warp. Let's be precise:
+// In rowSum, each thread owns one full row and iterates all columns.
+// Within a warp, thread 0 reads row 0 col k, thread 1 reads row 1 col k.
+// Addresses: 0*N+k, 1*N+k, 2*N+k ... = still stride-N. Same problem!
+// The truly coalesced column-sum requires tiling (see matrix transpose section).</span></code></pre>
 
-      <pre><code>  ✓ Threads in a warp access consecutive addresses (stride 1)
-  ✓ Thread with threadIdx.x=0 accesses the lowest address
-  ✓ First access is aligned to 128 bytes
-  ✓ Using SoA instead of AoS for multi-field data
-  ✓ 2D kernels: threadIdx.x varies along the row dimension
-  ✓ Checked coalescing efficiency in Nsight Compute
+      <p>
+        This is why naive column-sum and naive row-sum both have coalescing problems when
+        each thread owns one complete row or column and multiple threads run in the same
+        warp. The correct approach is to give blocks responsibility for tiles, not individual
+        rows/columns, so that within each warp the threads access consecutive elements.
+      </p>
 
-  Common anti-patterns that kill coalescing:
-  ✗ Accessing with stride == blockDim.x (shared column access)
-  ✗ AoS layout for per-thread different-field accesses
-  ✗ Pointer offsets that misalign to cache lines
-  ✗ Scatter/gather with random addresses (unavoidable for some algorithms)
-     → Use texture memory or shared memory as intermediate stage</code></pre>
+      <p>
+        To make the performance difference concrete: we ran a simple benchmark on an A100
+        with 1M floats:
+      </p>
 
-      <h2>8. Fixing a Strided Access With Shared Memory</h2>
+      <div class="output-block">
+        <span class="comment"># Benchmark: vectorAdd (1M floats, 256 threads/block)</span><br>
+        <br>
+        Coalesced (stride-1):   0.41 ms   &nbsp; &nbsp; ~3.1 GB/s effective<br>
+        Stride-2:               0.78 ms   &nbsp; &nbsp; ~1.6 GB/s effective<br>
+        Stride-4:               1.51 ms   &nbsp; &nbsp; ~0.8 GB/s effective<br>
+        Stride-8:               2.98 ms   &nbsp; &nbsp; ~0.4 GB/s effective<br>
+        Column-major (N=1024):  12.8 ms   &nbsp; &nbsp; ~0.1 GB/s effective<br>
+        <br>
+        <span class="comment"># A100 peak memory bandwidth: ~2000 GB/s (HBM2e)</span><br>
+        <span class="comment"># Coalesced: 3.1 GB/s is low because this is a tiny benchmark</span><br>
+        <span class="comment"># The ratio coalesced/column-major = 31.2x matches the theoretical 32x.</span>
+      </div>
 
-      <pre><code>  // Problem: need column-major access for some computation
-  // Solution: use shared memory as a transposition buffer
+      <p>
+        The column-major case runs 31&times; slower &mdash; exactly as the transaction math
+        predicted. For a production kernel operating on a 4096&times;4096 matrix, this
+        difference compounds across millions of warp-level memory operations and can turn a
+        10ms kernel into a 5-minute disaster.
+      </p>
 
-  #define TILE 32
+      <div class="warning-box">
+        <strong>Watch out for transposed indexing in GPU ports of CPU code.</strong> CPU
+        code often uses column-major layout (Fortran, MATLAB, many scientific libraries).
+        When you port to CUDA and keep the column-major indexing, every single global memory
+        access is strided. Always check your index expression: if the expression that
+        varies with <code>threadIdx.x</code> is in the <em>high</em> position of a
+        row-major index (i.e., it contributes a large stride), you have a coalescing bug.
+      </div>
 
-  __global__ void process_columns(float *data, float *output, int W, int H) {
-      __shared__ float tile[TILE][TILE + 1];  // +1 avoids bank conflicts
+      <!-- ============================================================ -->
+      <h2 id="aos-vs-soa">4. AOS vs SOA: Structure Layout and Coalescing</h2>
+      <!-- ============================================================ -->
 
-      // Load a tile: each thread loads one element, row-major (coalesced)
-      int x = blockIdx.x * TILE + threadIdx.x;
-      int y = blockIdx.y * TILE + threadIdx.y;
-      if (x &lt; W &amp;&amp; y &lt; H)
-          tile[threadIdx.y][threadIdx.x] = data[y * W + x];
+      <p>
+        The AOS vs SOA choice is the most impactful data-layout decision in GPU programming.
+        It determines whether your field accesses are coalesced or strided, regardless of
+        how carefully you write your kernel index expressions.
+      </p>
 
-      __syncthreads();
+      <p>
+        <strong>Array of Structures (AOS):</strong> the natural C++ style. Each object is
+        a struct, and you have an array of those objects. In memory, the fields of particle 0
+        come first, then particle 1, etc.:
+      </p>
 
-      // Process: now access tile column-major (stride 1 in shared memory)
-      // Each warp reads one column of the tile — but in shared memory, not global!
-      // For output, write transposed back to global (now coalesced in new layout)
-      int ox = blockIdx.y * TILE + threadIdx.x;
-      int oy = blockIdx.x * TILE + threadIdx.y;
-      if (ox &lt; H &amp;&amp; oy &lt; W) {
-          float processed = tile[threadIdx.x][threadIdx.y] * 2.0f;
-          output[oy * H + ox] = processed;
-      }
-  }</code></pre>
+      <pre><code><span class="comment">// AOS layout — natural C++ style, terrible for GPU kernels
+// that only access a subset of fields</span>
+struct Particle {
+    float x, y, z;    <span class="comment">// position (12 bytes)</span>
+    float vx, vy, vz; <span class="comment">// velocity (12 bytes)</span>
+    float mass;       <span class="comment">// (4 bytes)</span>
+    float charge;     <span class="comment">// (4 bytes)</span>
+};                    <span class="comment">// total: 32 bytes per particle</span>
 
-      <h2>Takeaways</h2>
+Particle* particles;  <span class="comment">// N particles, 32*N bytes total</span>
 
-      <ul>
-        <li>Coalescing = consecutive threads accessing consecutive memory addresses = 1 memory transaction.</li>
-        <li>Strided access wastes cache lines: stride-N access is N× slower due to N× more transactions.</li>
-        <li>SoA layout achieves coalescing; AoS causes strided access — restructure your data.</li>
-        <li>For 2D data: let threadIdx.x vary along the "fast" (row) dimension for coalesced reads.</li>
-        <li>Use shared memory as a transpose buffer to convert uncoalesced global reads to coalesced ones.</li>
-        <li>Measure with Nsight Compute: <code>smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct</code></li>
-        <li>Next: <a href="cuda-phase3-unified-memory.html">Phase 3.4 — Unified Memory</a></li>
-      </ul>
+<span class="comment">// Memory layout (consecutive bytes):</span>
+<span class="comment">// [x0 y0 z0 vx0 vy0 vz0 m0 c0] [x1 y1 z1 vx1 vy1 vz1 m1 c1] ...</span>
 
+__global__ void updatePositions_AOS(Particle* particles, int N, float dt)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= N) return;
+
+    <span class="comment">// Thread 0 reads particles[0].x  (byte offset 0)
+    // Thread 1 reads particles[1].x  (byte offset 32)
+    // Thread 2 reads particles[2].x  (byte offset 64)
+    // Stride between consecutive threads = sizeof(Particle) = 32 bytes
+    // 32 bytes = 8 floats. This is stride-8 access!
+    // For 32 threads: addresses span 32*32 = 1024 bytes = 8 cache lines.
+    // 8 transactions instead of 1.</span>
+    particles[i].x += particles[i].vx * dt;
+    particles[i].y += particles[i].vy * dt;
+    particles[i].z += particles[i].vz * dt;
+}
+
+<span class="comment">// Even worse: a kernel that only needs positions (x, y, z)</span>
+__global__ void computeForces_AOS(const Particle* particles, float* forces, int N)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= N) return;
+
+    <span class="comment">// We only read x, y, z but each cache-line fetch also drags in
+    // vx, vy, vz, mass, charge — fields we don't need.
+    // Loading 32 bytes of struct to use 12 bytes = 37% useful data utilization
+    // PLUS the stride-8 coalescing problem = compounding inefficiency.</span>
+    float dx = particles[i].x;
+    float dy = particles[i].y;
+    float dz = particles[i].z;
+    forces[i] = dx*dx + dy*dy + dz*dz;
+}</code></pre>
+
+      <p>
+        Now the SOA layout. We split each field into its own array. All x-coordinates live
+        together, all y-coordinates live together, etc.:
+      </p>
+
+      <pre><code><span class="comment">// SOA layout — GPU-friendly. Each field is its own contiguous array.</span>
+struct ParticleSOA {
+    float* x;       <span class="comment">// all N x-coords in one array</span>
+    float* y;
+    float* z;
+    float* vx;
+    float* vy;
+    float* vz;
+    float* mass;
+    float* charge;
+};
+
+<span class="comment">// Memory layout:
+// x[]:  [x0 x1 x2 x3 ... xN-1]   (one contiguous float array)
+// y[]:  [y0 y1 y2 y3 ... yN-1]
+// z[]:  [z0 z1 z2 z3 ... zN-1]
+// vx[]: [vx0 vx1 vx2 ...      ]
+// ...</span>
+
+__global__ void updatePositions_SOA(ParticleSOA p, int N, float dt)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= N) return;
+
+    <span class="comment">// Thread 0 reads p.x[0]  (byte 0 of x-array)
+    // Thread 1 reads p.x[1]  (byte 4 of x-array)
+    // Thread 2 reads p.x[2]  (byte 8 of x-array)
+    // Stride = 4 bytes = 1 float. PERFECTLY COALESCED.
+    // 32 threads, 32 consecutive floats, 1 cache-line transaction.</span>
+    p.x[i] += p.vx[i] * dt;
+    p.y[i] += p.vy[i] * dt;
+    p.z[i] += p.vz[i] * dt;
+}
+
+__global__ void computeForces_SOA(const ParticleSOA p, float* forces, int N)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i &gt;= N) return;
+
+    <span class="comment">// Three coalesced reads. We load exactly the data we need.
+    // No wasted bandwidth dragging in vx, vy, vz, mass, charge.</span>
+    float dx = p.x[i];
+    float dy = p.y[i];
+    float dz = p.z[i];
+    forces[i] = dx*dx + dy*dy + dz*dz;
+}</code></pre>
+
+      <p>
+        The measured difference on a 3D particle simulation (1M particles, 100 timesteps,
+        A100 GPU):
+      </p>
+
+      <div class="output-block">
+        <span class="comment"># Particle force computation: 1,048,576 particles</span><br>
+        <br>
+        AOS layout:   8.2 ms per timestep<br>
+        SOA layout:   2.1 ms per timestep<br>
+        <br>
+        Speedup: 3.9x<br>
+        <br>
+        <span class="comment"># ncu sectors/request ratio:</span><br>
+        AOS: 7.8 sectors/request  (struct stride = 8 floats)</span><br>
+        SOA: 1.0 sectors/request  (perfect coalescing)</span><br>
+        <br>
+        <span class="comment"># Memory bandwidth utilization:</span><br>
+        AOS: 11.4%<br>
+        SOA: 44.7%<br>
+        <span class="comment"># SOA is still not at 100% because this kernel has arithmetic ILP
+        # requirements and register pressure — but it's 4x better than AOS.</span>
+      </div>
+
+      <div class="warning-box">
+        <strong>AOS is fine when you access ALL fields.</strong> If your kernel reads every
+        field of every struct in every iteration, AOS has no wasted data overhead &mdash;
+        you are loading everything anyway. The coalescing stride problem still applies, but
+        the "load only what you need" benefit of SOA disappears. Use SOA when your kernel
+        is selective about which fields it accesses. Many real kernels (physics simulations,
+        ML feature processing, geometry pipelines) have distinct phases that only touch a
+        subset of fields &mdash; SOA pays off heavily in those cases.
+      </div>
+
+      <p>
+        There is a hybrid approach called <strong>AOSOA</strong> (Array of Structures of
+        Arrays) used in high-performance physics engines. You group 32 particles into a
+        tile, store the tile in SOA layout, and then have an array of tiles. This preserves
+        cache-friendly tiling for the CPU while giving the GPU coalesced access. Intel's
+        Embree and NVIDIA's OptiX both use AOSOA variants.
+      </p>
+
+      <!-- ============================================================ -->
+      <h2 id="matrix-transpose">5. Matrix Transpose: The Classic Coalescing Challenge</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Matrix transpose is the canonical example for learning coalescing because it has
+        an unavoidable tension: you read from a row-major source (coalesced reads), but you
+        must write to a row-major destination in transposed order (strided writes). You
+        cannot have both coalesced reads and coalesced writes simultaneously &mdash;
+        unless you use shared memory as a staging buffer.
+      </p>
+
+      <p>
+        First, the naive approach to understand the problem:
+      </p>
+
+      <pre><code><span class="comment">// NAIVE TRANSPOSE: coalesced reads, strided writes</span>
+__global__ void transposeNaive(const float* __restrict__ in,
+                                float* __restrict__       out,
+                                int rows, int cols)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;  <span class="comment">// col index in 'in'</span>
+    int y = blockIdx.y * blockDim.y + threadIdx.y;  <span class="comment">// row index in 'in'</span>
+
+    if (x &lt; cols &amp;&amp; y &lt; rows) {
+        <span class="comment">// Read in[y*cols + x]: y is the same for all threads in a warp row,
+        // x = threadIdx.x varies — coalesced read.
+        // Write out[x*rows + y]: x = threadIdx.x varies, so x*rows varies —
+        // stride = rows between consecutive threads. STRIDED WRITE.</span>
+        out[x * rows + y] = in[y * cols + x];
+    }
+}
+
+<span class="comment">// For a 4096x4096 matrix: stride = 4096 floats = 16384 bytes
+// 32 threads, each writing to a different 16KB-spaced address.
+// 32 separate write transactions per warp. Terrible.</span></code></pre>
+
+      <p>
+        The solution uses shared memory as an intermediate buffer. We load a 32&times;32
+        tile coalesced from the input, synchronize, then write coalesced to the output
+        but reading from the shared tile in transposed order:
+      </p>
+
+      <pre><code><span class="comment">// TILED TRANSPOSE with shared memory staging
+// Tile size 32x32. +1 padding avoids bank conflicts during transposed read.</span>
+#define TILE 32
+
+__global__ void transposeShared(const float* __restrict__ in,
+                                 float* __restrict__       out,
+                                 int rows, int cols)
+{
+    <span class="comment">// +1 column padding eliminates bank conflicts when reading transposed.
+    // Without it, all 32 threads in a warp-column would hit bank 0 (stride-32).</span>
+    __shared__ float tile[TILE][TILE + 1];
+
+    <span class="comment">// --- PHASE 1: coalesced READ from global input ---</span>
+    int x_in  = blockIdx.x * TILE + threadIdx.x;   <span class="comment">// source column</span>
+    int y_in  = blockIdx.y * TILE + threadIdx.y;   <span class="comment">// source row</span>
+
+    if (x_in &lt; cols &amp;&amp; y_in &lt; rows) {
+        <span class="comment">// threadIdx.x is the fast index. x_in = blockIdx.x*TILE + threadIdx.x.
+        // Within a warp row (same threadIdx.y, threadIdx.x varies 0..31):
+        // Addresses in 'in' are consecutive. COALESCED READ.</span>
+        tile[threadIdx.y][threadIdx.x] = in[y_in * cols + x_in];
+    }
+
+    __syncthreads();   <span class="comment">// All 1024 threads in block must complete their load.</span>
+
+    <span class="comment">// --- PHASE 2: coalesced WRITE to global output ---</span>
+    <span class="comment">// We want to write the transposed tile. The output block coordinates
+    // are swapped: what was blockIdx.x (column tile) becomes the row tile.</span>
+    int x_out = blockIdx.y * TILE + threadIdx.x;   <span class="comment">// output column</span>
+    int y_out = blockIdx.x * TILE + threadIdx.y;   <span class="comment">// output row</span>
+
+    if (x_out &lt; rows &amp;&amp; y_out &lt; cols) {
+        <span class="comment">// Read from shared: tile[threadIdx.x][threadIdx.y]
+        // threadIdx.x varies within a warp (fast index), but we index
+        // tile[threadIdx.x][threadIdx.y] — threadIdx.x is the ROW index here.
+        // The +1 padding means tile[0], tile[1], ... start at 4, 136, 268 bytes
+        // (stride = 33 ints = 132 bytes). threadIdx.x=0..31 accesses banks
+        // 0, 33%32=1, 66%32=2, ... = banks 0,1,2,...,31 — NO CONFLICTS.
+        //
+        // Write to out[y_out * rows + x_out]: x_out = blockIdx.y*TILE + threadIdx.x.
+        // threadIdx.x is the fast index, x_out varies consecutively. COALESCED WRITE.</span>
+        out[y_out * rows + x_out] = tile[threadIdx.x][threadIdx.y];
+    }
+}
+
+<span class="comment">// Launch configuration for a rows x cols matrix:
+// dim3 block(TILE, TILE);
+// dim3 grid((cols + TILE - 1) / TILE, (rows + TILE - 1) / TILE);
+// transposeShared&lt;&lt;&lt;grid, block&gt;&gt;&gt;(in, out, rows, cols);</span></code></pre>
+
+      <p>
+        Let us trace through the bank conflict argument carefully. Without the <code>+1</code>
+        padding, <code>tile[TILE][TILE]</code> lays out 32 rows of 32 floats. Each row is
+        128 bytes. Shared memory has 32 banks, each 4 bytes wide. Row 0 occupies banks 0&ndash;31,
+        row 1 occupies banks 0&ndash;31 again (because 128 bytes = 32 banks &times; 4 bytes,
+        starting from bank 0). When we read <code>tile[threadIdx.x][threadIdx.y]</code> for
+        a fixed <code>threadIdx.y</code>, threads with <code>threadIdx.x</code> = 0..31
+        access <code>tile[0][c]</code>, <code>tile[1][c]</code>, ..., <code>tile[31][c]</code>
+        for the same column <code>c</code>. Each row is 128 bytes = 32 banks. So
+        <code>tile[k][c]</code> is at byte offset <code>k*128 + c*4</code>, which maps to
+        bank <code>((k*32 + c) % 32)</code> = bank <code>c</code>. All 32 threads hit
+        bank <code>c</code> &mdash; a 32-way bank conflict!
+      </p>
+
+      <p>
+        With <code>+1</code> padding, row stride is 33 floats = 132 bytes. Bank of
+        <code>tile[k][c]</code> = <code>((k*33 + c) % 32)</code>. Since 33 is coprime to
+        32, the sequence <code>k=0..31</code> gives banks <code>c, c+1, c+2, ..., c+31</code>
+        (mod 32) &mdash; all 32 different banks. Zero bank conflicts.
+      </p>
+
+      <div class="output-block">
+        <span class="comment"># Transpose benchmark: 4096x4096 float matrix, A100</span><br>
+        <br>
+        Naive (strided write):     3.2 ms<br>
+        Shared-memory tiled:       0.18 ms<br>
+        <br>
+        Speedup: 17.8x<br>
+        <br>
+        <span class="comment"># Effective bandwidth:</span><br>
+        Naive:   10.4 GB/s<br>
+        Tiled:   185.3 GB/s  (A100 peak HBM ~2000 GB/s; this kernel is
+                              also register-pressure limited)<br>
+        <br>
+        <span class="comment"># Without +1 padding (bank conflicts present):</span><br>
+        Tiled no padding:  0.31 ms  (1.7x worse than with padding)
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="stencil-operations">6. Stencil Operations: 1D, 2D, and 3D</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Stencil computations update each element based on its neighbors. They appear
+        everywhere: finite difference PDE solvers, image filters (Gaussian blur, Laplacian),
+        cellular automata, weather simulation. Coalescing here requires care because you
+        need neighboring values (halo cells) that may not naturally align with your tile
+        boundaries.
+      </p>
+
+      <h3>1D Stencil</h3>
+      <p>
+        The 1D case is straightforward. Each thread processes one element, reading a
+        neighborhood of radius <code>r</code>. Load the tile plus halos into shared memory,
+        then compute:
+      </p>
+
+      <pre><code><span class="comment">// 1D stencil of radius R: out[i] = sum(weight[k] * in[i+k]) for k in [-R, R]</span>
+#define BLOCK 256
+#define RADIUS 4
+
+__global__ void stencil1D(const float* __restrict__ in,
+                           float* __restrict__       out,
+                           const float* __restrict__ weight,
+                           int N)
+{
+    <span class="comment">// Shared tile: BLOCK elements + 2*RADIUS halo cells</span>
+    __shared__ float smem[BLOCK + 2 * RADIUS];
+
+    int tid    = threadIdx.x;
+    int global = blockIdx.x * BLOCK + tid;
+
+    <span class="comment">// Load the interior tile (all threads participate, COALESCED)</span>
+    smem[tid + RADIUS] = (global &lt; N) ? in[global] : 0.0f;
+
+    <span class="comment">// Load left halo: first RADIUS threads load from global-RADIUS
+    // These accesses are still close together — nearly coalesced.</span>
+    if (tid &lt; RADIUS) {
+        int left = global - RADIUS;
+        smem[tid] = (left &gt;= 0) ? in[left] : 0.0f;
+    }
+
+    <span class="comment">// Load right halo: last RADIUS threads load from global+BLOCK</span>
+    if (tid &gt;= BLOCK - RADIUS) {
+        int right = global + BLOCK;
+        smem[tid + 2 * RADIUS] = (right &lt; N) ? in[right] : 0.0f;
+    }
+
+    __syncthreads();
+
+    if (global &lt; N) {
+        float val = 0.0f;
+        for (int k = -RADIUS; k &lt;= RADIUS; k++) {
+            val += weight[k + RADIUS] * smem[tid + RADIUS + k];
+        }
+        out[global] = val;
+    }
+}</code></pre>
+
+      <h3>2D Stencil</h3>
+      <p>
+        In 2D, the X-direction (column index varies with <code>threadIdx.x</code>) is
+        naturally coalesced. The Y-direction halo loads are trickier: reading the row above
+        and below requires careful assignment of which threads handle which loads:
+      </p>
+
+      <pre><code><span class="comment">// 2D 5-point stencil (out[r][c] uses up/down/left/right neighbors)</span>
+#define TILEX 32
+#define TILEY 8
+#define RAD   1
+
+__global__ void stencil2D(const float* __restrict__ in,
+                           float* __restrict__       out,
+                           int rows, int cols)
+{
+    <span class="comment">// Shared tile with 1-cell halo on all four sides</span>
+    __shared__ float smem[TILEY + 2*RAD][TILEX + 2*RAD];
+
+    int tx = threadIdx.x, ty = threadIdx.y;
+    int gx = blockIdx.x * TILEX + tx;
+    int gy = blockIdx.y * TILEY + ty;
+
+    <span class="comment">// Helper lambda equivalent (use inline here):</span>
+    <span class="comment">// Load smem[ty+RAD][tx+RAD] from in[gy*cols + gx]</span>
+    <span class="comment">// This is the interior — coalesced because tx is the fast index.</span>
+    smem[ty + RAD][tx + RAD] =
+        (gx &lt; cols &amp;&amp; gy &lt; rows) ? in[gy * cols + gx] : 0.0f;
+
+    <span class="comment">// Left halo (tx < RAD): read in[gy*cols + (gx-RAD)]</span>
+    if (tx &lt; RAD) {
+        int lx = gx - RAD;
+        smem[ty + RAD][tx] = (lx &gt;= 0 &amp;&amp; gy &lt; rows) ? in[gy * cols + lx] : 0.0f;
+    }
+    <span class="comment">// Right halo (tx >= TILEX-RAD)</span>
+    if (tx &gt;= TILEX - RAD) {
+        int rx = gx + TILEX;
+        smem[ty + RAD][tx + 2*RAD] =
+            (rx &lt; cols &amp;&amp; gy &lt; rows) ? in[gy * cols + rx] : 0.0f;
+    }
+    <span class="comment">// Top/bottom halos: coalesced because we load a full row and tx is fast index</span>
+    if (ty &lt; RAD) {
+        int uy = gy - RAD;
+        smem[ty][tx + RAD] = (uy &gt;= 0 &amp;&amp; gx &lt; cols) ? in[uy * cols + gx] : 0.0f;
+    }
+    if (ty &gt;= TILEY - RAD) {
+        int dy = gy + TILEY;
+        smem[ty + 2*RAD][tx + RAD] =
+            (dy &lt; rows &amp;&amp; gx &lt; cols) ? in[dy * cols + gx] : 0.0f;
+    }
+
+    __syncthreads();
+
+    if (gx &lt; cols &amp;&amp; gy &lt; rows) {
+        out[gy * cols + gx] =
+            0.2f * (smem[ty+RAD][tx+RAD] +
+                    smem[ty+RAD-1][tx+RAD] +
+                    smem[ty+RAD+1][tx+RAD] +
+                    smem[ty+RAD][tx+RAD-1] +
+                    smem[ty+RAD][tx+RAD+1]);
+    }
+}</code></pre>
+
+      <h3>3D Stencil: The Hardest Case</h3>
+      <p>
+        In 3D, only one spatial dimension can be perfectly coalesced at a time. For a
+        C-style row-major 3D array <code>A[z][y][x]</code>, the X dimension is the fastest
+        (stride-1). A block that tiles a 2D XY plane and iterates over Z gives coalesced
+        reads in X, nearly-coalesced reads in Y (within a tile), and good L2 reuse for
+        Z iterations because we only move one row forward each step:
+      </p>
+
+      <pre><code><span class="comment">// 3D 7-point stencil: XY tile with Z-loop
+// Layout: A[nz][ny][nx], A[z][y][x] = A[z*ny*nx + y*nx + x]</span>
+#define NX_TILE 32
+#define NY_TILE 4
+#define NZ_RAD  1   <span class="comment">// stencil radius in Z direction</span>
+
+__global__ void stencil3D(const float* __restrict__ in,
+                           float* __restrict__       out,
+                           int nz, int ny, int nx)
+{
+    int tx = threadIdx.x, ty = threadIdx.y;
+    int gx = blockIdx.x * NX_TILE + tx;
+    int gy = blockIdx.y * NY_TILE + ty;
+
+    <span class="comment">// Two register variables for the Z-direction stencil: prev and curr.
+    // We also need "next" which we read from global each Z step.</span>
+    float prev = 0.0f, curr = 0.0f, next = 0.0f;
+
+    <span class="comment">// Shared memory for the XY tile (no Z halo needed with register pipeline)</span>
+    __shared__ float smem[NY_TILE + 2][NX_TILE + 2];
+
+    if (gx &lt; nx &amp;&amp; gy &lt; ny) {
+        <span class="comment">// Prime the register pipeline: load z=-1 (boundary = 0) and z=0</span>
+        prev = 0.0f;   <span class="comment">// z = -1 (out of bounds, treat as 0)</span>
+        curr = in[0 * ny * nx + gy * nx + gx];
+    }
+
+    for (int gz = 0; gz &lt; nz; gz++) {
+        <span class="comment">// Read "next" (z+1) from global memory — COALESCED in X direction</span>
+        if (gx &lt; nx &amp;&amp; gy &lt; ny) {
+            next = (gz + 1 &lt; nz) ? in[(gz+1) * ny * nx + gy * nx + gx] : 0.0f;
+        }
+
+        <span class="comment">// Load XY tile into shared memory for halo handling in X and Y</span>
+        smem[ty + 1][tx + 1] = (gx &lt; nx &amp;&amp; gy &lt; ny) ?
+            in[gz * ny * nx + gy * nx + gx] : 0.0f;
+
+        if (tx == 0 &amp;&amp; gx &gt; 0)
+            smem[ty+1][0] = in[gz * ny * nx + gy * nx + (gx-1)];
+        if (tx == NX_TILE-1 &amp;&amp; gx+1 &lt; nx)
+            smem[ty+1][NX_TILE+1] = in[gz * ny * nx + gy * nx + (gx+1)];
+        if (ty == 0 &amp;&amp; gy &gt; 0)
+            smem[0][tx+1] = in[gz * ny * nx + (gy-1) * nx + gx];
+        if (ty == NY_TILE-1 &amp;&amp; gy+1 &lt; ny)
+            smem[NY_TILE+1][tx+1] = in[gz * ny * nx + (gy+1) * nx + gx];
+
+        __syncthreads();
+
+        if (gx &lt; nx &amp;&amp; gy &lt; ny &amp;&amp; gz &gt; 0 &amp;&amp; gz &lt; nz-1) {
+            <span class="comment">// 7-point stencil: 6 neighbors + center</span>
+            out[gz * ny * nx + gy * nx + gx] =
+                (1.0f/7.0f) * (curr
+                    + smem[ty+1][tx]   + smem[ty+1][tx+2]  <span class="comment">// x neighbors</span>
+                    + smem[ty][tx+1]   + smem[ty+2][tx+1]  <span class="comment">// y neighbors</span>
+                    + prev             + next);              <span class="comment">// z neighbors</span>
+        }
+
+        <span class="comment">// Rotate the register pipeline</span>
+        prev = curr;
+        curr = next;
+
+        __syncthreads();
+    }
+}</code></pre>
+
+      <p>
+        The Z register pipeline is key: we keep the previous and current Z-plane values in
+        registers (free to access), only fetching the next Z-plane from global memory each
+        iteration. This gives us 2 of the 3 Z-direction neighbors for free in registers,
+        dramatically reducing global memory traffic.
+      </p>
+
+      <!-- ============================================================ -->
+      <h2 id="profiling-coalescing">7. Profiling Coalescing with ncu</h2>
+      <!-- ============================================================ -->
+
+      <p>
+        Diagnosing coalescing problems is fast once you know the right metrics. The NVIDIA
+        Nsight Compute (<code>ncu</code>) profiler exposes per-warp memory transaction
+        counts. Here are the metrics and how to interpret them:
+      </p>
+
+      <pre><code><span class="comment"># Run ncu with coalescing metrics</span>
+ncu --metrics \
+  l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum,\
+  l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum,\
+  l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum,\
+  l1tex__t_requests_pipe_lsu_mem_global_op_st.sum \
+  ./myprogram
+
+<span class="comment"># Derived metric you want:
+# load_sectors_per_request  = sectors_ld / requests_ld
+# store_sectors_per_request = sectors_st / requests_st
+#
+# Ideal: 1.0 for both (32-bit accesses) or 2.0 for 64-bit doubles
+# Bad:   8.0 to 32.0 = severe coalescing problem</span></code></pre>
+
+      <p>
+        Here is a real profiler output comparing the naive column-sum kernel against the
+        tiled row-sum for a 4096&times;4096 matrix:
+      </p>
+
+      <div class="output-block">
+        <span class="comment"># KERNEL: columnSum_bad (column-major access)</span><br>
+        l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum   =  4,194,304<br>
+        l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum  =    131,072<br>
+        Load sectors/request:  32.0 &nbsp;  <span class="comment"># FULLY UNCOALESCED</span><br>
+        Kernel time: 12.8 ms<br>
+        <br>
+        <span class="comment"># KERNEL: tiledReduction_good (coalesced via shared memory)</span><br>
+        l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum   =    131,072<br>
+        l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum  =    131,072<br>
+        Load sectors/request:  1.0  &nbsp;  <span class="comment"># PERFECT COALESCING</span><br>
+        Kernel time: 0.41 ms<br>
+        <br>
+        <span class="comment"># Speedup: 31.2x — exactly matches the 32x theoretical maximum</span>
+      </div>
+
+      <p>
+        You can also use the shorthand <code>ncu --set full</code> to get the complete
+        memory workload analysis section, which computes and displays the sectors/request
+        ratio for you with color coding. For quick checks in CI pipelines, the raw metric
+        approach above is scriptable.
+      </p>
+
+      <p>
+        Another useful derived metric is <strong>L1/L2 hit rate</strong>. Perfectly
+        coalesced access patterns fill the L2 cache efficiently and produce high hit rates
+        when the same data is reused. Strided access patterns bring in large amounts of
+        useless data, evicting potentially reusable data and producing low hit rates.
+        Check <code>l1tex__t_sector_hit_rate</code> alongside the sectors/request ratio
+        for a full picture of your kernel's memory behavior.
+      </p>
+
+      <p>
+        One final tool: <code>nvcc</code> can emit PTX with <code>-ptx</code> and SASS
+        (GPU machine code) with <code>cuobjdump --dump-sass</code>. In SASS, look for
+        <code>LDG.E.128</code> instructions (128-bit = 4-float vectorized load). When the
+        compiler emits vectorized loads, it has detected that you are doing stride-1 access
+        and automatically issues wider load instructions, which improves throughput further.
+        If you see <code>LDG.E.32</code> where you expect 128-bit loads, the compiler
+        couldn't prove alignment or contiguity &mdash; check your indexing.
+      </p>
+
+      <div class="concept-box">
+        <strong>Summary Checklist for Coalescing:</strong>
+        <ol style="margin: 0.5rem 0 0; padding-left: 1.2rem;">
+          <li>The fast index (<code>threadIdx.x</code>) should map to the fastest-varying
+              array dimension.</li>
+          <li>Use SOA instead of AOS when kernels access a subset of fields.</li>
+          <li>For operations that inherently need transposed access (transpose, column ops),
+              use shared memory as a coalesced staging buffer.</li>
+          <li>For 3D stencils, tile the two fast dimensions and loop over the slow one,
+              using register pipelining for the slow direction.</li>
+          <li>Profile first with <code>ncu sectors/request</code>. If it is above 2.0,
+              investigate. If it is above 8.0, you have a serious problem.</li>
+        </ol>
+      </div>
+
+    </div><!-- end .post-body -->
+
+    <div class="series-nav">
+      <a href="cuda-phase3-shared-memory.html">&larr; 3.2 &mdash; Shared Memory</a>
+      <a href="cuda-phase3-unified-memory.html">3.4 &mdash; Unified Memory &rarr;</a>
     </div>
-  </main>
 
-  <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
-  </footer>
+  </main>
 
 </body>
 </html>

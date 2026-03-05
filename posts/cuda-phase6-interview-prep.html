@@ -7,6 +7,28 @@
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    .concept-box { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .warning-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .danger-box { background: #fff1f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .output-block { background: #0f172a; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-family: monospace; font-size: 0.85rem; color: #a3e635; overflow-x: auto; border: 1px solid #1e293b; }
+    .output-block .comment { color: #64748b; }
+    .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+    .series-nav a { color: var(--accent); text-decoration: none; }
+    .series-nav a:hover { text-decoration: underline; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
+    .gif-wrap { text-align: center; margin: 2.5rem 0; }
+    .gif-wrap img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
+    .gif-caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem; font-style: italic; line-height: 1.5; }
+    .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+  </style>
 </head>
 <body>
   <nav>

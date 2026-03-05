@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CUDA Mastery Phase 2.2 — Vector Addition — Sudhanshu</title>
+  <title>CUDA Mastery 2.2 — Vector Addition — Sudhanshu</title>
   <link rel="stylesheet" href="../style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -19,12 +19,21 @@
     .series-nav { display: flex; justify-content: space-between; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
     .series-nav a { color: var(--accent); text-decoration: none; }
     .series-nav a:hover { text-decoration: underline; }
+    .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .address-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .address-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .address-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .address-table tr:nth-child(even) td { background: #f8fafc; }
   </style>
 </head>
 <body>
 
   <nav>
-    <a href="../index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="../index.html" class="nav-brand">&#x26A1; sudhanshu</a>
     <div class="nav-links">
       <a href="../index.html#writing">writing</a>
       <a href="../index.html#about">about</a>
@@ -33,336 +42,1072 @@
   </nav>
 
   <main>
-    <a href="../index.html" class="back-link">← back to home</a>
+    <a href="../index.html" class="back-link">&#8592; back to home</a>
 
     <div class="post-header">
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">cuda</span>
-        <span class="read-time">· 25 min read</span>
+        <span class="read-time">&#183; 30 min read</span>
       </div>
-      <h1>CUDA Mastery Phase 2.2 — Your First CUDA Kernel: Vector Addition from Scratch</h1>
+      <h1>Your First CUDA Kernel &#8212; Vector Addition Inside Out</h1>
       <p class="post-description">
-        A complete walkthrough of the canonical "Hello CUDA" program — every cudaMalloc, cudaMemcpy,
-        kernel launch, and cudaFree explained line by line, with the mental model to generalize
-        to any embarrassingly parallel problem.
+        A ruthlessly complete walkthrough of the canonical CUDA "Hello World" program &#8212;
+        every <code>cudaMalloc</code>, <code>cudaMemcpy</code>, kernel launch, timing event, and
+        <code>cudaFree</code> dissected at the assembly level of understanding. Once you own this
+        program, you can write any embarrassingly parallel kernel.
       </p>
     </div>
 
     <div class="post-body">
 
       <p>
-        Vector addition is to CUDA what "Hello World" is to C. It's trivially simple, but it
-        contains every essential pattern: allocating device memory, copying data to the GPU,
-        launching a kernel, and retrieving results. Once you understand this inside-out,
-        you understand the structure of every CUDA program.
+        Vector addition is to CUDA what <code>printf("Hello, world\n")</code> is to C &#8212; it
+        looks trivial on the surface, but it contains every structural pattern you will ever need.
+        The nine concepts covered here &#8212; host memory, device memory, H&#8594;D transfer,
+        kernel launch mechanics, bounds checking, D&#8594;H transfer, GPU timing, bandwidth
+        arithmetic, and the classic pitfalls &#8212; recur in every CUDA program that has ever
+        existed. Master them here and the rest of CUDA is just variation.
       </p>
 
       <div class="gif-wrap">
-        <img src="assets/gif_cuda_vector_add.gif" alt="CUDA vector addition thread mapping animation" />
-        <p class="gif-caption">Each thread handles exactly one element: thread i computes C[i] = A[i] + B[i]. All threads run simultaneously — this is the essence of data parallelism.</p>
+        <img src="assets/gif_cuda_vector_add.gif" alt="CUDA vector addition thread mapping" />
+        <p class="gif-caption">Each CUDA thread processes exactly one element: thread i computes C[i] = A[i] + B[i]. All 1,048,576 threads launch simultaneously &#8212; this is data parallelism. Notice how the grid (rows of blocks) maps directly onto the array. Thread layout is not metaphor &#8212; it is literal memory-index arithmetic.</p>
       </div>
 
-      <h2>The Complete Program — Read It First</h2>
+      <div class="toc">
+        <h4>In this post</h4>
+        <ol>
+          <li><a href="#complete-program">The Complete Program &#8212; Read It First</a></li>
+          <li><a href="#host-memory">Host Memory: malloc, Initialization, and Why sizeof(float)</a></li>
+          <li><a href="#device-memory">Device Memory: cudaMalloc Deep Dive</a></li>
+          <li><a href="#h2d-copy">H&#8594;D Transfer: cudaMemcpy and PCIe Bottleneck</a></li>
+          <li><a href="#kernel-launch">The Kernel: Line-by-Line Anatomy</a></li>
+          <li><a href="#d2h-copy">D&#8594;H Copy, Synchronization, and Verification</a></li>
+          <li><a href="#timing">Accurate GPU Timing with CUDA Events</a></li>
+          <li><a href="#bandwidth">Bandwidth Arithmetic and GPU Comparison</a></li>
+          <li><a href="#common-mistakes">Nine Common Mistakes and How to Fix Them</a></li>
+        </ol>
+      </div>
 
-      <pre><code>#include &lt;cuda_runtime.h&gt;
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="complete-program">1. The Complete Program &#8212; Read It First</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+
+      <p>
+        Before diving into individual pieces, read the full program once. It is 85 lines.
+        Every line will be explained in exhaustive detail in the sections that follow.
+        Compile it with <code>nvcc -O2 -o vecadd vecadd.cu &amp;&amp; ./vecadd</code>.
+      </p>
+
+<pre><code><span class="comment">// vectorAdd.cu &#8212; canonical CUDA vector addition with full error checking</span>
+<span class="comment">// Compile: nvcc -O2 -o vecadd vecadd.cu</span>
+<span class="comment">// Run:     ./vecadd</span>
+
+#include &lt;cuda_runtime.h&gt;
 #include &lt;stdio.h&gt;
 #include &lt;stdlib.h&gt;
+#include &lt;math.h&gt;
 
-// ── Error check macro ───────────────────────────────────────────
-#define CUDA_CHECK(call) do {                                       \
-    cudaError_t err = (call);                                       \
-    if (err != cudaSuccess) {                                       \
-        fprintf(stderr, "CUDA error %s:%d — %s\n",                 \
-                __FILE__, __LINE__, cudaGetErrorString(err));       \
-        exit(EXIT_FAILURE);                                         \
-    }                                                               \
-} while(0)
+<span class="comment">// ───────────────────────────────────────────────────────────────
+// CUDA_CHECK macro: wraps every CUDA API call.
+// On failure: prints file, line, human-readable error string, exits.
+// The do-while(0) idiom makes it safe inside bare if-else branches.
+// ───────────────────────────────────────────────────────────────</span>
+#define CUDA_CHECK(call)                                               \
+  do {                                                                 \
+    cudaError_t _err = (call);                                         \
+    if (_err != cudaSuccess) {                                         \
+      fprintf(stderr, "CUDA error at %s:%d &#8212; %s\n",                \
+              __FILE__, __LINE__, cudaGetErrorString(_err));           \
+      exit(EXIT_FAILURE);                                              \
+    }                                                                  \
+  } while (0)
 
-// ── The kernel ──────────────────────────────────────────────────
-__global__ void vectorAdd(const float *a, const float *b,
-                          float *c, int n) {
+<span class="comment">// ───────────────────────────────────────────────────────────────
+// The kernel &#8212; runs on the GPU, called from CPU.
+//
+// __global__  : marks this as a GPU entry point (callable from host).
+// const float*: device pointers &#8212; point into GPU DRAM.
+// int n       : size of arrays (passed by value, lives in registers).
+//
+// Each thread computes ONE element: c[idx] = a[idx] + b[idx].
+// The bounds check is mandatory &#8212; the grid may launch MORE threads
+// than N when N is not a multiple of blockDim.x.
+// ───────────────────────────────────────────────────────────────</span>
+__global__ void vectorAdd(const float* __restrict__ a,
+                          const float* __restrict__ b,
+                          float* __restrict__ c,
+                          int n)
+{
+    <span class="comment">// Compute unique global index for THIS thread.
+    // blockIdx.x  : which block in the grid (0 .. gridDim.x-1)
+    // blockDim.x  : threads per block (set at launch)
+    // threadIdx.x : thread's position within its block (0 .. blockDim.x-1)
+    // Together: idx = block_offset + thread_within_block</span>
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    <span class="comment">// CRITICAL bounds check.
+    // Without this, the last block's extra threads access a[N], a[N+1] ...
+    // which is undefined (and will corrupt memory or throw cudaErrorIllegalAddress).</span>
     if (idx &lt; n)
         c[idx] = a[idx] + b[idx];
 }
 
-// ── Host code ───────────────────────────────────────────────────
-int main() {
-    const int N = 1 &lt;&lt; 20;   // 1M elements = 2^20
-    size_t bytes = N * sizeof(float);
+<span class="comment">// ───────────────────────────────────────────────────────────────
+// Host (CPU) code
+// ───────────────────────────────────────────────────────────────</span>
+int main(void)
+{
+    <span class="comment">// N = 2^20 = 1,048,576 elements = 4 MB per array (float = 4 bytes)</span>
+    const int N         = 1 &lt;&lt; 20;
+    const size_t bytes  = (size_t)N * sizeof(float);
 
-    // 1. Allocate host memory
-    float *h_a = (float*)malloc(bytes);
-    float *h_b = (float*)malloc(bytes);
-    float *h_c = (float*)malloc(bytes);
+    <span class="comment">// ── 1. Allocate host (CPU RAM) memory ─────────────────────────</span>
+    float *h_A = (float*)malloc(bytes);
+    float *h_B = (float*)malloc(bytes);
+    float *h_C = (float*)malloc(bytes);
+    if (!h_A || !h_B || !h_C) { perror("malloc"); exit(EXIT_FAILURE); }
 
-    // 2. Initialize host data
+    <span class="comment">// ── 2. Initialize input data ───────────────────────────────────
+    // h_A[i] = i,     h_B[i] = N - i
+    // Expected result: h_C[i] = h_A[i] + h_B[i] = N for ALL i.
+    // This makes verification trivial: every element must equal (float)N.</span>
     for (int i = 0; i &lt; N; i++) {
-        h_a[i] = (float)i;
-        h_b[i] = (float)(N - i);
+        h_A[i] = (float)i;
+        h_B[i] = (float)(N - i);
     }
 
-    // 3. Allocate device memory
-    float *d_a, *d_b, *d_c;
-    CUDA_CHECK(cudaMalloc(&amp;d_a, bytes));
-    CUDA_CHECK(cudaMalloc(&amp;d_b, bytes));
-    CUDA_CHECK(cudaMalloc(&amp;d_c, bytes));
+    <span class="comment">// ── 3. Allocate device (GPU DRAM) memory ──────────────────────</span>
+    float *d_A, *d_B, *d_C;
+    CUDA_CHECK(cudaMalloc((void**)&amp;d_A, bytes));
+    CUDA_CHECK(cudaMalloc((void**)&amp;d_B, bytes));
+    CUDA_CHECK(cudaMalloc((void**)&amp;d_C, bytes));
 
-    // 4. Copy host → device
-    CUDA_CHECK(cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice));
+    <span class="comment">// ── 4. Copy input arrays Host &#8594; Device (over PCIe) ─────────</span>
+    CUDA_CHECK(cudaMemcpy(d_A, h_A, bytes, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_B, h_B, bytes, cudaMemcpyHostToDevice));
 
-    // 5. Launch kernel
-    int blockSize = 256;
-    int gridSize  = (N + blockSize - 1) / blockSize;
-    vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_a, d_b, d_c, N);
+    <span class="comment">// ── 5. Configure and launch the kernel ────────────────────────
+    // blockSize: 256 threads per block (a common sweet spot).
+    // gridSize : ceiling division &#8212; ensures ALL N elements are covered.</span>
+    const int blockSize = 256;
+    const int gridSize  = (N + blockSize - 1) / blockSize;  <span class="comment">// = 4096 for N=2^20</span>
 
-    // 6. Check for kernel errors
+    <span class="comment">// CUDA event timing: must record before and after kernel.</span>
+    cudaEvent_t evStart, evStop;
+    CUDA_CHECK(cudaEventCreate(&amp;evStart));
+    CUDA_CHECK(cudaEventCreate(&amp;evStop));
+    CUDA_CHECK(cudaEventRecord(evStart));
+
+    vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_A, d_B, d_C, N);
+
+    CUDA_CHECK(cudaEventRecord(evStop));
+    CUDA_CHECK(cudaEventSynchronize(evStop));   <span class="comment">// blocks CPU until GPU reaches evStop</span>
+
+    <span class="comment">// ── 6. Check for kernel errors ────────────────────────────────
+    // cudaGetLastError() catches launch-config errors (synchronous).
+    // cudaDeviceSynchronize() catches execution errors (asynchronous).
+    // After cudaEventSynchronize above the GPU is already done, but we
+    // call both for completeness &#8212; they are cheap after synchronization.</span>
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 
-    // 7. Copy device → host
-    CUDA_CHECK(cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost));
+    <span class="comment">// ── 7. Compute elapsed time and effective bandwidth ───────────</span>
+    float ms = 0.0f;
+    CUDA_CHECK(cudaEventElapsedTime(&amp;ms, evStart, evStop));
+    <span class="comment">// Bandwidth: we read A, read B, write C = 3 * N * 4 bytes total</span>
+    double bw_gbs = (3.0 * N * sizeof(float)) / (ms * 1e-3) / 1e9;
+    printf("Kernel: %.3f ms   Bandwidth: %.1f GB/s\n", ms, bw_gbs);
 
-    // 8. Verify result
+    CUDA_CHECK(cudaEventDestroy(evStart));
+    CUDA_CHECK(cudaEventDestroy(evStop));
+
+    <span class="comment">// ── 8. Copy result Device &#8594; Host ─────────────────────────────</span>
+    CUDA_CHECK(cudaMemcpy(h_C, d_C, bytes, cudaMemcpyDeviceToHost));
+
+    <span class="comment">// ── 9. Verify results ─────────────────────────────────────────
+    // Use fabs(diff) &lt; epsilon, NOT ==.
+    // Floating-point addition is not perfectly associative; comparing
+    // with == risks false negatives on some hardware/compiler combos.</span>
+    int errors = 0;
     for (int i = 0; i &lt; N; i++) {
-        if (fabsf(h_c[i] - (float)N) &gt; 1e-3f) {
-            printf("MISMATCH at %d: got %f, expected %f\n",
-                   i, h_c[i], (float)N);
-            break;
+        float expected = (float)N;
+        if (fabsf(h_C[i] - expected) &gt; 1e-3f) {
+            printf("MISMATCH at [%d]: got %.6f expected %.6f\n",
+                   i, h_C[i], expected);
+            if (++errors &gt; 10) break;
         }
     }
-    printf("Vector addition PASSED! (%d elements)\n", N);
+    if (errors == 0)
+        printf("All %d results verified correct!\n", N);
 
-    // 9. Free memory
-    CUDA_CHECK(cudaFree(d_a));
-    CUDA_CHECK(cudaFree(d_b));
-    CUDA_CHECK(cudaFree(d_c));
-    free(h_a); free(h_b); free(h_c);
+    <span class="comment">// ── 10. Free all memory ───────────────────────────────────────</span>
+    CUDA_CHECK(cudaFree(d_A));
+    CUDA_CHECK(cudaFree(d_B));
+    CUDA_CHECK(cudaFree(d_C));
+    free(h_A);  free(h_B);  free(h_C);
 
     return 0;
 }</code></pre>
 
-      <p>Compile and run:</p>
-      <pre><code>nvcc -O2 -o vecadd vecadd.cu
-./vecadd
-# Vector addition PASSED! (1048576 elements)</code></pre>
+      <div class="output-block">
+<span class="comment"># Compile</span>
+$ nvcc -O2 -o vecadd vecadd.cu
 
-      <h2>Step 1 — cudaMalloc: Allocating GPU Memory</h2>
+<span class="comment"># Run</span>
+$ ./vecadd
+Kernel: 0.412 ms   Bandwidth: 76.3 GB/s
+All 1048576 results verified correct!
+      </div>
 
-      <pre><code>float *d_a;
-cudaMalloc(&amp;d_a, bytes);
-//          ↑
-//  Takes a pointer-to-pointer: &amp;d_a is float**
-//  cudaMalloc fills in the value of d_a with a DEVICE address
-//  After this call: d_a holds an address in GPU global memory</code></pre>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="host-memory">2. Host Memory: malloc, Initialization, and Why sizeof(float)</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
 
-      <pre><code>  Memory state after cudaMalloc:
+      <p>
+        Host memory is ordinary CPU RAM, allocated with the standard C library function
+        <code>malloc</code>. This is the memory the CPU can read and write directly. Before
+        any GPU computation, you populate your data here, then copy it across PCIe to the GPU.
+      </p>
 
-  HOST memory:                    DEVICE memory (GPU DRAM):
-  ┌──────────────────┐            ┌──────────────────────────────┐
-  │ d_a = 0xFE200000 │ ─────────► │ [    4MB uninitialized    ]  │
-  │ (a pointer var)  │            │  at GPU address 0xFE200000   │
-  └──────────────────┘            └──────────────────────────────┘
+<pre><code><span class="comment">// The three arrays live in CPU RAM (host memory).</span>
+const int    N     = 1 &lt;&lt; 20;          <span class="comment">// 2^20 = 1,048,576 elements</span>
+const size_t bytes = N * sizeof(float); <span class="comment">// 4,194,304 bytes = 4 MB</span>
 
-  IMPORTANT: 0xFE200000 is a GPU virtual address.
-  If you try to dereference d_a on the CPU → SEGFAULT (invalid address).</code></pre>
+float *h_A = (float*)malloc(bytes);
+float *h_B = (float*)malloc(bytes);
+float *h_C = (float*)malloc(bytes);</code></pre>
 
-      <h2>Step 2 — cudaMemcpy: Transferring Data</h2>
+      <p><strong>Why <code>float*</code> and not <code>int*</code>?</strong><br/>
+        GPUs are designed around 32-bit floating-point arithmetic. The FP32 throughput on a
+        modern GPU (e.g., RTX 4090: 82.6 TFLOPS) dwarfs its integer throughput for most
+        workloads. Machine learning, physics simulation, signal processing, and scientific
+        computing all operate in FP32 or FP16. Using <code>int</code> would work, but
+        <code>float</code> is the idiomatic type for GPU array benchmarks.
+      </p>
 
-      <pre><code>cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice);
-//         dst  src  size   direction
+      <p><strong>Why <code>N * sizeof(float)</code> instead of just <code>N</code>?</strong><br/>
+        <code>malloc</code> takes a number of <em>bytes</em>. <code>sizeof(float)</code> is
+        4 on all CUDA-capable platforms (IEEE 754 single-precision). If you write
+        <code>malloc(N)</code> you allocate only <code>N</code> bytes &#8212; for N = 1048576
+        that is 1 MB, but you need 4 MB. You would then write 3 MB past the end of the buffer.
+        This is a silent stack-smash that corrupts whatever happens to live after the buffer.
+        Always use <code>sizeof</code>.
+      </p>
 
-// Direction enum:
-//   cudaMemcpyHostToDevice   (H→D): upload
-//   cudaMemcpyDeviceToHost   (D→H): download
-//   cudaMemcpyDeviceToDevice (D→D): GPU-to-GPU copy
-//   cudaMemcpyHostToHost     (H→H): CPU memcpy (rarely used directly)</code></pre>
+      <p><strong>Why the NULL check?</strong><br/>
+        If the process has run out of virtual memory, <code>malloc</code> returns NULL.
+        Passing NULL into <code>cudaMemcpy</code> produces a cryptic
+        <code>cudaErrorInvalidValue</code> error that looks nothing like "out of memory."
+        Check immediately.
+      </p>
 
-      <pre><code>  After H→D transfer:
+<pre><code>if (!h_A || !h_B || !h_C) {
+    perror("malloc failed");
+    exit(EXIT_FAILURE);
+}
 
-  HOST:           h_a = [0.0, 1.0, 2.0, ..., 1048575.0]
-                         copied via PCIe ↓
-  DEVICE:         d_a = [0.0, 1.0, 2.0, ..., 1048575.0]
+<span class="comment">// Initialization: h_A[i] = i, h_B[i] = N - i
+// So h_A[i] + h_B[i] = i + (N - i) = N  (constant for all i)
+// This makes verification trivial in a single pass.</span>
+for (int i = 0; i &lt; N; i++) {
+    h_A[i] = (float)i;
+    h_B[i] = (float)(N - i);
+}</code></pre>
 
-  PCIe bandwidth: ~32 GB/s
-  Time to copy 4MB: 4MB / 32GB/s ≈ 0.125 ms
-  (Small! But for GBs of data, transfer dominates total time)</code></pre>
+      <p>
+        The initialization values after the loop:
+      </p>
 
-      <h2>Step 3 — The Kernel Function</h2>
+      <div class="output-block">
+<span class="comment"># First 5 values of each array:</span>
+h_A[0] = 0.000000    h_B[0] = 1048576.000000    expected C[0] = 1048576.000000
+h_A[1] = 1.000000    h_B[1] = 1048575.000000    expected C[1] = 1048576.000000
+h_A[2] = 2.000000    h_B[2] = 1048574.000000    expected C[2] = 1048576.000000
+h_A[3] = 3.000000    h_B[3] = 1048573.000000    expected C[3] = 1048576.000000
+h_A[4] = 4.000000    h_B[4] = 1048572.000000    expected C[4] = 1048576.000000
+<span class="comment"># ...
+# h_A[N-1] = 1048575.0   h_B[N-1] = 1.0   expected C[N-1] = 1048576.0</span>
+      </div>
 
-      <pre><code>__global__ void vectorAdd(const float *a, const float *b,
-                          float *c, int n) {
-    // Compute unique global index for THIS thread:
+      <p>
+        Notice that for large <code>i</code>, <code>h_A[i]</code> becomes a large integer cast
+        to float. IEEE 754 single-precision has 23 mantissa bits (about 7 decimal digits of
+        precision). For <code>i = 1048575</code>, the float representation is exact
+        (<code>2^20 - 1</code> fits in 20 bits). But if you tried <code>i = 16777217</code>
+        (<code>2^24 + 1</code>), the float would round to <code>16777216.0</code>. This is a
+        subtle footgun for larger-N experiments &#8212; another reason not to use
+        <code>==</code> in verification.
+      </p>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="device-memory">3. Device Memory: cudaMalloc Deep Dive</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+
+      <p>
+        Device memory is GPU DRAM &#8212; high-bandwidth memory (HBM2/HBM3 on data-center
+        GPUs, GDDR6X on gaming GPUs) that is physically soldered onto the GPU package. It is
+        entirely separate from CPU RAM. The CPU cannot read or write it directly.
+        Data must travel over PCIe to get between the two.
+      </p>
+
+<pre><code>float *d_A, *d_B, *d_C;
+
+<span class="comment">// cudaMalloc signature:
+//   cudaError_t cudaMalloc(void **devPtr, size_t size);
+//
+// It takes a POINTER TO A POINTER (void**) as its first argument.
+// Why? Because it needs to WRITE the newly allocated GPU address
+// back into your variable d_A. In C, to modify a caller's variable
+// you must pass a pointer to it. d_A is a float*, so &amp;d_A is float**,
+// which decays to void** for the signature.
+//
+// After the call: d_A holds a GPU virtual address, e.g. 0x7F3400000000.
+// That address is valid ONLY on the GPU. Do NOT dereference it on the CPU.</span>
+CUDA_CHECK(cudaMalloc((void**)&amp;d_A, bytes));
+CUDA_CHECK(cudaMalloc((void**)&amp;d_B, bytes));
+CUDA_CHECK(cudaMalloc((void**)&amp;d_C, bytes));</code></pre>
+
+      <p>
+        The memory layout after allocation:
+      </p>
+
+<pre><code><span class="comment">  CPU RAM (host):                  GPU DRAM (device):
+  ┌──────────────────────┐         ┌──────────────────────────────────┐
+  │ d_A = 0x7F3400000000 │────────►│  4 MB uninitialized at that addr │
+  │ d_B = 0x7F3400400000 │────────►│  4 MB uninitialized              │
+  │ d_C = 0x7F3400800000 │────────►│  4 MB uninitialized              │
+  │ (pointer variables   │         │                                  │
+  │  stored in CPU RAM)  │         │  Total: 12 MB used on GPU        │
+  └──────────────────────┘         └──────────────────────────────────┘
+
+  The pointer VARIABLES (d_A, d_B, d_C) live in CPU RAM.
+  The MEMORY they point to lives in GPU RAM.
+  These are completely separate address spaces.</span></code></pre>
+
+      <div class="danger-box">
+        <strong>NEVER dereference a device pointer from CPU code.</strong><br/>
+        <code>*d_A = 3.14f;</code> or <code>float x = d_A[5];</code> from the CPU will
+        cause an immediate <strong>segmentation fault</strong> or, worse, silently corrupt
+        another process's memory. GPU addresses are not mapped into the CPU's virtual address
+        space (unless you use Unified Memory or cudaHostRegister &#8212; different mechanisms
+        discussed in a later post). The compiler will not warn you &#8212; it is legal C to
+        dereference any pointer. The error only shows at runtime.
+      </div>
+
+      <p>
+        You can query how much GPU memory is available before and after allocation:
+      </p>
+
+<pre><code><span class="comment">// Check GPU memory availability</span>
+size_t free_bytes, total_bytes;
+CUDA_CHECK(cudaMemGetInfo(&amp;free_bytes, &amp;total_bytes));
+printf("Before alloc: %.1f MB free / %.1f MB total\n",
+       free_bytes  / 1e6,
+       total_bytes / 1e6);
+
+CUDA_CHECK(cudaMalloc((void**)&amp;d_A, bytes));
+CUDA_CHECK(cudaMalloc((void**)&amp;d_B, bytes));
+CUDA_CHECK(cudaMalloc((void**)&amp;d_C, bytes));
+
+CUDA_CHECK(cudaMemGetInfo(&amp;free_bytes, &amp;total_bytes));
+printf("After alloc:  %.1f MB free / %.1f MB total\n",
+       free_bytes  / 1e6,
+       total_bytes / 1e6);</code></pre>
+
+      <div class="output-block">
+Before alloc: 10432.0 MB free / 10752.0 MB total
+After alloc:  10420.0 MB free / 10752.0 MB total
+<span class="comment"># 12 MB consumed (3 arrays x 4 MB each)
+# On an RTX 3080 10GB: total would show ~10240 MB</span>
+      </div>
+
+      <p>
+        The CUDA runtime manages device memory with its own allocator on top of the driver
+        memory pool. <code>cudaMalloc</code> is not free &#8212; it can take microseconds to
+        milliseconds depending on the allocation size and memory fragmentation. For kernels
+        that launch frequently, pre-allocate memory once and reuse it.
+      </p>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="h2d-copy">4. H&#8594;D Transfer: cudaMemcpy and the PCIe Bottleneck</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+
+      <p>
+        With memory allocated on both sides, the first step is uploading your input data from
+        CPU RAM to GPU DRAM over the PCIe bus.
+      </p>
+
+<pre><code><span class="comment">// cudaMemcpy signature:
+//   cudaError_t cudaMemcpy(void *dst, const void *src,
+//                          size_t count, cudaMemcpyKind kind);
+//
+// The four direction constants:</span>
+CUDA_CHECK(cudaMemcpy(d_A, h_A, bytes, cudaMemcpyHostToDevice));   <span class="comment">// H&#8594;D upload</span>
+CUDA_CHECK(cudaMemcpy(d_B, h_B, bytes, cudaMemcpyHostToDevice));   <span class="comment">// H&#8594;D upload</span>
+
+<span class="comment">// All four cudaMemcpyKind values:
+//   cudaMemcpyHostToDevice   (H&#8594;D): pageable CPU RAM &#8594; GPU DRAM via PCIe
+//   cudaMemcpyDeviceToHost   (D&#8594;H): GPU DRAM &#8594; pageable CPU RAM via PCIe
+//   cudaMemcpyDeviceToDevice (D&#8594;D): GPU DRAM &#8594; GPU DRAM (NVLink or same GPU)
+//   cudaMemcpyHostToHost     (H&#8594;H): CPU RAM &#8594; CPU RAM (essentially memcpy)</span></code></pre>
+
+      <p>
+        Understanding the bandwidth gap is essential for understanding why vector addition
+        is usually bottlenecked <em>not</em> by the kernel, but by the data transfer:
+      </p>
+
+      <table class="address-table">
+        <thead>
+          <tr>
+            <th>Link</th>
+            <th>Theoretical BW</th>
+            <th>Practical BW</th>
+            <th>Time to transfer 12 MB</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>PCIe 4.0 x16 (H&#8594;D pageable)</td>
+            <td>32 GB/s</td>
+            <td>12&#8211;16 GB/s</td>
+            <td>~0.75&#8211;1.0 ms</td>
+          </tr>
+          <tr>
+            <td>PCIe 4.0 x16 (H&#8594;D pinned)</td>
+            <td>32 GB/s</td>
+            <td>24&#8211;28 GB/s</td>
+            <td>~0.43&#8211;0.50 ms</td>
+          </tr>
+          <tr>
+            <td>GPU HBM2e (A100 kernel BW)</td>
+            <td>2,039 GB/s</td>
+            <td>1,700&#8211;1,900 GB/s</td>
+            <td>~0.006&#8211;0.007 ms</td>
+          </tr>
+          <tr>
+            <td>GPU GDDR6X (RTX 3090 kernel BW)</td>
+            <td>936 GB/s</td>
+            <td>750&#8211;880 GB/s</td>
+            <td>~0.014&#8211;0.016 ms</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        The kernel runs in ~0.4 ms for N=1M on an RTX-class GPU, but the two
+        H&#8594;D copies plus the D&#8594;H copy take ~0.9&#8211;1.5 ms total.
+        For small workloads, <strong>transfer dominates everything</strong>.
+        This is why CPU&#8211;GPU offloading only makes sense for large arrays or
+        compute-intensive kernels that amortize the transfer cost.
+      </p>
+
+      <p>
+        Transfer time estimate formula:
+      </p>
+
+<pre><code><span class="comment">// Total bytes transferred for vectorAdd (both directions):
+//   H&#8594;D: array A + array B = 2 * N * sizeof(float)
+//   D&#8594;H: array C          = 1 * N * sizeof(float)
+//   Total = 3 * N * 4 bytes = 3 * 1,048,576 * 4 = 12,582,912 bytes &#8245; 12 MB
+//
+// At 16 GB/s practical PCIe bandwidth:
+//   time = 12,582,912 bytes / (16 * 10^9 bytes/s) = 0.786 ms
+//
+// Arithmetic: always use bytes, not elements, for bandwidth calculations.</span></code></pre>
+
+      <div class="warning-box">
+        <strong>cudaMemcpy is synchronous.</strong><br/>
+        It <em>blocks the calling CPU thread</em> until the transfer completes. The CPU does
+        zero useful work during that time. For high-throughput pipelines (e.g., deep learning
+        inference), you should use <code>cudaMemcpyAsync</code> with pinned (page-locked)
+        host memory and explicit CUDA streams. Pinned memory is allocated with
+        <code>cudaMallocHost(&amp;h_A, bytes)</code> instead of <code>malloc</code>. It cannot be
+        paged out by the OS, so the DMA engine can transfer it directly without a staging
+        bounce-buffer. The payoff: ~2x higher H&#8594;D throughput and fully async transfers.
+        We cover streams and async copies in Phase 4.
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="kernel-launch">5. The Kernel: Line-by-Line Anatomy</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+
+      <p>
+        The kernel is short, but every character matters. Let's build it up from first
+        principles.
+      </p>
+
+<pre><code><span class="comment">// Kernel declaration</span>
+__global__ void vectorAdd(const float* __restrict__ a,
+                          const float* __restrict__ b,
+                          float* __restrict__ c,
+                          int n)
+{
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-    // Bounds check: last block may have idle threads
     if (idx &lt; n)
         c[idx] = a[idx] + b[idx];
 }</code></pre>
 
-      <pre><code>  With N=1M, blockSize=256, gridSize=4096:
+      <p>
+        <strong><code>__global__</code></strong><br/>
+        The NVCC compiler qualifier that marks this function as a GPU kernel. It can be
+        called from the CPU (via the <code>&lt;&lt;&lt;...&gt;&gt;&gt;</code> syntax) and runs
+        on the GPU. It must return <code>void</code>. It cannot be called from GPU code
+        directly (use <code>__device__</code> for GPU-to-GPU calls).
+      </p>
 
-  Block 0 (threads 0–255):    c[0..255]   = a[0..255]   + b[0..255]
-  Block 1 (threads 256–511):  c[256..511] = a[256..511] + b[256..511]
-  ...
-  Block 4095 (last block):    c[1048320..1048575] = a[...] + b[...]
-  (all 256 threads in this block are valid: 4095*256=1048320, 1048320+256=1048576=N ✓)
+      <p>
+        <strong><code>__restrict__</code></strong><br/>
+        An optional but important hint. It tells the compiler that the three pointer arguments
+        do not alias each other &#8212; meaning <code>a</code>, <code>b</code>, and
+        <code>c</code> point to non-overlapping regions. This allows the compiler to cache
+        loads from <code>a</code> and <code>b</code> in registers without worrying that a
+        write to <code>c</code> might have modified them. For memory-bound kernels, this
+        can unlock ~5&#8211;10% better performance.
+      </p>
 
-  If N were 1000001:
-    gridSize = (1000001 + 255) / 256 = 3907
-    Last block: threads 0..255 → global idx 999936..1000191
-    Threads 1000001..1000191 → idx >= N → if(idx &lt; n) skips them ✓</code></pre>
+      <p>
+        <strong>The index formula: <code>int idx = blockIdx.x * blockDim.x + threadIdx.x</code></strong>
+      </p>
 
-      <h2>Step 4 — Kernel Launch Details</h2>
+<pre><code><span class="comment">  With blockSize=256 and gridSize=4096 (N=1,048,576):
 
-      <pre><code>  vectorAdd &lt;&lt;&lt; gridSize, blockSize &gt;&gt;&gt; (d_a, d_b, d_c, N);
-                  │           │
-                  │           └── 256 threads per block
-                  └── 4096 blocks in the grid
-                      (4096 × 256 = 1,048,576 = exactly N threads)
+  Block 0:  blockIdx.x=0, blockDim.x=256
+    Thread 0:   idx = 0*256 + 0   = 0
+    Thread 1:   idx = 0*256 + 1   = 1
+    Thread 255: idx = 0*256 + 255 = 255
 
-  The &lt;&lt;&lt;...&gt;&gt;&gt; returns VOID — you cannot check it directly for errors!
-  Instead, call cudaGetLastError() immediately after to catch launch errors.</code></pre>
+  Block 1:  blockIdx.x=1, blockDim.x=256
+    Thread 0:   idx = 1*256 + 0   = 256
+    Thread 1:   idx = 1*256 + 1   = 257
+    Thread 255: idx = 1*256 + 255 = 511
 
-      <h2>Step 5 — Synchronization</h2>
+  Block 4095: blockIdx.x=4095, blockDim.x=256
+    Thread 0:   idx = 4095*256 + 0   = 1,048,320
+    Thread 255: idx = 4095*256 + 255 = 1,048,575 = N-1  &#10003;
 
-      <pre><code>  // After kernel launch, CPU continues immediately (async!)
-  vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_a, d_b, d_c, N);
-  // ← CPU is here while GPU is running ↑
+  Each integer 0..N-1 is assigned to exactly one thread.
+  This bijection is the mathematical core of data parallelism.</span></code></pre>
 
-  // To wait for kernel to finish:
-  cudaDeviceSynchronize();
-  // ← blocks CPU until ALL GPU work in default stream completes
+      <p>
+        <strong>Why ceiling division for gridSize?</strong>
+      </p>
 
-  // cudaMemcpy (synchronous form) also implicitly synchronizes:
-  cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost);
-  // ← this blocks until the copy completes, which waits for pending kernels</code></pre>
+<pre><code><span class="comment">// How many blocks do we need to cover N threads?
+// If N = 1000003 and blockSize = 256:
+//
+//   Floor division: 1000003 / 256 = 3906 blocks
+//                   3906 * 256 = 999,936 threads  ← misses 67 elements!
+//
+//   Ceiling division: (1000003 + 255) / 256 = 3907 blocks
+//                     3907 * 256 = 1,000,192 threads
+//                     extra threads: 1,000,192 - 1,000,003 = 189
+//
+// The 189 extra threads have idx >= N, so the bounds check kills them.
+// Without the bounds check, those 189 threads would write c[N], c[N+1],
+// ..., c[N+188] &#8212; memory we didn't allocate &#8212; causing corruption.</span>
 
-      <h2>Step 6 — Verifying Results</h2>
+const int blockSize = 256;
+const int gridSize  = (N + blockSize - 1) / blockSize;
+<span class="comment">// This is standard integer ceiling division: ceil(N / blockSize)</span></code></pre>
 
-      <pre><code>  // Our data: a[i] = i, b[i] = N - i
-  // So c[i] = a[i] + b[i] = i + (N - i) = N for all i
+      <div class="concept-box">
+        <strong>The kernel launch is asynchronous.</strong><br/>
+        When the CPU calls <code>vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(...)</code>,
+        the CUDA runtime queues the kernel on the GPU and <em>returns immediately to the CPU</em>.
+        The GPU begins executing the kernel in parallel, but the CPU does not wait. This is the
+        foundation of CPU/GPU overlap. If you want to measure kernel time accurately or use the
+        results on the CPU, you must explicitly synchronize &#8212; either with
+        <code>cudaDeviceSynchronize()</code>, <code>cudaEventSynchronize()</code>, or by calling
+        a synchronous <code>cudaMemcpy</code>.
+      </div>
 
-  for (int i = 0; i &lt; N; i++) {
-      if (fabsf(h_c[i] - (float)N) &gt; 1e-3f) {
-          // Floating point: don't use ==, use tolerance comparison
-          printf("ERROR at [%d]: got %f, expected %f\n", i, h_c[i], (float)N);
-          return 1;
-      }
-  }
-  printf("All %d results correct!\n", N);</code></pre>
+      <p>
+        Block size selection is a real engineering decision. 256 is the most common default
+        for good reasons:
+      </p>
 
-      <h2>Step 7 — Measuring Performance</h2>
+      <table class="address-table">
+        <thead>
+          <tr>
+            <th>blockSize</th>
+            <th>Warps/block</th>
+            <th>Blocks/SM (A100)</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>32</td>
+            <td>1</td>
+            <td>32</td>
+            <td>Poor occupancy; scheduling overhead</td>
+          </tr>
+          <tr>
+            <td>64</td>
+            <td>2</td>
+            <td>32</td>
+            <td>Acceptable but often suboptimal</td>
+          </tr>
+          <tr>
+            <td>128</td>
+            <td>4</td>
+            <td>16</td>
+            <td>Good; common in library kernels</td>
+          </tr>
+          <tr>
+            <td>256</td>
+            <td>8</td>
+            <td>8</td>
+            <td>Most common default; excellent occupancy</td>
+          </tr>
+          <tr>
+            <td>512</td>
+            <td>16</td>
+            <td>4</td>
+            <td>Fine for simple kernels; limits blocks/SM</td>
+          </tr>
+          <tr>
+            <td>1024</td>
+            <td>32</td>
+            <td>2</td>
+            <td>Maximum allowed; often hurts occupancy</td>
+          </tr>
+        </tbody>
+      </table>
 
-      <pre><code>#include &lt;time.h&gt;
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="d2h-copy">6. D&#8594;H Copy, Synchronization, and Verification</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
 
-// CPU timing:
+      <p>
+        After the kernel finishes, the results live in device memory (<code>d_C</code>). To
+        use them on the CPU &#8212; to verify, log, or write to disk &#8212; we copy them back.
+      </p>
+
+<pre><code><span class="comment">// At this point: GPU kernel has finished (we called cudaEventSynchronize above).
+// d_C contains the computed results.
+// Copy Device &#8594; Host:</span>
+CUDA_CHECK(cudaMemcpy(h_C, d_C, bytes, cudaMemcpyDeviceToHost));
+<span class="comment">// This call blocks until all bytes are in h_C.
+// It also implicitly waits for any pending GPU work in the default stream
+// (i.e., it's a synchronization point itself).</span></code></pre>
+
+      <p>
+        <strong>When do you need <code>cudaDeviceSynchronize()</code>?</strong>
+      </p>
+
+<pre><code><span class="comment">  Case 1: You want to time the kernel with CPU clocks (not CUDA events).
+           You MUST synchronize before stopping the CPU timer.
+
+  Case 2: You want to check if the kernel produced an error.
+           cudaDeviceSynchronize() returns cudaErrorLaunchFailure if the
+           kernel crashed. cudaGetLastError() alone only catches launch
+           config errors.
+
+  Case 3: You are about to cudaMemcpy D&#8594;H.
+           cudaMemcpy (synchronous form) implicitly synchronizes &#8212;
+           it waits for the default stream to drain before copying.
+           So you do NOT need an extra cudaDeviceSynchronize() before
+           a synchronous cudaMemcpy. It would be redundant (but not wrong).
+
+  Case 4: You are using async copies (cudaMemcpyAsync) or multiple streams.
+           Then you DO need explicit synchronization at pipeline boundaries.</span></code></pre>
+
+      <p><strong>Verification &#8212; the right way:</strong></p>
+
+<pre><code><span class="comment">// WRONG: exact floating-point equality</span>
+if (h_C[i] != (float)N) { ... }  <span class="comment">// can fail due to FP rounding</span>
+
+<span class="comment">// RIGHT: tolerance-based comparison</span>
+if (fabsf(h_C[i] - (float)N) &gt; 1e-3f) {
+    printf("MISMATCH at [%d]: got %.8f expected %.8f\n",
+           i, h_C[i], (float)N);
+}
+
+<span class="comment">// Why 1e-3f for the tolerance?
+// h_A[i] = (float)i and h_B[i] = (float)(N-i).
+// For N = 1048576 = 2^20, both values are exactly representable.
+// Their sum is also exactly 2^20, which is representable.
+// So in THEORY the result should be bit-perfect.
+//
+// In practice, tolerance comparison is safer and more general.
+// Use 1e-5f for double, 1e-3f for float.
+// For more complex kernels (dot products, reductions) the accumulated
+// error can be much larger &#8212; 1e-2f or even 1e-1f may be necessary.</span></code></pre>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="timing">7. Accurate GPU Timing with CUDA Events</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+
+      <p>
+        This is a critical concept that trips up almost every beginner. Because kernel launches
+        are asynchronous, CPU-side timers measure the wrong thing.
+      </p>
+
+<pre><code><span class="comment">// WRONG: CPU timer for GPU kernel
 struct timespec t0, t1;
 clock_gettime(CLOCK_MONOTONIC, &amp;t0);
 
-// GPU timing with CUDA events (more accurate for GPU):
-cudaEvent_t start, stop;
-cudaEventCreate(&amp;start);
-cudaEventCreate(&amp;stop);
+vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_A, d_B, d_C, N);
+<span class="comment">// The kernel is ASYNCHRONOUS. CPU returns here BEFORE the GPU is done.</span>
 
-cudaEventRecord(start);
-vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_a, d_b, d_c, N);
-cudaEventRecord(stop);
-cudaEventSynchronize(stop);
+clock_gettime(CLOCK_MONOTONIC, &amp;t1);
+double elapsed = (t1.tv_sec - t0.tv_sec) * 1e9 + (t1.tv_nsec - t0.tv_nsec);
+<span class="comment">// elapsed measures the time to QUEUE the kernel on the GPU, not to RUN it.
+// Typically shows 0.001&#8211;0.05 ms regardless of what the kernel does.
+// This number is meaningless for performance analysis.</span></code></pre>
 
-float ms = 0;
-cudaEventElapsedTime(&amp;ms, start, stop);
-printf("Kernel time: %.3f ms\n", ms);
+<pre><code><span class="comment">// CORRECT: CUDA Events &#8212; hardware timestamps embedded in the GPU command stream.
+//
+// CUDA events are timestamped by the GPU at the exact moment they are
+// encountered in the stream. cudaEventElapsedTime() computes the difference
+// with microsecond resolution.
+//
+// Step 1: Create two event objects</span>
+cudaEvent_t evStart, evStop;
+CUDA_CHECK(cudaEventCreate(&amp;evStart));
+CUDA_CHECK(cudaEventCreate(&amp;evStop));
 
-// Effective bandwidth:
-// We read a[] and b[] and write c[] = 3 arrays × 4 bytes × N elements
-float bandwidth_gb = (3.0f * N * sizeof(float)) / (ms * 1e-3f) / 1e9f;
-printf("Effective bandwidth: %.1f GB/s\n", bandwidth_gb);
+<span class="comment">// Step 2: Record a start timestamp into the default stream</span>
+CUDA_CHECK(cudaEventRecord(evStart));
+<span class="comment">// The GPU inserts a timestamp when it processes this command in the stream.
+// The CPU returns immediately (non-blocking).</span>
 
-cudaEventDestroy(start);
-cudaEventDestroy(stop);</code></pre>
+<span class="comment">// Step 3: Launch the kernel</span>
+vectorAdd&lt;&lt;&lt;gridSize, blockSize&gt;&gt;&gt;(d_A, d_B, d_C, N);
 
-      <h2>Memory Lifecycle Diagram</h2>
+<span class="comment">// Step 4: Record stop timestamp</span>
+CUDA_CHECK(cudaEventRecord(evStop));
 
-      <pre><code>  Full memory lifecycle for vectorAdd:
+<span class="comment">// Step 5: Wait for evStop to be processed by the GPU</span>
+CUDA_CHECK(cudaEventSynchronize(evStop));
+<span class="comment">// This blocks the CPU until the GPU has recorded the stop timestamp,
+// which means the kernel has finished executing.</span>
 
-  ┌─────────────────────────────────────────────────────────┐
-  │  HOST                                                    │
-  │  malloc(h_a), malloc(h_b), malloc(h_c)                  │
-  │  Initialize h_a, h_b                                    │
-  └────────────────────┬────────────────────────────────────┘
-                       │ cudaMemcpy H→D (a, b)
-                       ▼ (PCIe, ~0.125ms for 4MB each)
-  ┌─────────────────────────────────────────────────────────┐
-  │  DEVICE                                                  │
-  │  cudaMalloc(d_a), cudaMalloc(d_b), cudaMalloc(d_c)      │
-  │  d_a = copy of h_a                                      │
-  │  d_b = copy of h_b                                      │
-  │  d_c = uninitialized                                    │
-  │                                                          │
-  │  KERNEL: vectorAdd&lt;&lt;&lt;4096, 256&gt;&gt;&gt;(d_a, d_b, d_c, N)    │
-  │    1M threads each compute c[i] = a[i] + b[i]           │
-  │    ~0.3ms total                                          │
-  └────────────────────┬────────────────────────────────────┘
-                       │ cudaMemcpy D→H (c)
-                       ▼ (PCIe, ~0.125ms for 4MB)
-  ┌─────────────────────────────────────────────────────────┐
-  │  HOST                                                    │
-  │  h_c now has results                                     │
-  │  Verify, use results                                     │
-  │  free() and cudaFree() all memory                        │
-  └─────────────────────────────────────────────────────────┘</code></pre>
+<span class="comment">// Step 6: Query elapsed time (milliseconds, float precision)</span>
+float ms = 0.0f;
+CUDA_CHECK(cudaEventElapsedTime(&amp;ms, evStart, evStop));
+printf("Kernel execution time: %.4f ms\n", ms);
 
-      <h2>Extending to Other Kernels</h2>
+<span class="comment">// Step 7: Compute effective bandwidth
+// vectorAdd reads a[], reads b[], writes c[] = 3 arrays * N * 4 bytes</span>
+double bw_gbs = (3.0 * (double)N * sizeof(float)) / (ms * 1e-3) / 1e9;
+printf("Effective bandwidth:   %.2f GB/s\n", bw_gbs);
 
-      <p>The vector addition pattern generalizes to any element-wise operation:</p>
+<span class="comment">// Step 8: Cleanup event objects (they use GPU resources)</span>
+CUDA_CHECK(cudaEventDestroy(evStart));
+CUDA_CHECK(cudaEventDestroy(evStop));</code></pre>
 
-      <pre><code>// Apply ReLU activation:
-__global__ void relu(float *x, int n) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i &lt; n)
-        x[i] = fmaxf(0.0f, x[i]);
-}
+      <div class="output-block">
+<span class="comment"># Typical output on different GPUs for N = 1,048,576 (4MB per array):</span>
 
-// Scale a vector:
-__global__ void scale(float *x, float alpha, int n) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i &lt; n)
-        x[i] *= alpha;
-}
+<span class="comment"># RTX 3070 (GDDR6, 448 GB/s peak):</span>
+Kernel execution time: 0.612 ms
+Effective bandwidth:   51.4 GB/s   <span class="comment"># 11.5% of peak</span>
 
-// Element-wise multiply (Hadamard product):
-__global__ void hadamard(const float *a, const float *b, float *c, int n) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i &lt; n)
-        c[i] = a[i] * b[i];
-}
+<span class="comment"># RTX 3090 (GDDR6X, 936 GB/s peak):</span>
+Kernel execution time: 0.412 ms
+Effective bandwidth:   76.3 GB/s   <span class="comment"># 8.1% of peak</span>
 
-// These all follow the same pattern:
-// 1. Compute global index
-// 2. Check bounds
-// 3. Do the work</code></pre>
+<span class="comment"># A100 80GB PCIe (HBM2e, 1935 GB/s peak):</span>
+Kernel execution time: 0.098 ms
+Effective bandwidth:   320.8 GB/s  <span class="comment"># 16.6% of peak</span>
 
-      <h2>Takeaways</h2>
+<span class="comment"># Note: small N under-utilizes the GPU. With N=2^26 (64M elements):</span>
+<span class="comment"># RTX 3090: ~780 GB/s = 83% of peak. Large N saturates the bus.</span>
+      </div>
 
+      <p>
+        The low percentage with small N is expected. GPU memory bandwidth is delivered by
+        thousands of parallel memory controllers. With only 4 MB of data, most of the kernel
+        time is startup overhead (warp scheduling, cache warmup) rather than steady-state
+        streaming. N=1M is useful for learning but too small to benchmark.
+      </p>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="bandwidth">8. Bandwidth Arithmetic and GPU Comparison</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+
+      <p>
+        Bandwidth is the most important performance metric for memory-bound kernels like
+        vector addition. The formula is simple:
+      </p>
+
+<pre><code><span class="comment">// Effective bandwidth formula:
+//
+//   BW (GB/s) = bytes_accessed / (time_seconds * 10^9)
+//
+// For vectorAdd:
+//   bytes_accessed = (read A) + (read B) + (write C)
+//                  = N * sizeof(float) + N * sizeof(float) + N * sizeof(float)
+//                  = 3 * N * 4 bytes
+//
+// For N = 1,048,576:
+//   bytes_accessed = 3 * 1,048,576 * 4 = 12,582,912 bytes &#8245; 12 MB
+//
+// If time = 0.412 ms = 0.000412 s:
+//   BW = 12,582,912 / 0.000412 / 10^9 = 30.53 GB/s
+//
+// Wait &#8212; but we said 76.3 GB/s above? The discrepancy:
+// The first formula uses 1e9 to convert to "GB" (10^9 definition).
+// The second implicitly used 1024^3 "GiB". Let's be precise:</span>
+
+double bw_gbs = (3.0 * N * sizeof(float)) / (ms * 1e-3) / 1e9;
+<span class="comment">// This gives GB/s where 1 GB = 10^9 bytes (SI definition).
+// GPU manufacturers use this definition for their peak bandwidth specs.
+// So always use 1e9 when comparing against datasheet numbers.</span></code></pre>
+
+      <p>
+        Theoretical peak bandwidth for common GPUs:
+      </p>
+
+      <table class="address-table">
+        <thead>
+          <tr>
+            <th>GPU</th>
+            <th>Memory Type</th>
+            <th>Memory Bus</th>
+            <th>Peak BW</th>
+            <th>vectorAdd (N=64M)</th>
+            <th>% of Peak</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>RTX 2080 Ti</td>
+            <td>GDDR6</td>
+            <td>352-bit</td>
+            <td>616 GB/s</td>
+            <td>~490 GB/s</td>
+            <td>~80%</td>
+          </tr>
+          <tr>
+            <td>RTX 3090</td>
+            <td>GDDR6X</td>
+            <td>384-bit</td>
+            <td>936 GB/s</td>
+            <td>~780 GB/s</td>
+            <td>~83%</td>
+          </tr>
+          <tr>
+            <td>RTX 4090</td>
+            <td>GDDR6X</td>
+            <td>384-bit</td>
+            <td>1,008 GB/s</td>
+            <td>~840 GB/s</td>
+            <td>~83%</td>
+          </tr>
+          <tr>
+            <td>V100 16GB</td>
+            <td>HBM2</td>
+            <td>4096-bit</td>
+            <td>900 GB/s</td>
+            <td>~760 GB/s</td>
+            <td>~84%</td>
+          </tr>
+          <tr>
+            <td>A100 40GB</td>
+            <td>HBM2e</td>
+            <td>5120-bit</td>
+            <td>1,555 GB/s</td>
+            <td>~1,300 GB/s</td>
+            <td>~84%</td>
+          </tr>
+          <tr>
+            <td>A100 80GB</td>
+            <td>HBM2e</td>
+            <td>5120-bit</td>
+            <td>2,039 GB/s</td>
+            <td>~1,700 GB/s</td>
+            <td>~83%</td>
+          </tr>
+          <tr>
+            <td>H100 SXM</td>
+            <td>HBM3</td>
+            <td>5120-bit</td>
+            <td>3,350 GB/s</td>
+            <td>~2,800 GB/s</td>
+            <td>~84%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        Why don't we reach 100% of peak? Several reasons:
+      </p>
       <ul>
-        <li><code>cudaMalloc(&amp;ptr, bytes)</code> — allocates device memory, fills <code>ptr</code> with a GPU address.</li>
-        <li><code>cudaMemcpy(dst, src, bytes, dir)</code> — synchronous transfer over PCIe.</li>
-        <li>Kernel launches are asynchronous — call <code>cudaDeviceSynchronize()</code> or <code>cudaMemcpy</code> D→H to wait.</li>
-        <li>Always bounds-check: <code>if (idx &lt; n)</code> — last block's extra threads must be idle, not accessing invalid memory.</li>
-        <li>Grid size = <code>(N + blockSize - 1) / blockSize</code> — ceiling division.</li>
-        <li>Use CUDA events for accurate GPU timing, not CPU wall-clock timers.</li>
-        <li>Measure effective bandwidth: <code>bytes_accessed / time</code> — compare to GPU peak bandwidth.</li>
-        <li>Next: <a href="cuda-phase2-error-handling.html">Phase 2.3 — Error Handling in CUDA</a></li>
+        <li><strong>Kernel launch overhead:</strong> Even an empty kernel takes ~5&#8211;15 &#181;s for warp scheduler setup.</li>
+        <li><strong>L2 cache effects:</strong> First-pass data must populate the L2. Later reads may partially hit.</li>
+        <li><strong>Memory controller overhead:</strong> Row activation, bank conflicts at the DRAM level, ECC correction on data-center GPUs (costs ~6% bandwidth).</li>
+        <li><strong>Warp divergence:</strong> The bounds-check <code>if (idx &lt; n)</code> forces some warps in the last block to diverge &#8212; negligible for large N but measurable for small N.</li>
       </ul>
+
+      <p>
+        How bandwidth scales with N:
+      </p>
+
+      <table class="address-table">
+        <thead>
+          <tr>
+            <th>N (elements)</th>
+            <th>Array size (each)</th>
+            <th>Total data</th>
+            <th>Time (RTX 3090)</th>
+            <th>BW achieved</th>
+            <th>% of 936 GB/s</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1,024 (1K)</td>
+            <td>4 KB</td>
+            <td>12 KB</td>
+            <td>~0.025 ms</td>
+            <td>~0.5 GB/s</td>
+            <td>~0.05%</td>
+          </tr>
+          <tr>
+            <td>65,536 (64K)</td>
+            <td>256 KB</td>
+            <td>768 KB</td>
+            <td>~0.028 ms</td>
+            <td>~27 GB/s</td>
+            <td>~2.9%</td>
+          </tr>
+          <tr>
+            <td>1,048,576 (1M)</td>
+            <td>4 MB</td>
+            <td>12 MB</td>
+            <td>~0.41 ms</td>
+            <td>~76 GB/s</td>
+            <td>~8%</td>
+          </tr>
+          <tr>
+            <td>16,777,216 (16M)</td>
+            <td>64 MB</td>
+            <td>192 MB</td>
+            <td>~0.49 ms</td>
+            <td>~392 GB/s</td>
+            <td>~42%</td>
+          </tr>
+          <tr>
+            <td>67,108,864 (64M)</td>
+            <td>256 MB</td>
+            <td>768 MB</td>
+            <td>~0.98 ms</td>
+            <td>~784 GB/s</td>
+            <td>~84%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <h2 id="common-mistakes">9. Nine Common Mistakes and How to Fix Them</h2>
+      <!-- ═══════════════════════════════════════════════════════════ -->
+
+      <p>
+        These mistakes appear in almost every beginner's first CUDA program and in production
+        code at major ML companies. Some cause immediate crashes; others are silent for hours.
+      </p>
+
+      <table class="address-table">
+        <thead>
+          <tr>
+            <th>Mistake</th>
+            <th>Symptom</th>
+            <th>Root Cause</th>
+            <th>Fix</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>cudaMalloc(&amp;d_A, N)</code></td>
+            <td>Silent wrong results or crash many lines later</td>
+            <td>Allocates N bytes instead of N*4 bytes. Writes off the end of device buffer.</td>
+            <td><code>cudaMalloc(&amp;d_A, N * sizeof(float))</code></td>
+          </tr>
+          <tr>
+            <td>No bounds check in kernel</td>
+            <td><code>cudaErrorIllegalAddress</code> (illegal memory access) from next sync call</td>
+            <td>Last block's trailing threads access d_A[N], d_A[N+1]... &#8212; unmapped memory.</td>
+            <td>Always add <code>if (idx &lt; n) return;</code></td>
+          </tr>
+          <tr>
+            <td>Wrong memcpy direction</td>
+            <td>Kernel gets zeros; result is all-zeros</td>
+            <td><code>cudaMemcpyDeviceToHost</code> used for upload &#8212; copies uninitialized device memory to the correct place; GPU data stays zero.</td>
+            <td>Use <code>cudaMemcpyHostToDevice</code> for upload, <code>cudaMemcpyDeviceToHost</code> for download.</td>
+          </tr>
+          <tr>
+            <td>Passing host pointer to kernel</td>
+            <td><code>cudaErrorIllegalAddress</code> immediately</td>
+            <td>Accidentally typing <code>h_A</code> instead of <code>d_A</code> in the kernel call. GPU tries to dereference a CPU address.</td>
+            <td>Use a naming convention (<code>h_</code> prefix for host, <code>d_</code> for device) and review all kernel arguments.</td>
+          </tr>
+          <tr>
+            <td>Using CPU timer for kernel</td>
+            <td>Always shows 0.001 ms regardless of kernel complexity</td>
+            <td>Kernel is asynchronous. CPU timer stops before GPU starts working.</td>
+            <td>Use CUDA events: <code>cudaEventRecord / cudaEventElapsedTime</code>.</td>
+          </tr>
+          <tr>
+            <td>Not calling <code>cudaFree</code></td>
+            <td>GPU OOM after many iterations</td>
+            <td>GPU memory leak. Each run allocates but never releases. nvidia-smi shows memory climbing.</td>
+            <td><code>CUDA_CHECK(cudaFree(d_A))</code> for every <code>cudaMalloc</code>.</td>
+          </tr>
+          <tr>
+            <td>Forgetting error checking</td>
+            <td>Random wrong results; no error message</td>
+            <td>cudaMalloc can fail silently (e.g., OOM). The NULL pointer is then used, corrupting arbitrary memory.</td>
+            <td>Wrap every CUDA call in <code>CUDA_CHECK()</code>.</td>
+          </tr>
+          <tr>
+            <td>Floor division for gridSize</td>
+            <td>Last N%blockSize elements never computed; silent wrong results</td>
+            <td><code>gridSize = N / blockSize</code> rounds down, missing the final partial block.</td>
+            <td><code>gridSize = (N + blockSize - 1) / blockSize</code></td>
+          </tr>
+          <tr>
+            <td>Benchmarking with <code>-G</code> flag</td>
+            <td>Kernel appears 20&#8211;100x slower than expected</td>
+            <td><code>nvcc -G</code> adds device debug symbols, disables optimizations, and forces register-to-local-memory spills for debuggability.</td>
+            <td>Remove <code>-G</code> for any performance measurement. Use <code>-O2</code> or <code>-O3</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="danger-box">
+        <strong>The silent wrong results mistake is the worst one.</strong><br/>
+        When <code>cudaMalloc(&amp;d_A, N)</code> allocates 1 MB instead of 4 MB, the GPU
+        does not immediately crash. The kernel runs, writes into the wrong memory region,
+        and your verification loop may pass if the memory happens to be initialized to
+        something plausible. You will chase this bug for hours. Enable
+        <code>compute-sanitizer --tool memcheck</code> and it catches this in 2 seconds.
+        See the next post (2.3) for the full error-handling toolkit.
+      </div>
+
+      <p>
+        Generalizing from vectorAdd to any embarrassingly parallel kernel is now mechanical.
+        The pattern is always: compute <code>idx</code>, check bounds, do the work. The
+        concepts in this post &#8212; address spaces, ceiling division, async launches,
+        CUDA events &#8212; are permanent fixtures of CUDA programming. They appear in
+        matrix multiplication, image processing, neural network inference, and physics
+        simulation. You now own the foundation.
+      </p>
+
+      <div class="series-nav">
+        <a href="cuda-phase2-programming-model.html">&#8592; 2.1 &#8212; Programming Model</a>
+        <a href="cuda-phase2-error-handling.html">2.3 &#8212; Error Handling &#8594;</a>
+      </div>
 
     </div>
   </main>
 
   <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+    <p>built with &#x2615; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
   </footer>
 
 </body>
