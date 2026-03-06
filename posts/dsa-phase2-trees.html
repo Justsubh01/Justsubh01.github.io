@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trees &amp; BST — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 35 min read</span>
+      </div>
+      <h1>Trees &amp; Binary Search Trees: The Most Interview-Dense Data Structure</h1>
+      <p class="post-description">
+        Tree problems appear in every FAANG interview. The key insight: almost every tree problem
+        reduces to a DFS traversal where you return some value from each subtree and combine.
+        Learn the traversals, BST invariant, and the 15 classic problems that cover everything.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Trees are where recursive thinking becomes essential. The magic formula for tree
+        problems is: "what do I need from my left subtree, what do I need from my right
+        subtree, and how do I combine them to answer the question for the current node?"
+        If you can frame every tree problem this way, you can solve almost all of them.
+      </p>
+
+      <h2>Tree Terminology and Node Definition</h2>
+
+      <pre><code>  class TreeNode:
+      def __init__(self, val=0, left=None, right=None):
+          self.val = val
+          self.left = left
+          self.right = right
+
+  Tree terminology:
+  ─────────────────────────────────────────────────────────────
+  Root:     topmost node (no parent)
+  Leaf:     node with no children
+  Height:   longest path from node to a leaf (root height = tree height)
+  Depth:    distance from root to node (root depth = 0)
+  Level:    depth + 1 (root is level 1)
+  Subtree:  a node and all its descendants
+
+  Binary tree: each node has at most 2 children (left, right)
+  Full binary tree: every node has 0 or 2 children
+  Complete binary tree: all levels full except possibly last (filled left)
+  Perfect binary tree: all internal nodes have 2 children, all leaves at same depth
+
+  Height relationships:
+  - Height of empty tree = -1 (or 0, convention varies)
+  - Height of tree with n nodes ∈ [log₂(n), n-1]
+  - Balanced tree: height = O(log n)
+  - Degenerate (linked list): height = n-1</code></pre>
+
+      <h2>The Four Traversals (Know All Four Cold)</h2>
+
+      <pre><code>  Tree:
+         1
+        / \
+       2   3
+      / \
+     4   5
+
+  Preorder  (Root → Left → Right):  [1, 2, 4, 5, 3]
+  Inorder   (Left → Root → Right):  [4, 2, 5, 1, 3]  ← sorted for BST!
+  Postorder (Left → Right → Root):  [4, 5, 2, 3, 1]
+  Level-order (BFS):                [1, 2, 3, 4, 5]
+
+  ─── Recursive (trivially correct) ──────────────────────
+  def preorder(root):
+      if not root: return []
+      return [root.val] + preorder(root.left) + preorder(root.right)
+
+  def inorder(root):
+      if not root: return []
+      return inorder(root.left) + [root.val] + inorder(root.right)
+
+  def postorder(root):
+      if not root: return []
+      return postorder(root.left) + postorder(root.right) + [root.val]
+
+  # Note: list concatenation is O(n) per call → O(n^2) total!
+  # Use a result list and append to avoid this:
+
+  def inorder_efficient(root):
+      result = []
+      def dfs(node):
+          if not node: return
+          dfs(node.left)
+          result.append(node.val)
+          dfs(node.right)
+      dfs(root)
+      return result  # O(n) time, O(n) space (recursion + result)
+
+  ─── Level-Order (BFS) ───────────────────────────────────
+  from collections import deque
+  def level_order(root):
+      if not root: return []
+      result = []
+      queue = deque([root])
+      while queue:
+          level_size = len(queue)  # snapshot: process this level
+          level = []
+          for _ in range(level_size):
+              node = queue.popleft()
+              level.append(node.val)
+              if node.left:  queue.append(node.left)
+              if node.right: queue.append(node.right)
+          result.append(level)
+      return result  # [[1], [2,3], [4,5]]</code></pre>
+
+      <h2>The Universal Tree DFS Pattern</h2>
+
+      <p>
+        Almost every tree problem fits this template. Before you code, identify: what does
+        your DFS function return? Then implement it recursively.
+      </p>
+
+      <pre><code>  def solve(root):
+      def dfs(node):
+          # Base case: null node
+          if not node:
+              return BASE_VALUE  # 0, None, True, float('inf'), etc.
+
+          # Recurse into subtrees
+          left_result  = dfs(node.left)
+          right_result = dfs(node.right)
+
+          # Combine results to answer question for current node
+          current_result = COMBINE(node.val, left_result, right_result)
+
+          # Optionally: update a global answer
+          self.answer = max(self.answer, current_result)
+
+          return current_result
+
+      return dfs(root)
+
+  Examples of what DFS returns:
+  ─────────────────────────────────────────────────────────────
+  Height:           int (max height of subtree)
+  Diameter:         int (longest path through node)
+  Is balanced:      bool (is subtree balanced?)
+  Max path sum:     int (max sum of any path through node)
+  LCA:              TreeNode (the lowest common ancestor)
+  Is valid BST:     bool (is subtree a valid BST?)</code></pre>
+
+      <h2>Binary Search Tree (BST)</h2>
+
+      <pre><code>  BST Invariant:
+    For every node X:
+    - All nodes in left subtree have values < X.val
+    - All nodes in right subtree have values > X.val
+    - Both subtrees are also valid BSTs
+
+  This gives us: inorder traversal of BST = sorted array!
+
+           8
+          / \
+         3   10
+        / \    \
+       1   6    14
+          / \   /
+         4   7 13
+
+  Inorder: [1, 3, 4, 6, 7, 8, 10, 13, 14] ← sorted!
+
+  ─── Search in BST ────────────────────────────────────────
+  def search_bst(root, target):
+      if not root or root.val == target:
+          return root
+      if target < root.val:
+          return search_bst(root.left, target)
+      return search_bst(root.right, target)
+  # O(h) time where h = height (O(log n) balanced, O(n) degenerate)
+
+  ─── Insert into BST ──────────────────────────────────────
+  def insert_bst(root, val):
+      if not root:
+          return TreeNode(val)
+      if val < root.val:
+          root.left = insert_bst(root.left, val)
+      else:
+          root.right = insert_bst(root.right, val)
+      return root
+
+  ─── Delete from BST ──────────────────────────────────────
+  def delete_bst(root, key):
+      if not root: return None
+      if key < root.val:
+          root.left = delete_bst(root.left, key)
+      elif key > root.val:
+          root.right = delete_bst(root.right, key)
+      else:  # found the node
+          if not root.left: return root.right   # case 1: no left child
+          if not root.right: return root.left   # case 2: no right child
+          # Case 3: two children → replace with inorder successor
+          # (smallest value in right subtree)
+          successor = root.right
+          while successor.left:
+              successor = successor.left
+          root.val = successor.val
+          root.right = delete_bst(root.right, successor.val)
+      return root</code></pre>
+
+      <h2>15 Classic Tree Problems</h2>
+
+      <h3>1. Maximum Depth / Height</h3>
+      <pre><code>  def max_depth(root):
+      if not root: return 0
+      return 1 + max(max_depth(root.left), max_depth(root.right))
+  # Base case: null → 0. Current node adds 1 to max of subtree depths.</code></pre>
+
+      <h3>2. Balanced Binary Tree</h3>
+      <pre><code>  def is_balanced(root):
+      def check(node):
+          if not node: return 0  # height of null is 0
+          left_h = check(node.left)
+          if left_h == -1: return -1  # propagate failure
+          right_h = check(node.right)
+          if right_h == -1: return -1
+          if abs(left_h - right_h) > 1: return -1  # unbalanced
+          return 1 + max(left_h, right_h)
+      return check(root) != -1
+  # O(n) — single pass, returns height or -1 for unbalanced</code></pre>
+
+      <h3>3. Diameter of Binary Tree</h3>
+      <pre><code>  def diameter(root):
+      self_diameter = 0
+      def depth(node):
+          nonlocal self_diameter
+          if not node: return 0
+          left_d = depth(node.left)
+          right_d = depth(node.right)
+          # Diameter through this node = left depth + right depth
+          self_diameter = max(self_diameter, left_d + right_d)
+          return 1 + max(left_d, right_d)
+      depth(root)
+      return self_diameter
+  # The diameter doesn't have to pass through the root!</code></pre>
+
+      <h3>4. Same Tree</h3>
+      <pre><code>  def is_same_tree(p, q):
+      if not p and not q: return True   # both null
+      if not p or not q: return False   # one null
+      if p.val != q.val: return False   # values differ
+      return is_same_tree(p.left, q.left) and is_same_tree(p.right, q.right)</code></pre>
+
+      <h3>5. Symmetric Tree (Mirror)</h3>
+      <pre><code>  def is_symmetric(root):
+      def is_mirror(left, right):
+          if not left and not right: return True
+          if not left or not right: return False
+          return (left.val == right.val and
+                  is_mirror(left.left, right.right) and
+                  is_mirror(left.right, right.left))
+      return is_mirror(root.left, root.right)</code></pre>
+
+      <h3>6. Path Sum II (All Root-to-Leaf Paths)</h3>
+      <pre><code>  def path_sum(root, target):
+      result = []
+      def dfs(node, remaining, path):
+          if not node: return
+          path.append(node.val)
+          remaining -= node.val
+          if not node.left and not node.right and remaining == 0:
+              result.append(list(path))  # copy! path is mutable
+          dfs(node.left, remaining, path)
+          dfs(node.right, remaining, path)
+          path.pop()  # backtrack
+      dfs(root, target, [])
+      return result</code></pre>
+
+      <h3>7. Binary Tree Maximum Path Sum</h3>
+      <pre><code>  def max_path_sum(root):
+      self_max = float('-inf')
+      def gain(node):
+          nonlocal self_max
+          if not node: return 0
+          # Only take positive gains from subtrees
+          left_gain  = max(gain(node.left), 0)
+          right_gain = max(gain(node.right), 0)
+          # Price of path through this node
+          self_max = max(self_max, node.val + left_gain + right_gain)
+          # Return max single-path gain (can only go one direction up)
+          return node.val + max(left_gain, right_gain)
+      gain(root)
+      return self_max
+  # Key insight: a path can go left-root-right but then can't go up further.
+  # So we maximize globally but only return the best single arm upward.</code></pre>
+
+      <h3>8. Lowest Common Ancestor (LCA)</h3>
+      <pre><code>  # LCA of two nodes p and q in a binary tree
+  def lca(root, p, q):
+      if not root or root == p or root == q:
+          return root
+      left  = lca(root.left, p, q)
+      right = lca(root.right, p, q)
+      if left and right: return root   # p in left subtree, q in right → root is LCA
+      return left or right             # both in same subtree
+
+  # LCA in BST (use BST property):
+  def lca_bst(root, p, q):
+      if p.val < root.val and q.val < root.val:
+          return lca_bst(root.left, p, q)
+      if p.val > root.val and q.val > root.val:
+          return lca_bst(root.right, p, q)
+      return root  # they split at this node (or one equals root)</code></pre>
+
+      <h3>9. Serialize and Deserialize Binary Tree</h3>
+      <pre><code>  class Codec:
+      def serialize(self, root):
+          # Preorder with null markers
+          def dfs(node):
+              if not node:
+                  return ['null']
+              return [str(node.val)] + dfs(node.left) + dfs(node.right)
+          return ','.join(dfs(root))
+
+      def deserialize(self, data):
+          vals = iter(data.split(','))
+          def dfs():
+              val = next(vals)
+              if val == 'null':
+                  return None
+              node = TreeNode(int(val))
+              node.left = dfs()
+              node.right = dfs()
+              return node
+          return dfs()</code></pre>
+
+      <h3>10. Validate Binary Search Tree</h3>
+      <pre><code>  def is_valid_bst(root):
+      def validate(node, min_val, max_val):
+          if not node: return True
+          if node.val <= min_val or node.val >= max_val:
+              return False
+          return (validate(node.left, min_val, node.val) and
+                  validate(node.right, node.val, max_val))
+      return validate(root, float('-inf'), float('inf'))
+  # Pass valid range down the tree — the BST invariant must hold globally</code></pre>
+
+      <h3>11. Kth Smallest in BST</h3>
+      <pre><code>  def kth_smallest(root, k):
+      stack = []
+      curr = root
+      count = 0
+      while curr or stack:
+          while curr:
+              stack.append(curr)
+              curr = curr.left
+          curr = stack.pop()
+          count += 1
+          if count == k: return curr.val
+          curr = curr.right
+  # Iterative inorder traversal — stops early when kth reached</code></pre>
+
+      <h3>12. Construct Binary Tree from Preorder and Inorder</h3>
+      <pre><code>  def build_tree(preorder, inorder):
+      if not preorder: return None
+      root_val = preorder[0]
+      root = TreeNode(root_val)
+      mid = inorder.index(root_val)  # O(n) — use hash map for O(1)
+      root.left  = build_tree(preorder[1:mid+1], inorder[:mid])
+      root.right = build_tree(preorder[mid+1:], inorder[mid+1:])
+      return root
+
+  # Efficient version with index pointers:
+  def build_tree_efficient(preorder, inorder):
+      idx_map = {val: i for i, val in enumerate(inorder)}
+      pre_idx = [0]
+      def dfs(left, right):
+          if left > right: return None
+          root_val = preorder[pre_idx[0]]
+          pre_idx[0] += 1
+          node = TreeNode(root_val)
+          mid = idx_map[root_val]
+          node.left  = dfs(left, mid - 1)
+          node.right = dfs(mid + 1, right)
+          return node
+      return dfs(0, len(inorder) - 1)
+  # O(n) time with hash map for inorder index lookup</code></pre>
+
+      <h3>13. Right Side View</h3>
+      <pre><code>  def right_side_view(root):
+      result = []
+      def dfs(node, depth):
+          if not node: return
+          if depth == len(result):
+              result.append(node.val)  # first node at this depth (rightmost)
+          dfs(node.right, depth + 1)  # visit right FIRST
+          dfs(node.left, depth + 1)
+      dfs(root, 0)
+      return result
+  # BFS version: take last element of each level</code></pre>
+
+      <h3>14. Flatten Binary Tree to Linked List</h3>
+      <pre><code>  def flatten(root):
+      # Morris traversal approach — O(1) space
+      curr = root
+      while curr:
+          if curr.left:
+              # Find rightmost node in left subtree
+              rightmost = curr.left
+              while rightmost.right:
+                  rightmost = rightmost.right
+              # Connect rightmost's right to curr's right
+              rightmost.right = curr.right
+              # Move left subtree to right
+              curr.right = curr.left
+              curr.left = None
+          curr = curr.right
+  # In-place, O(1) space, O(n) time</code></pre>
+
+      <h3>15. Binary Tree Zigzag Level Order</h3>
+      <pre><code>  from collections import deque
+  def zigzag_level_order(root):
+      if not root: return []
+      result = []
+      queue = deque([root])
+      left_to_right = True
+      while queue:
+          level = deque()
+          for _ in range(len(queue)):
+              node = queue.popleft()
+              if left_to_right:
+                  level.append(node.val)
+              else:
+                  level.appendleft(node.val)  # prepend for right-to-left
+              if node.left:  queue.append(node.left)
+              if node.right: queue.append(node.right)
+          result.append(list(level))
+          left_to_right = not left_to_right
+      return result</code></pre>
+
+      <h2>N-ary Trees and Tries</h2>
+
+      <pre><code>  # N-ary tree node
+  class Node:
+      def __init__(self, val, children=None):
+          self.val = val
+          self.children = children or []
+
+  # DFS on N-ary tree:
+  def max_depth_nary(root):
+      if not root: return 0
+      if not root.children: return 1
+      return 1 + max(max_depth_nary(c) for c in root.children)
+
+  ─── Trie (Prefix Tree) ───────────────────────────────────
+  class TrieNode:
+      def __init__(self):
+          self.children = {}  # char → TrieNode
+          self.is_end = False
+
+  class Trie:
+      def __init__(self):
+          self.root = TrieNode()
+
+      def insert(self, word):
+          node = self.root
+          for char in word:
+              node = node.children.setdefault(char, TrieNode())
+          node.is_end = True
+
+      def search(self, word):
+          node = self.root
+          for char in word:
+              if char not in node.children: return False
+              node = node.children[char]
+          return node.is_end
+
+      def starts_with(self, prefix):
+          node = self.root
+          for char in prefix:
+              if char not in node.children: return False
+              node = node.children[char]
+          return True
+  # O(L) insert, search, prefix — L = word length</code></pre>
+
+      <h2>Tree Problem Decision Framework</h2>
+
+      <pre><code>  Step 1: What traversal order do you need?
+  ──────────────────────────────────────────────────────────
+  Need ordered values?           → Inorder (BST)
+  Need parent before children?   → Preorder
+  Need children before parent?   → Postorder (delete, evaluate)
+  Need level-by-level?           → BFS (level order)
+
+  Step 2: Does your DFS need to return something?
+  ──────────────────────────────────────────────────────────
+  Height/depth?                  → return int
+  Subtree sum?                   → return int
+  Is valid BST?                  → return (bool, min, max)
+  Max path?                      → return one-armed max, update global
+  LCA?                           → return node
+
+  Step 3: Edge cases to always check:
+  ──────────────────────────────────────────────────────────
+  - root is None
+  - single node (no children)
+  - skewed tree (all left or all right)
+  - p == q in LCA problems
+  - node values can be negative (affects sum problems)</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase2-heaps.html">Heaps &amp; Priority Queues &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

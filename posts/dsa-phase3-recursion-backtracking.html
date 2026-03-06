@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recursion &amp; Backtracking — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 32 min read</span>
+      </div>
+      <h1>Recursion &amp; Backtracking: How to Think in Trees</h1>
+      <p class="post-description">
+        Recursion is a mindset, not a technique. Backtracking is constrained DFS on a decision
+        tree. Once you see every recursive problem as a tree of choices, subsets, permutations,
+        N-Queens, and Sudoku all follow from the same template. Master the template; prune for performance.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        The leap from understanding recursion to using it fluently in interviews comes from
+        one mental shift: trust the function. Write the recursive case as if the recursive
+        call magically solves the smaller subproblem. Then just handle the base case and
+        the combination step. That's it.
+      </p>
+
+      <h2>The Recursion Mental Model</h2>
+
+      <pre><code>  The three questions to answer for any recursive function:
+  ─────────────────────────────────────────────────────────────
+  1. Base case: what is the smallest instance that doesn't recurse?
+  2. Recursive case: how do I break the problem into a smaller one?
+  3. Combination: how do I combine the subproblem result with my work?
+
+  Example: Sum of array elements
+  def array_sum(arr, i=0):
+      # Base case: empty remaining array
+      if i == len(arr): return 0
+      # Recursive case: sum of first element + rest
+      # Trust that array_sum(arr, i+1) correctly returns sum of rest
+      return arr[i] + array_sum(arr, i+1)
+
+  Example: Reverse a string
+  def reverse(s):
+      if len(s) <= 1: return s           # base case
+      return reverse(s[1:]) + s[0]      # trust reverse(s[1:]) works
+
+  Example: Power function
+  def power(x, n):
+      if n == 0: return 1               # base case: x^0 = 1
+      half = power(x, n // 2)          # trust: correctly computes x^(n/2)
+      if n % 2 == 0: return half * half
+      else: return half * half * x</code></pre>
+
+      <h2>Call Stack Visualization</h2>
+
+      <pre><code>  factorial(4):
+  ┌────────────────────────────────────────┐
+  │ factorial(4): 4 * factorial(3)         │ ← pushed first
+  │  ┌──────────────────────────────────┐  │
+  │  │ factorial(3): 3 * factorial(2)   │  │
+  │  │  ┌────────────────────────────┐  │  │
+  │  │  │ factorial(2): 2 * fact(1)  │  │  │
+  │  │  │  ┌──────────────────────┐  │  │  │
+  │  │  │  │ factorial(1): 1      │  │  │  │ ← stack top
+  │  │  │  └──────────────────────┘  │  │  │
+  │  │  └────────────────────────────┘  │  │
+  │  └──────────────────────────────────┘  │
+  └────────────────────────────────────────┘
+
+  Unwinds bottom to top: 1 → 2*1=2 → 3*2=6 → 4*6=24
+
+  Stack depth = O(n) space for n recursive calls.
+  Python default recursion limit: ~1000 (adjustable with sys.setrecursionlimit)
+  Stack overflow with depth > limit.</code></pre>
+
+      <h2>Backtracking: Recursion with Undo</h2>
+
+      <pre><code>  Backtracking = explore a decision tree, undo bad decisions.
+  At each node: make a choice, recurse, undo the choice.
+
+  Universal backtracking template:
+  ─────────────────────────────────────────────────────────────
+  def backtrack(state, choices, result):
+      # Base case: state represents a complete solution
+      if is_complete(state):
+          result.append(copy_of(state))
+          return
+
+      for choice in choices:
+          # 1. Constraint: skip invalid choices
+          if not is_valid(choice, state):
+              continue
+
+          # 2. Make choice (modify state)
+          state.add(choice)
+          mark_used(choice)
+
+          # 3. Recurse
+          backtrack(state, next_choices, result)
+
+          # 4. Undo choice (restore state)
+          state.remove(choice)
+          unmark_used(choice)
+
+  Key insight: backtracking builds a decision tree.
+  Each node is a partial state. Each edge is a choice.
+  Leaf nodes are complete solutions (or dead ends).
+  We explore with DFS, backtracking when we hit dead ends.</code></pre>
+
+      <h2>Subsets</h2>
+
+      <pre><code>  # All subsets of [1,2,3] = [[], [1], [2], [3], [1,2], [1,3], [2,3], [1,2,3]]
+
+  def subsets(nums):
+      result = []
+      def backtrack(start, current):
+          result.append(list(current))  # every prefix is a valid subset
+          for i in range(start, len(nums)):
+              current.append(nums[i])       # choose nums[i]
+              backtrack(i + 1, current)     # recurse (next elements only)
+              current.pop()                 # unchoose
+      backtrack(0, [])
+      return result
+
+  Decision tree for [1,2,3]:
+              []
+          /    |    \
+        [1]  [2]  [3]
+        / \    \
+    [1,2][1,3][2,3]
+      |
+  [1,2,3]
+
+  # Time: O(2^n * n) — 2^n subsets, each takes O(n) to copy
+  # Space: O(n) recursion depth + O(2^n * n) for result
+
+  ─── Subsets II (with duplicates) ─────────────────────────
+  def subsets_with_dup(nums):
+      nums.sort()  # sort to group duplicates together
+      result = []
+      def backtrack(start, current):
+          result.append(list(current))
+          for i in range(start, len(nums)):
+              if i > start and nums[i] == nums[i-1]:
+                  continue  # skip duplicate at same tree level
+              current.append(nums[i])
+              backtrack(i+1, current)
+              current.pop()
+      backtrack(0, [])
+      return result</code></pre>
+
+      <h2>Permutations</h2>
+
+      <pre><code>  # All permutations of [1,2,3]
+  def permutations(nums):
+      result = []
+      used = [False] * len(nums)
+      def backtrack(current):
+          if len(current) == len(nums):
+              result.append(list(current))
+              return
+          for i in range(len(nums)):
+              if used[i]: continue
+              used[i] = True
+              current.append(nums[i])
+              backtrack(current)
+              current.pop()
+              used[i] = False
+      backtrack([])
+      return result
+  # Time: O(n! * n) — n! permutations, each O(n) to copy
+
+  ─── Permutations II (with duplicates) ───────────────────
+  def permutations_with_dup(nums):
+      nums.sort()
+      result = []
+      used = [False] * len(nums)
+      def backtrack(current):
+          if len(current) == len(nums):
+              result.append(list(current))
+              return
+          for i in range(len(nums)):
+              if used[i]: continue
+              # Skip duplicate: if nums[i] == nums[i-1] and nums[i-1] was NOT used
+              # (meaning we're at the same level of the tree, not a deeper level)
+              if i > 0 and nums[i] == nums[i-1] and not used[i-1]:
+                  continue
+              used[i] = True
+              current.append(nums[i])
+              backtrack(current)
+              current.pop()
+              used[i] = False
+      backtrack([])
+      return result</code></pre>
+
+      <h2>Combinations</h2>
+
+      <pre><code>  # All combinations of k numbers from [1..n]
+  def combinations(n, k):
+      result = []
+      def backtrack(start, current):
+          if len(current) == k:
+              result.append(list(current))
+              return
+          # Pruning: remaining = k - len(current) needed
+          # Only go up to n - remaining + 1 (not enough elements left otherwise)
+          for i in range(start, n - (k - len(current)) + 2):
+              current.append(i)
+              backtrack(i+1, current)
+              current.pop()
+      backtrack(1, [])
+      return result
+
+  ─── Combination Sum (unlimited reuse) ───────────────────
+  def combination_sum(candidates, target):
+      result = []
+      candidates.sort()
+      def backtrack(start, current, remaining):
+          if remaining == 0:
+              result.append(list(current))
+              return
+          for i in range(start, len(candidates)):
+              if candidates[i] > remaining: break  # pruning!
+              current.append(candidates[i])
+              backtrack(i, current, remaining - candidates[i])  # i, not i+1: reuse allowed
+              current.pop()
+      backtrack(0, [], target)
+      return result
+
+  ─── Combination Sum II (each number used once) ──────────
+  def combination_sum_2(candidates, target):
+      candidates.sort()
+      result = []
+      def backtrack(start, current, remaining):
+          if remaining == 0:
+              result.append(list(current))
+              return
+          for i in range(start, len(candidates)):
+              if candidates[i] > remaining: break
+              if i > start and candidates[i] == candidates[i-1]: continue  # skip dup
+              current.append(candidates[i])
+              backtrack(i+1, current, remaining - candidates[i])  # i+1: no reuse
+              current.pop()
+      backtrack(0, [], target)
+      return result</code></pre>
+
+      <h2>N-Queens</h2>
+
+      <pre><code>  def solve_n_queens(n):
+      result = []
+      queens = []  # queens[i] = column of queen in row i
+      cols = set()
+      diag1 = set()  # row - col (same for left diagonal)
+      diag2 = set()  # row + col (same for right diagonal)
+
+      def backtrack(row):
+          if row == n:
+              # Build board from queens list
+              board = []
+              for col in queens:
+                  board.append('.' * col + 'Q' + '.' * (n - col - 1))
+              result.append(board)
+              return
+          for col in range(n):
+              if col in cols or (row-col) in diag1 or (row+col) in diag2:
+                  continue  # attacked by existing queen
+              queens.append(col)
+              cols.add(col)
+              diag1.add(row - col)
+              diag2.add(row + col)
+              backtrack(row + 1)
+              queens.pop()
+              cols.discard(col)
+              diag1.discard(row - col)
+              diag2.discard(row + col)
+
+      backtrack(0)
+      return result
+  # Time: O(n!) in worst case, much better with pruning
+  # Using sets for O(1) conflict detection</code></pre>
+
+      <h2>Sudoku Solver</h2>
+
+      <pre><code>  def solve_sudoku(board):
+      rows = [set() for _ in range(9)]
+      cols = [set() for _ in range(9)]
+      boxes = [set() for _ in range(9)]
+
+      # Initialize with existing numbers
+      for r in range(9):
+          for c in range(9):
+              if board[r][c] != '.':
+                  num = board[r][c]
+                  rows[r].add(num)
+                  cols[c].add(num)
+                  boxes[(r//3)*3 + c//3].add(num)
+
+      def backtrack():
+          # Find next empty cell
+          for r in range(9):
+              for c in range(9):
+                  if board[r][c] == '.':
+                      box = (r//3)*3 + c//3
+                      for digit in '123456789':
+                          if digit in rows[r] or digit in cols[c] or digit in boxes[box]:
+                              continue
+                          # Place digit
+                          board[r][c] = digit
+                          rows[r].add(digit); cols[c].add(digit); boxes[box].add(digit)
+                          if backtrack(): return True
+                          # Remove digit
+                          board[r][c] = '.'
+                          rows[r].discard(digit); cols[c].discard(digit); boxes[box].discard(digit)
+                      return False  # no valid digit → backtrack
+          return True  # all cells filled
+
+      backtrack()</code></pre>
+
+      <h2>Word Search</h2>
+
+      <pre><code>  def exist(board, word):
+      m, n = len(board), len(board[0])
+
+      def dfs(r, c, idx):
+          if idx == len(word): return True
+          if r < 0 or r >= m or c < 0 or c >= n: return False
+          if board[r][c] != word[idx]: return False
+
+          # Mark as visited
+          temp = board[r][c]
+          board[r][c] = '#'
+
+          found = (dfs(r+1, c, idx+1) or dfs(r-1, c, idx+1) or
+                   dfs(r, c+1, idx+1) or dfs(r, c-1, idx+1))
+
+          # Restore
+          board[r][c] = temp
+          return found
+
+      for r in range(m):
+          for c in range(n):
+              if dfs(r, c, 0): return True
+      return False
+  # O(m*n*4^L) where L = len(word) — each cell tries 4 directions</code></pre>
+
+      <h2>Letter Combinations of a Phone Number</h2>
+
+      <pre><code>  def letter_combinations(digits):
+      if not digits: return []
+      phone = {'2':'abc','3':'def','4':'ghi','5':'jkl',
+               '6':'mno','7':'pqrs','8':'tuv','9':'wxyz'}
+      result = []
+      def backtrack(i, current):
+          if i == len(digits):
+              result.append(current)
+              return
+          for char in phone[digits[i]]:
+              backtrack(i+1, current+char)
+      backtrack(0, '')
+      return result</code></pre>
+
+      <h2>Generate Parentheses</h2>
+
+      <pre><code>  def generate_parentheses(n):
+      result = []
+      def backtrack(current, open_count, close_count):
+          if len(current) == 2 * n:
+              result.append(current)
+              return
+          if open_count < n:
+              backtrack(current+'(', open_count+1, close_count)
+          if close_count < open_count:  # can only close if more opens
+              backtrack(current+')', open_count, close_count+1)
+      backtrack('', 0, 0)
+      return result
+  # Constraint "close_count < open_count" is the key pruning condition</code></pre>
+
+      <h2>Pruning: Turning Exponential into Practical</h2>
+
+      <pre><code>  Pruning techniques:
+  ─────────────────────────────────────────────────────────────
+  1. Early termination: if current state can't lead to solution, return
+     if remaining < candidates[i]: break  (sorted, no need to continue)
+
+  2. Sort + skip: sort input, skip duplicate values at same tree level
+     if i > start and nums[i] == nums[i-1]: continue
+
+  3. Constraint propagation: detect conflicts early
+     (N-queens: check sets before recursing, not after)
+
+  4. Symmetry breaking: in N-queens, first queen has n//2 choices
+     due to symmetry (for counting solutions)
+
+  5. Feasibility check: verify partial solution can be extended
+     (Sudoku: most constrained variable / minimum remaining values)
+
+  Pruning can turn O(2^n) → O(2^(n/2)) or better in practice.
+  The theoretical complexity stays the same, but wall-clock time drops.
+
+  Rule: Always sort the input array before backtracking on it.
+  This enables break (stop loop) instead of continue (skip element).</code></pre>
+
+      <h2>Memoized Backtracking (Top-Down DP)</h2>
+
+      <pre><code>  When the same subproblem appears in multiple branches of the recursion tree,
+  memoize the result instead of recomputing.
+
+  Word Break:
+  def word_break(s, wordDict):
+      word_set = set(wordDict)
+      memo = {}
+      def dp(i):
+          if i == len(s): return True
+          if i in memo: return memo[i]
+          for j in range(i+1, len(s)+1):
+              if s[i:j] in word_set and dp(j):
+                  memo[i] = True
+                  return True
+          memo[i] = False
+          return False
+      return dp(0)
+
+  # Without memo: O(2^n) — same subtrees explored repeatedly
+  # With memo: O(n^3) — n states, each computes O(n^2) substrings
+
+  When to memoize backtracking → it becomes DP:
+  - Multiple recursive calls with same parameters
+  - Return a value (not void)
+  - Overlapping subproblems (same (i, remaining, state) repeated)</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase4-dp.html">Dynamic Programming &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

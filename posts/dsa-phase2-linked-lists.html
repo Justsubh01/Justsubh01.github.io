@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Linked Lists — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 28 min read</span>
+      </div>
+      <h1>Linked Lists: Pointers, Cycles, and Interview Classics</h1>
+      <p class="post-description">
+        Linked lists appear in every FAANG onsite. Not because they're commonly used in production,
+        but because they test pointer manipulation under pressure. Master the dummy node trick,
+        fast/slow pointers, and in-place reversal — the three techniques that cover 90% of
+        linked list problems.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        A linked list question at Google or Meta isn't about data structures. It's a
+        pointer manipulation test under time pressure. Interviewers watch whether you
+        draw diagrams, whether you handle edge cases (empty list, single node, cycle),
+        and whether you track your pointers without losing them. This post teaches you
+        to do all of that.
+      </p>
+
+      <h2>Anatomy of a Linked List</h2>
+
+      <pre><code>  # Python node definition
+  class ListNode:
+      def __init__(self, val=0, next=None):
+          self.val = val
+          self.next = next
+
+  # Build a list: 1 → 2 → 3 → None
+  head = ListNode(1)
+  head.next = ListNode(2)
+  head.next.next = ListNode(3)
+
+  # Or using a helper:
+  def build_list(values):
+      dummy = ListNode(0)
+      curr = dummy
+      for v in values:
+          curr.next = ListNode(v)
+          curr = curr.next
+      return dummy.next  # return actual head
+
+  C++ equivalent:
+  struct ListNode {
+      int val;
+      ListNode* next;
+      ListNode(int x) : val(x), next(nullptr) {}
+  };
+
+  Memory layout:
+  ─────────────────────────────────────────────────────────────
+  Node 1          Node 2          Node 3
+  [val=1][next]→  [val=2][next]→  [val=3][next=null]
+   0x100          0x200            0x300
+
+  Unlike arrays: NOT contiguous. Each node can be anywhere
+  in memory. This is why O(1) insert/delete at known position
+  but O(n) access by index.</code></pre>
+
+      <h3>Types of Linked Lists</h3>
+      <pre><code>  Singly linked:   1 → 2 → 3 → null
+  Doubly linked:   null ← 1 ↔ 2 ↔ 3 → null
+  Circular:        1 → 2 → 3 → (back to 1)
+
+  Complexity comparison:
+  ─────────────────────────────────────────────────
+  Operation       Array     Linked List
+  Access index    O(1)      O(n)
+  Insert head     O(n)      O(1)
+  Insert tail     O(1)*     O(n) singly / O(1) with tail ptr
+  Insert middle   O(n)      O(1) if you have the node
+  Delete head     O(n)      O(1)
+  Delete middle   O(n)      O(1) if you have prev node
+  Search          O(n)      O(n)
+
+  * Amortized for dynamic array</code></pre>
+
+      <h2>The Dummy Node Trick</h2>
+
+      <p>
+        The dummy node (also called sentinel node) is the single most important technique
+        for linked list problems. It eliminates all edge cases around the head pointer.
+      </p>
+
+      <pre><code>  Why you need it:
+  ─────────────────────────────────────────────────────────────
+  Without dummy node, inserting before head requires special case:
+  if head is None or condition(head):
+      new_node.next = head
+      head = new_node      # special case!
+  else:
+      curr = head
+      while curr.next and not condition(curr.next):
+          curr = curr.next
+      new_node.next = curr.next
+      curr.next = new_node  # general case
+
+  With dummy node:
+  dummy = ListNode(0)
+  dummy.next = head
+  curr = dummy
+  # Now there's ALWAYS a node before any node we might modify.
+  # No special cases. curr.next is what we examine.
+  # ...process...
+  return dummy.next  # actual head might have changed
+
+  ─── Delete Node with Value K ──────────────────────────────
+  def delete_val(head, val):
+      dummy = ListNode(0)
+      dummy.next = head
+      curr = dummy
+      while curr.next:
+          if curr.next.val == val:
+              curr.next = curr.next.next  # skip the node
+          else:
+              curr = curr.next
+      return dummy.next
+  # Works even if val is at head. No special case needed.</code></pre>
+
+      <h2>The Fast/Slow Pointer (Floyd's Algorithm)</h2>
+
+      <p>
+        Two pointers moving at different speeds. The slow pointer moves one step at a time;
+        the fast pointer moves two. This single technique solves: cycle detection, finding
+        middle node, detecting cycle start, and finding k-th from end.
+      </p>
+
+      <pre><code>  ─── Detect Cycle (Floyd's Cycle Detection) ────────────────
+  def has_cycle(head):
+      slow = fast = head
+      while fast and fast.next:
+          slow = slow.next          # 1 step
+          fast = fast.next.next     # 2 steps
+          if slow == fast:
+              return True
+      return False
+  # O(n) time, O(1) space
+  # Why it works: if cycle exists, fast laps slow.
+  # In cycle of length c: fast gains 1 step per iteration →
+  # they meet within c iterations of entering the cycle.
+
+  ─── Find Cycle Start ─────────────────────────────────────
+  def detect_cycle(head):
+      slow = fast = head
+      # Phase 1: find meeting point
+      while fast and fast.next:
+          slow = slow.next
+          fast = fast.next.next
+          if slow == fast:
+              break
+      else:
+          return None  # no cycle
+
+      # Phase 2: find cycle entry
+      # Mathematical proof: distance from head to cycle start
+      # equals distance from meeting point to cycle start.
+      slow = head
+      while slow != fast:
+          slow = slow.next
+          fast = fast.next
+      return slow  # cycle start node
+
+  ─── Find Middle of Linked List ───────────────────────────
+  def find_middle(head):
+      slow = fast = head
+      while fast and fast.next:
+          slow = slow.next
+          fast = fast.next.next
+      return slow
+  # For even length [1,2,3,4]: returns node 3 (second middle)
+  # For odd length [1,2,3,4,5]: returns node 3
+
+  ─── K-th Node from End ───────────────────────────────────
+  def nth_from_end(head, n):
+      fast = slow = head
+      # Advance fast by n steps
+      for _ in range(n):
+          fast = fast.next
+      # Move both until fast reaches end
+      while fast:
+          slow = slow.next
+          fast = fast.next
+      return slow
+  # Maintains gap of n between fast and slow</code></pre>
+
+      <h2>Reversing a Linked List</h2>
+
+      <p>
+        Reversing is the second most fundamental linked list operation. You must be able
+        to do it iteratively (O(1) space) and recursively, and to reverse sub-sections.
+      </p>
+
+      <pre><code>  ─── Full Reversal (Iterative) ────────────────────────────
+  def reverse_list(head):
+      prev = None
+      curr = head
+      while curr:
+          next_node = curr.next   # save next before overwriting
+          curr.next = prev        # reverse the link
+          prev = curr             # advance prev
+          curr = next_node        # advance curr
+      return prev  # prev is now the new head
+
+  Step-by-step for 1 → 2 → 3 → null:
+  Initial:  prev=None, curr=1
+  Step 1:   next=2, 1.next=None, prev=1, curr=2  →  None ← 1  2 → 3
+  Step 2:   next=3, 2.next=1,   prev=2, curr=3  →  None ← 1 ← 2  3
+  Step 3:   next=None, 3.next=2, prev=3, curr=None →  None ← 1 ← 2 ← 3
+  Return: prev=3 (new head)
+
+  ─── Full Reversal (Recursive) ────────────────────────────
+  def reverse_list_rec(head):
+      if not head or not head.next:
+          return head
+      new_head = reverse_list_rec(head.next)  # reverse rest
+      head.next.next = head   # make next point back to current
+      head.next = None        # cut original forward link
+      return new_head
+  # O(n) time, O(n) space (call stack)
+
+  ─── Reverse Between Positions l and r ───────────────────
+  def reverse_between(head, left, right):
+      dummy = ListNode(0)
+      dummy.next = head
+      prev = dummy
+
+      # Move prev to node just before position 'left'
+      for _ in range(left - 1):
+          prev = prev.next
+
+      curr = prev.next
+      # Reverse one node at a time from curr's next to position 'right'
+      for _ in range(right - left):
+          next_node = curr.next
+          curr.next = next_node.next
+          next_node.next = prev.next
+          prev.next = next_node
+
+      return dummy.next
+  # O(n) time, O(1) space — classic in-place reversal</code></pre>
+
+      <h2>Merging Linked Lists</h2>
+
+      <pre><code>  ─── Merge Two Sorted Lists ───────────────────────────────
+  def merge_two_lists(l1, l2):
+      dummy = ListNode(0)
+      curr = dummy
+      while l1 and l2:
+          if l1.val <= l2.val:
+              curr.next = l1
+              l1 = l1.next
+          else:
+              curr.next = l2
+              l2 = l2.next
+          curr = curr.next
+      curr.next = l1 or l2  # attach remaining
+      return dummy.next
+  # O(n + m) time, O(1) space
+
+  ─── Merge K Sorted Lists ─────────────────────────────────
+  import heapq
+  def merge_k_lists(lists):
+      dummy = ListNode(0)
+      curr = dummy
+      # Min-heap: (value, index, node)
+      heap = []
+      for i, node in enumerate(lists):
+          if node:
+              heapq.heappush(heap, (node.val, i, node))
+
+      while heap:
+          val, i, node = heapq.heappop(heap)
+          curr.next = node
+          curr = curr.next
+          if node.next:
+              heapq.heappush(heap, (node.next.val, i, node.next))
+
+      return dummy.next
+  # O(n log k) time where n = total nodes, k = number of lists
+  # The heap always has at most k elements → log k per operation</code></pre>
+
+      <h2>10 Classic Linked List Problems</h2>
+
+      <h3>1. Remove N-th Node from End</h3>
+      <pre><code>  def remove_nth_from_end(head, n):
+      dummy = ListNode(0, head)
+      fast = slow = dummy
+      # Advance fast by n+1 steps
+      for _ in range(n + 1):
+          fast = fast.next
+      while fast:
+          fast = fast.next
+          slow = slow.next
+      # slow.next is the node to remove
+      slow.next = slow.next.next
+      return dummy.next</code></pre>
+
+      <h3>2. Palindrome Linked List</h3>
+      <pre><code>  def is_palindrome(head):
+      # Step 1: find middle
+      slow = fast = head
+      while fast and fast.next:
+          slow = slow.next
+          fast = fast.next.next
+      # Step 2: reverse second half
+      prev = None
+      curr = slow
+      while curr:
+          nxt = curr.next
+          curr.next = prev
+          prev = curr
+          curr = nxt
+      # Step 3: compare
+      left, right = head, prev
+      while right:
+          if left.val != right.val:
+              return False
+          left = left.next
+          right = right.next
+      return True
+  # O(n) time, O(1) space</code></pre>
+
+      <h3>3. Intersection of Two Linked Lists</h3>
+      <pre><code>  def get_intersection(headA, headB):
+      a, b = headA, headB
+      while a != b:
+          a = a.next if a else headB
+          b = b.next if b else headA
+      return a
+  # Beautiful trick: both pointers travel A+B total distance.
+  # If they intersect, they meet at intersection point.
+  # If they don't, both reach None simultaneously.
+  # O(n+m) time, O(1) space</code></pre>
+
+      <h3>4. Reorder List</h3>
+      <pre><code>  # 1→2→3→4→5 becomes 1→5→2→4→3
+  def reorder_list(head):
+      # Step 1: find middle
+      slow = fast = head
+      while fast and fast.next:
+          slow = slow.next
+          fast = fast.next.next
+      # Step 2: reverse second half
+      second = slow.next
+      slow.next = None  # cut list
+      prev = None
+      while second:
+          nxt = second.next
+          second.next = prev
+          prev = second
+          second = nxt
+      # Step 3: merge alternately
+      first, second = head, prev
+      while second:
+          tmp1, tmp2 = first.next, second.next
+          first.next = second
+          second.next = tmp1
+          first = tmp1
+          second = tmp2</code></pre>
+
+      <h3>5. Add Two Numbers</h3>
+      <pre><code>  # Numbers stored in reverse order as linked lists
+  def add_two_numbers(l1, l2):
+      dummy = ListNode(0)
+      curr = dummy
+      carry = 0
+      while l1 or l2 or carry:
+          val = carry
+          if l1:
+              val += l1.val
+              l1 = l1.next
+          if l2:
+              val += l2.val
+              l2 = l2.next
+          carry, digit = divmod(val, 10)
+          curr.next = ListNode(digit)
+          curr = curr.next
+      return dummy.next</code></pre>
+
+      <h3>6. Copy List with Random Pointer</h3>
+      <pre><code>  def copy_random_list(head):
+      if not head: return None
+      # Map old nodes to new nodes
+      old_to_new = {}
+      curr = head
+      while curr:
+          old_to_new[curr] = Node(curr.val)
+          curr = curr.next
+      # Set next and random pointers
+      curr = head
+      while curr:
+          if curr.next:
+              old_to_new[curr].next = old_to_new[curr.next]
+          if curr.random:
+              old_to_new[curr].random = old_to_new[curr.random]
+          curr = curr.next
+      return old_to_new[head]
+  # O(n) time, O(n) space
+  # O(1) space variant: interleave original and copy nodes</code></pre>
+
+      <h3>7. Sort List (Merge Sort)</h3>
+      <pre><code>  def sort_list(head):
+      if not head or not head.next:
+          return head
+      # Find middle and split
+      slow, fast = head, head.next
+      while fast and fast.next:
+          slow = slow.next
+          fast = fast.next.next
+      mid = slow.next
+      slow.next = None  # split into two halves
+      # Recursively sort and merge
+      left = sort_list(head)
+      right = sort_list(mid)
+      return merge(left, right)
+
+  def merge(l1, l2):
+      dummy = ListNode(0)
+      curr = dummy
+      while l1 and l2:
+          if l1.val <= l2.val:
+              curr.next = l1; l1 = l1.next
+          else:
+              curr.next = l2; l2 = l2.next
+          curr = curr.next
+      curr.next = l1 or l2
+      return dummy.next
+  # O(n log n) time, O(log n) space (recursion stack)</code></pre>
+
+      <h3>8. LRU Cache</h3>
+      <pre><code>  from collections import OrderedDict
+  class LRUCache:
+      def __init__(self, capacity):
+          self.cap = capacity
+          self.cache = OrderedDict()  # maintains insertion order
+
+      def get(self, key):
+          if key not in self.cache:
+              return -1
+          self.cache.move_to_end(key)  # mark as recently used
+          return self.cache[key]
+
+      def put(self, key, value):
+          if key in self.cache:
+              self.cache.move_to_end(key)
+          self.cache[key] = value
+          if len(self.cache) > self.cap:
+              self.cache.popitem(last=False)  # evict least recently used
+  # O(1) get and put using doubly linked list + hash map internally
+
+  # Manual doubly linked list implementation (what interviews want):
+  class Node:
+      def __init__(self, k=0, v=0):
+          self.key, self.val = k, v
+          self.prev = self.next = None
+
+  class LRUCache:
+      def __init__(self, cap):
+          self.cap = cap
+          self.cache = {}
+          self.head = Node()  # dummy head (most recent)
+          self.tail = Node()  # dummy tail (least recent)
+          self.head.next = self.tail
+          self.tail.prev = self.head
+
+      def _remove(self, node):
+          node.prev.next = node.next
+          node.next.prev = node.prev
+
+      def _add_to_front(self, node):
+          node.next = self.head.next
+          node.prev = self.head
+          self.head.next.prev = node
+          self.head.next = node
+
+      def get(self, key):
+          if key not in self.cache: return -1
+          node = self.cache[key]
+          self._remove(node)
+          self._add_to_front(node)
+          return node.val
+
+      def put(self, key, val):
+          if key in self.cache:
+              self._remove(self.cache[key])
+          node = Node(key, val)
+          self._add_to_front(node)
+          self.cache[key] = node
+          if len(self.cache) > self.cap:
+              lru = self.tail.prev
+              self._remove(lru)
+              del self.cache[lru.key]</code></pre>
+
+      <h2>Drawing Diagrams in Interviews</h2>
+
+      <pre><code>  Rule: Always draw the linked list before coding.
+
+  For "reverse between positions 2 and 4" on [1,2,3,4,5]:
+
+  Before:  dummy → 1 → 2 → 3 → 4 → 5 → null
+                   ↑   ↑           ↑
+                  prev curr      (target)
+
+  Step 1:  Pull 3 to front of section:
+           dummy → 1 → 3 → 2 → 4 → 5
+  Step 2:  Pull 4 to front of section:
+           dummy → 1 → 4 → 3 → 2 → 5
+
+  Drawing this prevents the #1 mistake: losing track of
+  which pointers to update in what order.
+
+  Always verify:
+  1. Empty list (head = None)
+  2. Single node
+  3. Two nodes
+  4. Even vs odd length (for middle-finding)
+  5. All same values (for duplicate-related problems)</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase2-stacks-queues.html">Stacks &amp; Queues &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

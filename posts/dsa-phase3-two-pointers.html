@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Two Pointers &amp; Sliding Window — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 30 min read</span>
+      </div>
+      <h1>Two Pointers &amp; Sliding Window: One Pass to Rule Them All</h1>
+      <p class="post-description">
+        Two pointers and sliding window are arguably the highest-ROI patterns in FAANG prep.
+        They convert O(n^2) brute force solutions to O(n) with one pass. Learn the three
+        variants, the exact templates, and the trigger words that tell you which to use.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Almost every array/string problem with a subarray or substring constraint can be
+        attacked with a sliding window. The key is recognizing the pattern: you're looking
+        for some optimal contiguous segment of an array. Once you see that, the template
+        almost writes itself.
+      </p>
+
+      <h2>Two Pointers: Three Variants</h2>
+
+      <pre><code>  Variant 1: Converging (opposite ends → middle)
+  ───────────────────────────────────────────────
+  left, right = 0, n-1
+  while left < right:
+      if CONDITION: left += 1
+      else: right -= 1
+  Use when: sorted array, find pair with property
+
+  Variant 2: Same direction (fast/slow)
+  ───────────────────────────────────────────────
+  slow = fast = 0
+  while fast < n:
+      # fast explores, slow writes/tracks
+      fast += 1
+  Use when: remove duplicates, partition array, sliding window
+
+  Variant 3: Two separate arrays
+  ───────────────────────────────────────────────
+  i, j = 0, 0
+  while i < len(a) and j < len(b):
+      if a[i] <= b[j]: i += 1
+      else: j += 1
+  Use when: merge sorted arrays, compare sequences</code></pre>
+
+      <h3>Two Pointers Problems</h3>
+
+      <pre><code>  ─── Two Sum II (Sorted Array) ────────────────────────────
+  def two_sum_sorted(numbers, target):
+      left, right = 0, len(numbers) - 1
+      while left < right:
+          s = numbers[left] + numbers[right]
+          if s == target:   return [left+1, right+1]
+          elif s < target:  left += 1   # need larger sum
+          else:             right -= 1  # need smaller sum
+  # O(n) time, O(1) space
+  # Why it works: sorted → if sum too small, increase left.
+  # If sum too large, decrease right. Each step eliminates options.
+
+  ─── Container With Most Water ────────────────────────────
+  def max_area(height):
+      left, right = 0, len(height) - 1
+      max_water = 0
+      while left < right:
+          water = min(height[left], height[right]) * (right - left)
+          max_water = max(max_water, water)
+          # Move the shorter side inward (moving taller can't help)
+          if height[left] < height[right]: left += 1
+          else: right -= 1
+      return max_water
+
+  ─── 3Sum ─────────────────────────────────────────────────
+  def three_sum(nums):
+      nums.sort()
+      result = []
+      for i in range(len(nums) - 2):
+          if i > 0 and nums[i] == nums[i-1]: continue  # skip duplicate
+          left, right = i+1, len(nums)-1
+          while left < right:
+              s = nums[i] + nums[left] + nums[right]
+              if s == 0:
+                  result.append([nums[i], nums[left], nums[right]])
+                  while left < right and nums[left] == nums[left+1]: left += 1
+                  while left < right and nums[right] == nums[right-1]: right -= 1
+                  left += 1; right -= 1
+              elif s < 0: left += 1
+              else: right -= 1
+      return result
+  # O(n^2) — better than O(n^3) brute force
+
+  ─── Sort Colors (Dutch National Flag) ───────────────────
+  def sort_colors(nums):
+      low = mid = 0
+      high = len(nums) - 1
+      while mid <= high:
+          if nums[mid] == 0:
+              nums[low], nums[mid] = nums[mid], nums[low]
+              low += 1; mid += 1
+          elif nums[mid] == 1:
+              mid += 1
+          else:
+              nums[mid], nums[high] = nums[high], nums[mid]
+              high -= 1
+  # O(n) single pass, O(1) space — Dijkstra's 3-way partition</code></pre>
+
+      <h2>Sliding Window: Fixed vs Variable Size</h2>
+
+      <pre><code>  A sliding window maintains a contiguous subarray [left, right]
+  and efficiently updates as the window slides.
+
+  ─── Fixed Window Template ─────────────────────────────────
+  def fixed_window(arr, k):
+      # Initialize window with first k elements
+      window_state = init(arr[:k])
+      result = [compute(window_state)]
+
+      for i in range(k, len(arr)):
+          # Add new element
+          add(window_state, arr[i])
+          # Remove element leaving window
+          remove(window_state, arr[i - k])
+          result.append(compute(window_state))
+
+      return result
+
+  ─── Variable Window Template ──────────────────────────────
+  def variable_window(arr):
+      left = 0
+      window_state = initial_state()
+      result = 0
+
+      for right in range(len(arr)):
+          # Expand window to include arr[right]
+          update_state(window_state, arr[right])
+
+          # Shrink from left while window is invalid
+          while not is_valid(window_state):
+              undo_state(window_state, arr[left])
+              left += 1
+
+          # Now window [left, right] is valid
+          result = max(result, right - left + 1)  # or whatever we're optimizing
+
+      return result</code></pre>
+
+      <h2>Fixed Window Problems</h2>
+
+      <pre><code>  ─── Maximum Sum of K Consecutive Elements ────────────────
+  def max_sum_k(nums, k):
+      window_sum = sum(nums[:k])
+      max_sum = window_sum
+      for i in range(k, len(nums)):
+          window_sum += nums[i] - nums[i-k]  # add new, remove old
+          max_sum = max(max_sum, window_sum)
+      return max_sum
+  # O(n) instead of O(n*k) for brute force
+
+  ─── Find All Anagrams in String ──────────────────────────
+  from collections import Counter
+  def find_anagrams(s, p):
+      need = Counter(p)
+      window = Counter(s[:len(p)])
+      result = []
+      if window == need: result.append(0)
+      for i in range(len(p), len(s)):
+          # Add new char
+          window[s[i]] += 1
+          # Remove old char
+          old = s[i - len(p)]
+          window[old] -= 1
+          if window[old] == 0: del window[old]
+          if window == need:
+              result.append(i - len(p) + 1)
+      return result
+  # Counter comparison is O(alphabet_size) per step, so total O(n)
+
+  ─── Maximum Average Subarray I ───────────────────────────
+  def find_max_average(nums, k):
+      window_sum = sum(nums[:k])
+      max_sum = window_sum
+      for i in range(k, len(nums)):
+          window_sum += nums[i] - nums[i-k]
+          max_sum = max(max_sum, window_sum)
+      return max_sum / k</code></pre>
+
+      <h2>Variable Window Problems</h2>
+
+      <pre><code>  ─── Longest Substring Without Repeating Characters ────────
+  def length_of_longest_substring(s):
+      last_seen = {}  # char → last index
+      left = max_len = 0
+      for right, char in enumerate(s):
+          if char in last_seen and last_seen[char] >= left:
+              left = last_seen[char] + 1  # move left past duplicate
+          last_seen[char] = right
+          max_len = max(max_len, right - left + 1)
+      return max_len
+  # O(n) time, O(min(n, alphabet)) space
+
+  ─── Minimum Size Subarray Sum ────────────────────────────
+  def min_subarray_len(target, nums):
+      left = window_sum = 0
+      min_len = float('inf')
+      for right in range(len(nums)):
+          window_sum += nums[right]
+          while window_sum >= target:  # valid: try shrinking
+              min_len = min(min_len, right - left + 1)
+              window_sum -= nums[left]
+              left += 1
+      return min_len if min_len != float('inf') else 0
+  # O(n) — each pointer moves at most n steps total
+
+  ─── Longest Subarray of 1s After Deleting One Element ────
+  def longest_subarray(nums):
+      left = zeros = 0
+      max_len = 0
+      for right in range(len(nums)):
+          if nums[right] == 0:
+              zeros += 1
+          while zeros > 1:  # shrink if more than 1 zero
+              if nums[left] == 0: zeros -= 1
+              left += 1
+          max_len = max(max_len, right - left)  # exclude the deleted element
+      return max_len</code></pre>
+
+      <h2>The "At Most K" Pattern</h2>
+
+      <pre><code>  Many "exactly K" problems are easier to solve as
+  "at most K" − "at most K-1".
+
+  Example: Count subarrays with exactly K distinct characters
+  def count_exact_k_distinct(s, k):
+      return at_most_k(s, k) - at_most_k(s, k-1)
+
+  def at_most_k(s, k):
+      freq = {}
+      left = result = 0
+      for right, char in enumerate(s):
+          freq[char] = freq.get(char, 0) + 1
+          while len(freq) > k:
+              left_char = s[left]
+              freq[left_char] -= 1
+              if freq[left_char] == 0: del freq[left_char]
+              left += 1
+          result += right - left + 1  # all subarrays ending at right
+      return result
+
+  # Similarly:
+  # "at most K replacements" in binary string → longest substring with k zeros
+  # "at most K odd numbers" → count subarrays with k odd numbers</code></pre>
+
+      <h2>12 Essential Problems</h2>
+
+      <h3>Longest Substring with At Most K Distinct Characters</h3>
+      <pre><code>  def longest_k_distinct(s, k):
+      freq = {}
+      left = max_len = 0
+      for right, char in enumerate(s):
+          freq[char] = freq.get(char, 0) + 1
+          while len(freq) > k:
+              lc = s[left]
+              freq[lc] -= 1
+              if freq[lc] == 0: del freq[lc]
+              left += 1
+          max_len = max(max_len, right - left + 1)
+      return max_len</code></pre>
+
+      <h3>Maximum Number of Vowels in Substring of Given Length</h3>
+      <pre><code>  def max_vowels(s, k):
+      vowels = set('aeiou')
+      count = sum(1 for c in s[:k] if c in vowels)
+      max_count = count
+      for i in range(k, len(s)):
+          count += (s[i] in vowels) - (s[i-k] in vowels)
+          max_count = max(max_count, count)
+      return max_count</code></pre>
+
+      <h3>Permutation in String</h3>
+      <pre><code>  def check_inclusion(s1, s2):
+      need = Counter(s1)
+      window = Counter()
+      k = len(s1)
+      for i, char in enumerate(s2):
+          window[char] += 1
+          if i >= k:
+              lc = s2[i-k]
+              window[lc] -= 1
+              if window[lc] == 0: del window[lc]
+          if window == need: return True
+      return False</code></pre>
+
+      <h3>Minimum Window Substring</h3>
+      <pre><code>  # (Full solution in arrays & strings post — same pattern)</code></pre>
+
+      <h3>Sliding Window Maximum</h3>
+      <pre><code>  # (Full solution in stacks & queues post — uses monotonic deque)</code></pre>
+
+      <h3>Fruit Into Baskets (At Most 2 Distinct)</h3>
+      <pre><code>  def total_fruit(fruits):
+      basket = {}
+      left = max_fruits = 0
+      for right, fruit in enumerate(fruits):
+          basket[fruit] = basket.get(fruit, 0) + 1
+          while len(basket) > 2:
+              lf = fruits[left]
+              basket[lf] -= 1
+              if basket[lf] == 0: del basket[lf]
+              left += 1
+          max_fruits = max(max_fruits, right - left + 1)
+      return max_fruits</code></pre>
+
+      <h3>Longest Repeating Character Replacement</h3>
+      <pre><code>  def character_replacement(s, k):
+      count = [0] * 26
+      left = max_count = max_len = 0
+      for right in range(len(s)):
+          count[ord(s[right]) - ord('A')] += 1
+          max_count = max(max_count, count[ord(s[right]) - ord('A')])
+          # Window size - max_count = number of chars to replace
+          # If that exceeds k, shrink window
+          if right - left + 1 - max_count > k:
+              count[ord(s[left]) - ord('A')] -= 1
+              left += 1
+          max_len = max(max_len, right - left + 1)
+      return max_len
+  # Key insight: we don't need to update max_count when shrinking
+  # because smaller windows with smaller max_count won't be optimal</code></pre>
+
+      <h3>Number of Subarrays with Product Less Than K</h3>
+      <pre><code>  def num_subarray_product_less_than_k(nums, k):
+      if k <= 1: return 0
+      left = product = 0
+      result = 0
+      product = 1
+      for right in range(len(nums)):
+          product *= nums[right]
+          while product >= k:
+              product //= nums[left]
+              left += 1
+          result += right - left + 1  # subarrays [left,right], [left+1,right], ..., [right,right]
+      return result</code></pre>
+
+      <h2>How to Recognize Which Variant to Use</h2>
+
+      <pre><code>  Fixed window (window size given):
+  ─────────────────────────────────────────────────────────────
+  "... of exactly k consecutive elements"
+  "... in a subarray of size k"
+  "... in a window of length k"
+
+  Variable window (optimize window size):
+  ─────────────────────────────────────────────────────────────
+  "longest/shortest subarray such that..."
+  "minimum length substring that contains..."
+  "maximum length substring without..."
+
+  Two pointers (converging, usually sorted):
+  ─────────────────────────────────────────────────────────────
+  "find two elements that sum/multiply to target"
+  "container with most water"
+  "find triplets/pairs with property"
+  Input is sorted or can be sorted
+
+  Fast/slow (same-direction, different speeds):
+  ─────────────────────────────────────────────────────────────
+  "remove duplicates in-place"
+  "cycle detection" (in linked lists)
+  "find middle" (in linked lists)
+
+  Decision checklist:
+  ─────────────────────────────────────────────────────────────
+  1. Is this about a contiguous subarray/substring? → sliding window
+  2. Is the window size fixed or variable?
+  3. Is the array sorted and I need pairs? → converging two pointers
+  4. Do I need to partition/filter in-place? → fast/slow same direction</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase3-binary-search.html">Binary Search &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

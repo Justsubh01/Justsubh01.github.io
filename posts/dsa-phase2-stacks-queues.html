@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stacks &amp; Queues — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 25 min read</span>
+      </div>
+      <h1>Stacks &amp; Queues: LIFO, FIFO, and Their Hidden Power</h1>
+      <p class="post-description">
+        Stacks and queues seem basic. Then you encounter monotonic stacks — possibly the most
+        underrated pattern in FAANG interviews. Learn the classic structures, then go deep on
+        monotonic stacks, deque-based sliding window maximum, and using stacks to simulate recursion.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        If you see "next greater element," "largest rectangle," "trapping rain water" (again),
+        or anything involving a sequence where you need to track elements in order &mdash;
+        think monotonic stack. This pattern alone is responsible for converting dozens of
+        O(n^2) brute-force solutions into O(n) elegance.
+      </p>
+
+      <h2>Stack: LIFO Fundamentals</h2>
+
+      <pre><code>  Stack = Last In, First Out
+  Think: stack of plates. You add and remove from the top only.
+
+  # Python: use list as stack (append/pop from right)
+  stack = []
+  stack.append(1)    # push: O(1)
+  stack.append(2)
+  stack.append(3)
+  top = stack[-1]    # peek: O(1)
+  val = stack.pop()  # pop: O(1)  → val = 3
+
+  # C++: use std::stack
+  std::stack&lt;int&gt; stk;
+  stk.push(1);
+  stk.push(2);
+  int top = stk.top();
+  stk.pop();
+
+  Operations and complexity:
+  ─────────────────────────
+  push(x)   O(1)
+  pop()     O(1)
+  peek()    O(1)
+  isEmpty() O(1)
+  size()    O(1)
+
+  When to use a stack:
+  ─────────────────────────────────────────────────────────────
+  - Problems with "matching" structure (brackets, parentheses)
+  - Problems where you need to "undo" or backtrack
+  - Converting recursive solutions to iterative
+  - Tracking state in depth-first search (iterative DFS)
+  - Monotonic sequence problems</code></pre>
+
+      <h2>Queue: FIFO Fundamentals</h2>
+
+      <pre><code>  Queue = First In, First Out
+  Think: line at a coffee shop. First to arrive, first served.
+
+  # Python: use collections.deque for O(1) both ends
+  from collections import deque
+  queue = deque()
+  queue.append(1)      # enqueue (right): O(1)
+  queue.append(2)
+  queue.append(3)
+  front = queue[0]     # peek front: O(1)
+  val = queue.popleft() # dequeue (left): O(1)  → val = 1
+
+  # Don't use list as queue! list.pop(0) is O(n).
+  # deque is a doubly-linked list underneath → O(1) both ends.
+
+  When to use a queue:
+  ─────────────────────────────────────────────────────────────
+  - Breadth-First Search (BFS)
+  - Level-order tree traversal
+  - Processing events in order
+  - Producer-consumer patterns
+  - Sliding window with O(1) max/min (monotonic deque)</code></pre>
+
+      <h2>Classic Stack Problems</h2>
+
+      <h3>Valid Parentheses</h3>
+      <pre><code>  def is_valid(s):
+      stack = []
+      matching = {')': '(', '}': '{', ']': '['}
+      for char in s:
+          if char in '([{':
+              stack.append(char)
+          else:  # closing bracket
+              if not stack or stack[-1] != matching[char]:
+                  return False
+              stack.pop()
+      return len(stack) == 0
+  # O(n) time, O(n) space
+  # The stack holds unmatched opening brackets.
+  # Each closing bracket must match the most recent opening.</code></pre>
+
+      <h3>Min Stack (O(1) getMin)</h3>
+      <pre><code>  class MinStack:
+      def __init__(self):
+          self.stack = []
+          self.min_stack = []  # parallel stack tracking minimums
+
+      def push(self, val):
+          self.stack.append(val)
+          # Push to min_stack if it's the new minimum
+          if not self.min_stack or val <= self.min_stack[-1]:
+              self.min_stack.append(val)
+
+      def pop(self):
+          val = self.stack.pop()
+          if val == self.min_stack[-1]:
+              self.min_stack.pop()
+
+      def top(self):
+          return self.stack[-1]
+
+      def getMin(self):
+          return self.min_stack[-1]
+  # All operations O(1) time, O(n) space</code></pre>
+
+      <h3>Evaluate Reverse Polish Notation</h3>
+      <pre><code>  def eval_rpn(tokens):
+      stack = []
+      ops = {'+', '-', '*', '/'}
+      for token in tokens:
+          if token not in ops:
+              stack.append(int(token))
+          else:
+              b = stack.pop()
+              a = stack.pop()
+              if token == '+':   stack.append(a + b)
+              elif token == '-': stack.append(a - b)
+              elif token == '*': stack.append(a * b)
+              else:              stack.append(int(a / b))  # truncate toward zero
+      return stack[0]
+  # O(n) time, O(n) space</code></pre>
+
+      <h3>Daily Temperatures</h3>
+      <pre><code>  # For each day, how many days until a warmer temperature?
+  def daily_temperatures(temperatures):
+      n = len(temperatures)
+      result = [0] * n
+      stack = []  # stack of indices, monotonically decreasing temperatures
+
+      for i in range(n):
+          # Pop all days that are colder than today
+          while stack and temperatures[i] > temperatures[stack[-1]]:
+              idx = stack.pop()
+              result[idx] = i - idx
+          stack.append(i)
+
+      return result
+  # O(n) time — each index pushed and popped at most once
+  # This is a monotonic stack: maintains decreasing sequence</code></pre>
+
+      <h2>The Monotonic Stack: The Killer Interview Pattern</h2>
+
+      <p>
+        A monotonic stack maintains elements in either strictly increasing or strictly
+        decreasing order. When a new element breaks the monotonic property, we pop until
+        it's restored &mdash; and each pop generates useful information.
+      </p>
+
+      <pre><code>  Monotonic Decreasing Stack intuition:
+  ─────────────────────────────────────────────────────────────
+  When we pop element X because element Y is larger:
+  → Y is the "next greater element" of X
+
+  When we pop element X because element Y is smaller:
+  → Y is the "next smaller element" of X
+
+  The key insight: each element is pushed and popped at most
+  once → total O(n) for the entire traversal.
+
+  ─── Next Greater Element ─────────────────────────────────
+  def next_greater(nums):
+      n = len(nums)
+      result = [-1] * n
+      stack = []  # indices with no answer yet
+
+      for i in range(n):
+          while stack and nums[i] > nums[stack[-1]]:
+              idx = stack.pop()
+              result[idx] = nums[i]  # nums[i] is the answer for idx
+          stack.append(i)
+
+      return result
+
+  Example: [4, 2, 6, 3, 5]
+  i=0: stack=[0]                    (push 4)
+  i=1: stack=[0,1]                  (push 2, 4>2 no pop)
+  i=2: pop 1 → result[1]=6, pop 0 → result[0]=6, stack=[2]
+  i=3: stack=[2,3]                  (push 3)
+  i=4: pop 3 → result[3]=5, stack=[2,4]
+  result = [6, 6, -1, 5, -1] ✓
+
+  ─── Monotonic Stack Variants ──────────────────────────────
+  Next Greater:  pop when nums[i] >  stack top → decreasing stack
+  Next Smaller:  pop when nums[i] <  stack top → increasing stack
+  Prev Greater:  traverse R→L, pop when nums[i] > stack top
+  Prev Smaller:  traverse R→L, pop when nums[i] < stack top</code></pre>
+
+      <h3>Largest Rectangle in Histogram</h3>
+      <pre><code>  # Find the largest rectangle that fits in the histogram.
+  # This is one of the hardest and most elegant stack problems.
+  def largest_rectangle(heights):
+      stack = []  # monotonically increasing stack of indices
+      max_area = 0
+      heights.append(0)  # sentinel to flush remaining stack
+
+      for i, h in enumerate(heights):
+          start = i
+          while stack and heights[stack[-1]] > h:
+              idx = stack.pop()
+              width = i - (stack[-1] if stack else -1) - 1
+              # The bar at idx can extend left to stack[-1]+1 and right to i-1
+              # because everything between was taller (we only pop taller bars)
+              max_area = max(max_area, heights[idx] * width)
+              start = idx  # the rectangle can start as far left as idx
+          stack.append(i)
+
+      heights.pop()  # restore
+      return max_area
+  # O(n) time, O(n) space
+  # Each bar pushed and popped exactly once.</code></pre>
+
+      <h3>Maximal Rectangle (in Binary Matrix)</h3>
+      <pre><code>  # Largest rectangle containing only 1s in a binary matrix.
+  # Reduce to "largest rectangle in histogram" for each row.
+  def maximal_rectangle(matrix):
+      if not matrix: return 0
+      n = len(matrix[0])
+      heights = [0] * n
+      max_area = 0
+
+      for row in matrix:
+          for j in range(n):
+              # Build histogram: consecutive 1s from top
+              heights[j] = heights[j] + 1 if row[j] == '1' else 0
+          max_area = max(max_area, largest_rectangle(heights))
+
+      return max_area
+  # O(m*n) time, O(n) space</code></pre>
+
+      <h2>Monotonic Deque: Sliding Window Maximum</h2>
+
+      <pre><code>  # Maximum of each window of size k as it slides.
+  # Naive: O(n*k). With deque: O(n).
+  from collections import deque
+
+  def max_sliding_window(nums, k):
+      dq = deque()  # stores indices, deque[0] is max of current window
+      result = []
+
+      for i in range(len(nums)):
+          # Remove elements outside window
+          while dq and dq[0] < i - k + 1:
+              dq.popleft()
+
+          # Maintain decreasing order: remove smaller elements from back
+          # (they can never be the maximum while nums[i] is in the window)
+          while dq and nums[dq[-1]] < nums[i]:
+              dq.pop()
+
+          dq.append(i)
+
+          if i >= k - 1:
+              result.append(nums[dq[0]])  # front is always the max
+
+      return result
+  # O(n) time — each element pushed/popped at most once
+  # O(k) space for the deque
+
+  Example: nums=[3,1,2,5,3,6,4], k=3
+  Window [3,1,2]: deque=[0], then [0,2], result=[3]
+  Window [1,2,5]: deque=[3], result=[3,5]
+  Window [2,5,3]: deque=[3,4], result=[3,5,5]
+  Window [5,3,6]: deque=[5], result=[3,5,5,6]
+  ...</code></pre>
+
+      <h2>Queue from Two Stacks</h2>
+
+      <pre><code>  class MyQueue:
+      def __init__(self):
+          self.in_stack = []   # for push
+          self.out_stack = []  # for pop/peek
+
+      def push(self, x):
+          self.in_stack.append(x)
+
+      def _transfer(self):
+          if not self.out_stack:
+              while self.in_stack:
+                  self.out_stack.append(self.in_stack.pop())
+
+      def pop(self):
+          self._transfer()
+          return self.out_stack.pop()
+
+      def peek(self):
+          self._transfer()
+          return self.out_stack[-1]
+
+      def empty(self):
+          return not self.in_stack and not self.out_stack
+
+  # push: O(1)
+  # pop/peek: O(1) amortized (each element transferred at most once)
+  # Classic question: explain WHY pop is amortized O(1), not O(n)</code></pre>
+
+      <h2>Stack for Iterative DFS / Tree Traversal</h2>
+
+      <pre><code>  # Recursive DFS uses the call stack. Converting to iterative
+  # uses an explicit stack — important for very deep trees.
+
+  # Inorder traversal (left → root → right) iteratively:
+  def inorder(root):
+      result = []
+      stack = []
+      curr = root
+      while curr or stack:
+          while curr:
+              stack.append(curr)
+              curr = curr.left    # go as far left as possible
+          curr = stack.pop()      # process leftmost unprocessed
+          result.append(curr.val)
+          curr = curr.right       # then go right
+      return result
+
+  # Preorder traversal (root → left → right) iteratively:
+  def preorder(root):
+      if not root: return []
+      result = []
+      stack = [root]
+      while stack:
+          node = stack.pop()
+          result.append(node.val)
+          if node.right: stack.append(node.right)  # right first
+          if node.left:  stack.append(node.left)   # left second (LIFO)
+      return result
+
+  # The trick: for preorder, push right before left
+  # so left is processed first (stack is LIFO)</code></pre>
+
+      <h2>Decode String</h2>
+      <pre><code>  # "3[a2[bc]]" → "abcbcabcbcabcbc"
+  def decode_string(s):
+      stack = []  # holds (current_string, repeat_count)
+      current = ""
+      k = 0
+
+      for char in s:
+          if char.isdigit():
+              k = k * 10 + int(char)
+          elif char == '[':
+              stack.append((current, k))
+              current = ""
+              k = 0
+          elif char == ']':
+              prev_str, count = stack.pop()
+              current = prev_str + count * current
+          else:
+              current += char
+
+      return current
+  # O(n) time for parsing, O(output) for expansion</code></pre>
+
+      <h2>Asteroid Collision</h2>
+      <pre><code>  # Positive = moving right, negative = moving left.
+  # Same-direction asteroids never collide.
+  # Collision: right-moving hits left-moving (smaller explodes).
+  def asteroid_collision(asteroids):
+      stack = []
+      for ast in asteroids:
+          exploded = False
+          while stack and ast < 0 < stack[-1]:
+              if stack[-1] < -ast:
+                  stack.pop()
+                  continue  # current asteroid survived, keep checking
+              elif stack[-1] == -ast:
+                  stack.pop()  # both explode
+              exploded = True
+              break
+          if not exploded:
+              stack.append(ast)
+      return stack
+  # O(n) time — each asteroid pushed/popped at most once</code></pre>
+
+      <h2>When to Use Stack vs Queue vs Deque</h2>
+
+      <pre><code>  Use STACK when:
+  ─────────────────────────────────────────────────────────
+  - Processing involves "most recent" state (LIFO)
+  - Bracket/parenthesis matching
+  - "Next greater/smaller" element problems
+  - Converting recursive DFS to iterative
+  - Undo operations, backtracking
+
+  Use QUEUE when:
+  ─────────────────────────────────────────────────────────
+  - BFS traversal
+  - Level-by-level processing
+  - Tasks in order (first added = first processed)
+
+  Use DEQUE when:
+  ─────────────────────────────────────────────────────────
+  - Sliding window maximum/minimum (monotonic deque)
+  - Palindrome checking (add from ends, compare)
+  - Need O(1) push/pop from BOTH ends
+
+  Trigger words in problem description:
+  ─────────────────────────────────────────────────────────
+  "next greater element"    → Monotonic stack
+  "largest rectangle"       → Monotonic stack
+  "sliding window max/min"  → Monotonic deque
+  "valid parentheses"       → Stack
+  "level order traversal"   → Queue (BFS)
+  "decode/evaluate"         → Stack</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase2-hashmaps.html">Hash Maps &amp; Sets &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

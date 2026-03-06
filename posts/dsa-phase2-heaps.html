@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heaps &amp; Priority Queues — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 25 min read</span>
+      </div>
+      <h1>Heaps &amp; Priority Queues: Always Know Your Top-K</h1>
+      <p class="post-description">
+        Heaps give you O(log n) insert and O(1) peek of the min/max. This seemingly simple
+        guarantee enables the Top-K pattern, K-way merge, median maintenance, and Dijkstra.
+        Understand the internals — heapify, sift-up, sift-down — and the problems become obvious.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        When you see "top K," "K largest," "K smallest," "K-way merge," or "median of a stream,"
+        reach for a heap. It's one of the most interview-frequent data structures, yet many
+        candidates can't explain how it works internally. This post fixes that.
+      </p>
+
+      <h2>Binary Heap: Internals</h2>
+
+      <pre><code>  A binary heap is a complete binary tree stored in an array,
+  satisfying the heap property:
+    Min-heap: parent ≤ children (root is the minimum)
+    Max-heap: parent ≥ children (root is the maximum)
+
+  Array representation of a min-heap:
+        1
+       / \
+      3   5
+     / \ /
+    4  8 6
+
+  Array: [1, 3, 5, 4, 8, 6]
+  Index:  0  1  2  3  4  5
+
+  Index relationships (0-indexed):
+    Parent of i:        (i - 1) // 2
+    Left child of i:    2*i + 1
+    Right child of i:   2*i + 2
+
+  (1-indexed is cleaner: parent = i//2, children = 2i, 2i+1)
+
+  Operations:
+  ─────────────────────────────────────────────────────────────
+  peek min/max:      O(1)  — root element
+  push (insert):     O(log n) — sift up
+  pop (extract min): O(log n) — sift down
+  build from n items: O(n)  — not O(n log n)! (heapify trick)</code></pre>
+
+      <h3>Sift Up and Sift Down</h3>
+      <pre><code>  # Sift Up: after inserting at end, bubble up to restore heap property
+  def sift_up(heap, i):
+      while i > 0:
+          parent = (i - 1) // 2
+          if heap[parent] > heap[i]:   # min-heap: parent should be smaller
+              heap[parent], heap[i] = heap[i], heap[parent]
+              i = parent
+          else:
+              break
+
+  # Sift Down: after popping root, put last element at root, sift down
+  def sift_down(heap, i, n):
+      while True:
+          smallest = i
+          left  = 2 * i + 1
+          right = 2 * i + 2
+          if left  < n and heap[left]  < heap[smallest]: smallest = left
+          if right < n and heap[right] < heap[smallest]: smallest = right
+          if smallest == i: break
+          heap[i], heap[smallest] = heap[smallest], heap[i]
+          i = smallest
+
+  def push(heap, val):
+      heap.append(val)
+      sift_up(heap, len(heap) - 1)
+
+  def pop(heap):
+      heap[0], heap[-1] = heap[-1], heap[0]  # swap root with last
+      val = heap.pop()                         # remove last (old root)
+      sift_down(heap, 0, len(heap))           # restore from root
+      return val
+
+  # Build heap from array in O(n):
+  def heapify(arr):
+      n = len(arr)
+      # Start from last non-leaf, sift down all internal nodes
+      for i in range(n // 2 - 1, -1, -1):
+          sift_down(arr, i, n)
+  # Why O(n): most nodes are near leaves and sift down a short distance
+  # Height h nodes ≤ n/2^(h+1), work at height h = O(h)
+  # Total = Σ n/2^(h+1) * h = O(n)</code></pre>
+
+      <h2>Python heapq: Min-Heap API</h2>
+
+      <pre><code>  import heapq
+
+  # Python only has min-heap
+  heap = []
+  heapq.heappush(heap, 5)
+  heapq.heappush(heap, 2)
+  heapq.heappush(heap, 8)
+  min_val = heap[0]              # peek: O(1)
+  val = heapq.heappop(heap)      # pop min: O(log n)
+
+  # Build heap from list: O(n) — FASTER than n individual pushes
+  arr = [5, 2, 8, 1, 9]
+  heapq.heapify(arr)             # in-place, O(n)
+
+  # Get n smallest/largest without sorting:
+  heapq.nsmallest(3, arr)       # O(n + k log n)
+  heapq.nlargest(3, arr)        # same
+
+  # MAX-HEAP trick: negate values (Python has no max-heap built-in)
+  max_heap = []
+  heapq.heappush(max_heap, -5)  # push negated
+  heapq.heappush(max_heap, -2)
+  max_val = -heapq.heappop(max_heap)  # negate when popping → 5
+
+  # Heap of tuples: compares lexicographically
+  heapq.heappush(heap, (priority, item))  # lower priority = higher priority
+  heapq.heappush(heap, (5, 'task_a'))
+  heapq.heappush(heap, (1, 'task_b'))
+  _, task = heapq.heappop(heap)  # → 'task_b' (priority 1)</code></pre>
+
+      <h2>Top-K Pattern: The Heap's Killer App</h2>
+
+      <pre><code>  Problem family: "Find K largest/smallest elements in array of n"
+  Naive: sort → O(n log n)
+  Heap:  maintain size-k heap → O(n log k) — better when k << n
+
+  ─── K Largest Elements ────────────────────────────────────
+  def k_largest(nums, k):
+      # Min-heap of size k: bottom is the k-th largest
+      heap = nums[:k]
+      heapq.heapify(heap)   # O(k)
+      for num in nums[k:]:  # O((n-k) log k)
+          if num > heap[0]:
+              heapq.heapreplace(heap, num)  # pop min, push num: O(log k)
+      return heap  # heap contains k largest (unsorted)
+
+  # heapreplace = pop + push in one operation (more efficient than two)
+
+  ─── K Smallest Elements ───────────────────────────────────
+  def k_smallest(nums, k):
+      # Max-heap of size k: if new element smaller than max, replace max
+      heap = [-x for x in nums[:k]]
+      heapq.heapify(heap)
+      for num in nums[k:]:
+          if -num > heap[0]:  # num < current max in heap
+              heapq.heapreplace(heap, -num)
+      return [-x for x in heap]
+
+  # Alternative: use heapq.nsmallest(k, nums) — same complexity but one-liner
+
+  ─── Kth Largest Element ───────────────────────────────────
+  def find_kth_largest(nums, k):
+      heap = nums[:k]
+      heapq.heapify(heap)
+      for num in nums[k:]:
+          if num > heap[0]:
+              heapq.heapreplace(heap, num)
+      return heap[0]  # min of k-largest heap = k-th largest overall</code></pre>
+
+      <h2>K-Way Merge</h2>
+
+      <pre><code>  # Merge K sorted arrays/lists into one sorted array.
+  # Standard approach: use a min-heap to always pick the smallest next element.
+
+  def merge_k_sorted(arrays):
+      result = []
+      # heap: (value, array_index, element_index)
+      heap = []
+      for i, arr in enumerate(arrays):
+          if arr:
+              heapq.heappush(heap, (arr[0], i, 0))
+
+      while heap:
+          val, arr_idx, elem_idx = heapq.heappop(heap)
+          result.append(val)
+          next_idx = elem_idx + 1
+          if next_idx < len(arrays[arr_idx]):
+              heapq.heappush(heap, (arrays[arr_idx][next_idx], arr_idx, next_idx))
+
+      return result
+  # O(n log k) where n = total elements, k = number of arrays
+  # Heap always has at most k elements → log k per operation
+
+  # Application: Merge K Sorted Linked Lists (same pattern)
+  # Merge sorted files on disk (external sort)
+  # Merge sorted streams in a distributed system</code></pre>
+
+      <h2>Median of a Data Stream</h2>
+
+      <pre><code>  # Find median after each insertion.
+  # Key insight: maintain two heaps:
+  #   max_heap: lower half (negated for Python)
+  #   min_heap: upper half
+  # Invariant: max_heap.size == min_heap.size (even n)
+  #         or max_heap.size == min_heap.size + 1 (odd n)
+
+  class MedianFinder:
+      def __init__(self):
+          self.low  = []  # max-heap (negated) — lower half
+          self.high = []  # min-heap — upper half
+
+      def add_num(self, num):
+          # Push to low first
+          heapq.heappush(self.low, -num)
+          # Balance: low's max must be ≤ high's min
+          if self.high and -self.low[0] > self.high[0]:
+              heapq.heappush(self.high, -heapq.heappop(self.low))
+          # Ensure sizes are balanced (low can have one extra)
+          if len(self.low) > len(self.high) + 1:
+              heapq.heappush(self.high, -heapq.heappop(self.low))
+          elif len(self.high) > len(self.low):
+              heapq.heappush(self.low, -heapq.heappop(self.high))
+
+      def find_median(self):
+          if len(self.low) == len(self.high):
+              return (-self.low[0] + self.high[0]) / 2.0
+          return -self.low[0]  # low has one extra
+  # add_num: O(log n), find_median: O(1)</code></pre>
+
+      <h2>Task Scheduler</h2>
+
+      <pre><code>  # Schedule tasks with cooldown n. Minimize total time.
+  from collections import Counter
+  def least_interval(tasks, n):
+      freq = Counter(tasks)
+      max_heap = [-f for f in freq.values()]
+      heapq.heapify(max_heap)
+      time = 0
+      queue = []  # (freq, available_time)
+
+      while max_heap or queue:
+          # Check if any tasks are now available
+          if queue and queue[0][1] <= time:
+              heapq.heappush(max_heap, queue[0][0])
+              queue.pop(0)  # or use deque
+
+          if max_heap:
+              freq = heapq.heappop(max_heap) + 1  # decrement (negated)
+              if freq < 0:
+                  queue.append((freq, time + n + 1))
+          else:
+              time = queue[0][1] - 1  # jump to when next task is available
+
+          time += 1
+
+      return time</code></pre>
+
+      <h2>8 Priority Queue Interview Problems</h2>
+
+      <h3>1. Top K Frequent Words</h3>
+      <pre><code>  def top_k_frequent_words(words, k):
+      count = Counter(words)
+      # Min-heap of size k: (freq, word) — negative freq for max-heap behavior
+      # For words: negate freq, use word directly (higher word = lower priority)
+      heap = []
+      for word, freq in count.items():
+          heapq.heappush(heap, (-freq, word))
+      return [heapq.heappop(heap)[1] for _ in range(k)]</code></pre>
+
+      <h3>2. Find Median from Data Stream</h3>
+      <pre><code>  # See MedianFinder above — classic two-heap problem.</code></pre>
+
+      <h3>3. Ugly Number II (K-th Ugly Number)</h3>
+      <pre><code>  def nth_ugly_number(n):
+      heap = [1]
+      seen = {1}
+      val = 1
+      for _ in range(n):
+          val = heapq.heappop(heap)
+          for factor in [2, 3, 5]:
+              new_val = val * factor
+              if new_val not in seen:
+                  seen.add(new_val)
+                  heapq.heappush(heap, new_val)
+      return val</code></pre>
+
+      <h3>4. K Closest Points to Origin</h3>
+      <pre><code>  def k_closest(points, k):
+      # Max-heap of size k: maintain k closest points seen so far
+      heap = []
+      for x, y in points:
+          dist = -(x*x + y*y)  # negate for max-heap
+          if len(heap) < k:
+              heapq.heappush(heap, (dist, x, y))
+          elif dist > heap[0][0]:  # closer than current farthest
+              heapq.heapreplace(heap, (dist, x, y))
+      return [[x, y] for _, x, y in heap]</code></pre>
+
+      <h3>5. Reorganize String</h3>
+      <pre><code>  def reorganize_string(s):
+      freq = Counter(s)
+      max_heap = [(-f, c) for c, f in freq.items()]
+      heapq.heapify(max_heap)
+      result = []
+      prev_freq, prev_char = 0, ''
+
+      while max_heap or prev_freq < 0:
+          if not max_heap:
+              return ""  # can't reorganize
+          freq, char = heapq.heappop(max_heap)
+          result.append(char)
+          if prev_freq < 0:
+              heapq.heappush(max_heap, (prev_freq, prev_char))
+          prev_freq, prev_char = freq + 1, char  # decrement (negated)
+      return "".join(result)</code></pre>
+
+      <h3>6. Merge K Sorted Linked Lists</h3>
+      <pre><code>  def merge_k_lists(lists):
+      dummy = ListNode(0)
+      curr = dummy
+      heap = [(node.val, i, node) for i, node in enumerate(lists) if node]
+      heapq.heapify(heap)
+      while heap:
+          val, i, node = heapq.heappop(heap)
+          curr.next = node
+          curr = curr.next
+          if node.next:
+              heapq.heappush(heap, (node.next.val, i, node.next))
+      return dummy.next</code></pre>
+
+      <h3>7. Smallest Range Covering Elements from K Lists</h3>
+      <pre><code>  def smallest_range(nums):
+      # Use min-heap + track current max
+      heap = [(row[0], i, 0) for i, row in enumerate(nums)]
+      heapq.heapify(heap)
+      current_max = max(row[0] for row in nums)
+      result = [float('-inf'), float('inf')]
+
+      while heap:
+          current_min, i, j = heapq.heappop(heap)
+          if current_max - current_min < result[1] - result[0]:
+              result = [current_min, current_max]
+          if j + 1 == len(nums[i]):
+              break  # exhausted one list
+          next_val = nums[i][j+1]
+          heapq.heappush(heap, (next_val, i, j+1))
+          current_max = max(current_max, next_val)
+      return result</code></pre>
+
+      <h3>8. IPO (Maximize Capital)</h3>
+      <pre><code>  def find_maximized_capital(k, w, profits, capital):
+      # At each step: from affordable projects, pick most profitable
+      projects = sorted(zip(capital, profits))  # sort by capital needed
+      available = []  # max-heap of profits
+      i = 0
+      for _ in range(k):
+          # Add all projects now affordable
+          while i < len(projects) and projects[i][0] <= w:
+              heapq.heappush(available, -projects[i][1])
+              i += 1
+          if not available: break
+          w -= heapq.heappop(available)  # take most profitable (negated)
+      return w</code></pre>
+
+      <h2>Heap Complexity Reference</h2>
+
+      <pre><code>  Operation           Time        Notes
+  ─────────────────────────────────────────────────────────────
+  peek min/max        O(1)        Just look at index 0
+  push                O(log n)    Sift up from leaf
+  pop min/max         O(log n)    Sift down from root
+  build (heapify)     O(n)        Not O(n log n)!
+  search              O(n)        No ordering guarantee except min/max
+  delete arbitrary    O(log n)    With lazy deletion or explicit index
+
+  heapq.nsmallest(k, arr)   O(n + k log n)  or O(n log k)
+  heapq.nlargest(k, arr)    same
+
+  When k = 1: use min() or max() → O(n), not O(n log n)
+  When k = n: use sorted() → O(n log n), same as heap
+  Sweet spot: O(n log k) for k << n</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase3-two-pointers.html">Two Pointers &amp; Sliding Window &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

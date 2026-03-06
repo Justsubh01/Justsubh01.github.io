@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Binary Search — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 28 min read</span>
+      </div>
+      <h1>Binary Search: The Most Underestimated Technique in Interviews</h1>
+      <p class="post-description">
+        Binary search is not just "search in sorted array." The real power is binary search
+        on the answer space — a technique that converts a wide class of optimization problems
+        into O(log n) solutions. Master the template once, apply it everywhere.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Most candidates know basic binary search. The ones who get offers know to apply it
+        when the answer lives on a monotonic range &mdash; even when there's no explicit sorted
+        array. "Minimize the maximum," "find the smallest k such that condition holds" &mdash;
+        these are binary search on the answer space. Once you see it, you can't unsee it.
+      </p>
+
+      <h2>The Template: Get It Right Once, Forever</h2>
+
+      <pre><code>  The classic binary search bug is an off-by-one error.
+  Choose ONE template and use it consistently.
+
+  ─── Template 1: Left-closed, Right-closed [lo, hi] ───────
+  def binary_search(arr, target):
+      lo, hi = 0, len(arr) - 1
+      while lo <= hi:           # ≤ because [lo, hi] can have lo == hi
+          mid = lo + (hi - lo) // 2   # avoids overflow (vs (lo+hi)//2)
+          if arr[mid] == target:
+              return mid
+          elif arr[mid] < target:
+              lo = mid + 1     # target is in (mid, hi]
+          else:
+              hi = mid - 1     # target is in [lo, mid)
+      return -1               # not found
+
+  ─── Template 2: Left-closed, Right-open [lo, hi) ─────────
+  # Useful for "find leftmost/rightmost position" problems
+  def lower_bound(arr, target):
+      lo, hi = 0, len(arr)     # hi = len (past last element)
+      while lo < hi:            # < because [lo, hi) is empty when lo == hi
+          mid = lo + (hi - lo) // 2
+          if arr[mid] < target:
+              lo = mid + 1     # look right
+          else:
+              hi = mid          # look left (including mid)
+      return lo  # first index where arr[lo] >= target
+
+  # Template 2 finds the leftmost position where arr[pos] >= target
+  # Works even when target is not present!
+
+  Why mid = lo + (hi - lo) // 2 ?
+  ──────────────────────────────────────────────────────────
+  If lo=2e9 and hi=2e9, then lo+hi overflows in C++/Java.
+  lo + (hi - lo) // 2 is safe: hi - lo is at most INT_MAX/2.
+  In Python (arbitrary precision), overflow doesn't happen.
+  But use the safe form as a habit — interviewers notice.</code></pre>
+
+      <h2>Finding First and Last Position</h2>
+
+      <pre><code>  # "Find first/last occurrence of target in sorted array"
+  # Apply binary search twice: once for left bound, once for right.
+
+  def search_range(nums, target):
+      def find_left(nums, target):
+          lo, hi = 0, len(nums)
+          while lo < hi:
+              mid = lo + (hi - lo) // 2
+              if nums[mid] < target: lo = mid + 1
+              else: hi = mid
+          return lo
+
+      def find_right(nums, target):
+          lo, hi = 0, len(nums)
+          while lo < hi:
+              mid = lo + (hi - lo) // 2
+              if nums[mid] <= target: lo = mid + 1  # note: <=
+              else: hi = mid
+          return lo - 1
+
+      left = find_left(nums, target)
+      if left == len(nums) or nums[left] != target:
+          return [-1, -1]
+      return [left, find_right(nums, target)]
+
+  # The difference: find_left looks for first position where nums[x] >= target
+  #                 find_right looks for last position where nums[x] <= target</code></pre>
+
+      <h2>Non-Obvious Binary Search Applications</h2>
+
+      <h3>Search in Rotated Sorted Array</h3>
+      <pre><code>  # Array was sorted then rotated. Find target.
+  # E.g., [4,5,6,7,0,1,2], target=0 → 4
+
+  def search_rotated(nums, target):
+      lo, hi = 0, len(nums) - 1
+      while lo <= hi:
+          mid = lo + (hi - lo) // 2
+          if nums[mid] == target: return mid
+
+          # Determine which half is sorted
+          if nums[lo] <= nums[mid]:   # left half is sorted
+              if nums[lo] <= target < nums[mid]:
+                  hi = mid - 1       # target in sorted left half
+              else:
+                  lo = mid + 1       # target in right half
+          else:                       # right half is sorted
+              if nums[mid] < target <= nums[hi]:
+                  lo = mid + 1       # target in sorted right half
+              else:
+                  hi = mid - 1       # target in left half
+      return -1
+  # Key insight: at least one half is always sorted after a rotation.
+  # Check if target falls in the sorted half; if so, search there.</code></pre>
+
+      <h3>Find Peak Element</h3>
+      <pre><code>  # Find any peak element (strictly greater than neighbors)
+  def find_peak(nums):
+      lo, hi = 0, len(nums) - 1
+      while lo < hi:
+          mid = lo + (hi - lo) // 2
+          if nums[mid] > nums[mid+1]:
+              hi = mid       # peak is at mid or to its left
+          else:
+              lo = mid + 1  # peak is to the right of mid
+      return lo
+  # O(log n) — binary search on the gradient</code></pre>
+
+      <h3>Search a 2D Matrix</h3>
+      <pre><code>  # Matrix is sorted row-by-row, and first element of each row > last of prev.
+  def search_matrix(matrix, target):
+      m, n = len(matrix), len(matrix[0])
+      lo, hi = 0, m * n - 1
+      while lo <= hi:
+          mid = lo + (hi - lo) // 2
+          val = matrix[mid // n][mid % n]  # convert 1D index to 2D
+          if val == target: return True
+          elif val < target: lo = mid + 1
+          else: hi = mid - 1
+      return False
+  # Treat the 2D matrix as a sorted 1D array.
+  # mid // n = row, mid % n = col</code></pre>
+
+      <h2>Binary Search on Answer Space</h2>
+
+      <p>
+        This is where binary search becomes truly powerful. Instead of searching in an
+        existing sorted array, we search in the space of all possible answers.
+      </p>
+
+      <pre><code>  The pattern:
+  ─────────────────────────────────────────────────────────────
+  1. The answer is an integer in range [lo, hi]
+  2. There's a monotonic predicate: for all x >= answer, condition is True;
+     for all x < answer, condition is False (or vice versa)
+  3. We binary search for the boundary
+
+  Template:
+  lo, hi = min_possible_answer, max_possible_answer
+  while lo < hi:
+      mid = lo + (hi - lo) // 2
+      if feasible(mid):
+          hi = mid          # mid could be the answer, look left
+      else:
+          lo = mid + 1      # mid is too small, go right
+  return lo  # lo == hi, the answer
+
+  Key question: "Is it feasible with answer = mid?"
+  If you can answer that in O(n), binary search gives O(n log n) total.</code></pre>
+
+      <h3>Koko Eating Bananas</h3>
+      <pre><code>  # Koko can eat k bananas/hour. n piles. Must finish in h hours.
+  # Find minimum k.
+  import math
+  def min_eating_speed(piles, h):
+      def feasible(speed):
+          # Can Koko finish all piles in h hours at this speed?
+          return sum(math.ceil(p / speed) for p in piles) <= h
+
+      lo, hi = 1, max(piles)
+      while lo < hi:
+          mid = lo + (hi - lo) // 2
+          if feasible(mid):
+              hi = mid    # this speed works, try slower
+          else:
+              lo = mid + 1  # too slow
+      return lo
+  # O(n log(max_pile)) time — O(n) feasibility check, O(log max) iterations</code></pre>
+
+      <h3>Minimum Days to Make m Bouquets</h3>
+      <pre><code>  def min_days(bloomDay, m, k):
+      if m * k > len(bloomDay): return -1
+      def feasible(day):
+          # Can we make m bouquets of k consecutive bloomed flowers?
+          bouquets = consecutive = 0
+          for d in bloomDay:
+              if d <= day:
+                  consecutive += 1
+                  if consecutive == k:
+                      bouquets += 1
+                      consecutive = 0
+              else:
+                  consecutive = 0
+          return bouquets >= m
+
+      lo, hi = min(bloomDay), max(bloomDay)
+      while lo < hi:
+          mid = lo + (hi - lo) // 2
+          if feasible(mid): hi = mid
+          else: lo = mid + 1
+      return lo</code></pre>
+
+      <h3>Capacity To Ship Packages Within D Days</h3>
+      <pre><code>  def ship_within_days(weights, days):
+      def feasible(capacity):
+          # Can we ship all packages in 'days' days with this capacity?
+          curr_load = day_count = 1
+          for w in weights:
+              if curr_load + w > capacity:
+                  day_count += 1
+                  curr_load = 0
+              curr_load += w
+          return day_count <= days
+
+      lo = max(weights)    # minimum capacity: must carry heaviest package
+      hi = sum(weights)    # maximum: carry everything in one day
+      while lo < hi:
+          mid = lo + (hi - lo) // 2
+          if feasible(mid): hi = mid
+          else: lo = mid + 1
+      return lo</code></pre>
+
+      <h3>Split Array Largest Sum (Hard)</h3>
+      <pre><code>  def split_array(nums, m):
+      # Split array into m subarrays to minimize the largest subarray sum.
+      # Binary search on the answer (the max sum).
+      def feasible(max_sum):
+          # Can we split into <= m subarrays with each sum <= max_sum?
+          parts = curr_sum = 1
+          for n in nums:
+              if curr_sum + n > max_sum:
+                  parts += 1
+                  curr_sum = 0
+              curr_sum += n
+          return parts <= m
+
+      lo = max(nums)    # minimum possible answer
+      hi = sum(nums)    # maximum possible answer
+      while lo < hi:
+          mid = lo + (hi - lo) // 2
+          if feasible(mid): hi = mid
+          else: lo = mid + 1
+      return lo
+  # This is the same problem as "Capacity To Ship Packages"!</code></pre>
+
+      <h3>Aggressive Cows (Classic)</h3>
+      <pre><code>  # Place k cows in stalls such that minimum distance between
+  # any two cows is maximized.
+  def aggressive_cows(stalls, k):
+      stalls.sort()
+      def feasible(min_dist):
+          # Can we place k cows with at least min_dist apart?
+          count = 1
+          last_pos = stalls[0]
+          for s in stalls[1:]:
+              if s - last_pos >= min_dist:
+                  count += 1
+                  last_pos = s
+                  if count == k: return True
+          return count >= k
+
+      lo, hi = 1, stalls[-1] - stalls[0]
+      while lo < hi:
+          mid = lo + (hi - lo + 1) // 2  # upper mid (avoid infinite loop)
+          if feasible(mid): lo = mid
+          else: hi = mid - 1
+      return lo
+  # Note: for "maximize the minimum" problems, use upper mid and lo=mid</code></pre>
+
+      <h2>Upper vs Lower Mid: The Subtle Distinction</h2>
+
+      <pre><code>  Lower mid: mid = lo + (hi - lo) // 2
+  Upper mid: mid = lo + (hi - lo + 1) // 2
+
+  When shrinking toward lo (hi = mid):
+    Use LOWER mid. If lo == hi-1 and lo is correct:
+    mid = lo → hi = mid = lo → converges ✓
+
+  When shrinking toward hi (lo = mid):
+    Use UPPER mid. If lo == hi-1 and hi is correct:
+    mid = lo+1 = hi → lo = mid = hi → converges ✓
+    If you use lower mid: mid = lo → lo = mid = lo → infinite loop!
+
+  Rule of thumb:
+    if feasible(mid): hi = mid → use lower mid
+    if feasible(mid): lo = mid → use upper mid</code></pre>
+
+      <h2>10 Binary Search Problems</h2>
+
+      <pre><code>  Problem set for practice:
+  1. Binary Search (basic)                              ★
+  2. Search in Rotated Sorted Array                    ★★
+  3. Find Minimum in Rotated Sorted Array              ★★
+  4. Search a 2D Matrix                                ★★
+  5. Find Peak Element                                 ★★
+  6. First Bad Version                                 ★★
+  7. Koko Eating Bananas                               ★★★
+  8. Capacity to Ship Packages Within D Days           ★★★
+  9. Split Array Largest Sum                           ★★★
+  10. Median of Two Sorted Arrays                      ★★★★
+
+  For Median of Two Sorted Arrays (hard, worth knowing):
+  ─────────────────────────────────────────────────────────────
+  def find_median_sorted_arrays(nums1, nums2):
+      # Ensure nums1 is the smaller array
+      if len(nums1) > len(nums2):
+          return find_median_sorted_arrays(nums2, nums1)
+      m, n = len(nums1), len(nums2)
+      lo, hi = 0, m
+      while lo <= hi:
+          # Partition nums1 at i, nums2 at j = (m+n+1)//2 - i
+          i = lo + (hi - lo) // 2
+          j = (m + n + 1) // 2 - i
+          nums1_left_max  = float('-inf') if i == 0 else nums1[i-1]
+          nums1_right_min = float('inf')  if i == m else nums1[i]
+          nums2_left_max  = float('-inf') if j == 0 else nums2[j-1]
+          nums2_right_min = float('inf')  if j == n else nums2[j]
+
+          if nums1_left_max <= nums2_right_min and nums2_left_max <= nums1_right_min:
+              # Correct partition!
+              if (m + n) % 2 == 1:
+                  return float(max(nums1_left_max, nums2_left_max))
+              else:
+                  return (max(nums1_left_max, nums2_left_max) +
+                          min(nums1_right_min, nums2_right_min)) / 2.0
+          elif nums1_left_max > nums2_right_min:
+              hi = i - 1  # too many elements from nums1 on left
+          else:
+              lo = i + 1  # too few elements from nums1 on left
+  # O(log(min(m,n))) — binary search on the smaller array</code></pre>
+
+      <h2>Binary Search Checklist</h2>
+
+      <pre><code>  When you see a problem, ask:
+  ─────────────────────────────────────────────────────────────
+  1. Is the input sorted? → classic binary search
+  2. Can the array be sorted? → sort + binary search
+  3. Is there a monotonic function on answers?
+     "minimize max" / "maximize min" / "find smallest k where..." → BS on answer
+  4. Is the target a specific index or a condition?
+
+  Implementation checklist:
+  ─────────────────────────────────────────────────────────────
+  ✓ Use mid = lo + (hi - lo) // 2 (no overflow)
+  ✓ Know your loop invariant: [lo, hi] always contains the answer
+  ✓ Never exit loop with an infinite loop (dry run lo=0, hi=1)
+  ✓ Return lo after loop (lo == hi)
+  ✓ Verify termination: each iteration either lo increases or hi decreases
+
+  Edge cases:
+  ─────────────────────────────────────────────────────────────
+  - Single element array
+  - Target smaller than all elements
+  - Target larger than all elements
+  - All elements equal
+  - Two elements</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase3-recursion-backtracking.html">Recursion &amp; Backtracking &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

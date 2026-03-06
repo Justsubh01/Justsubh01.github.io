@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arrays &amp; Strings — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 30 min read</span>
+      </div>
+      <h1>Arrays &amp; Strings: The Bread and Butter of FAANG</h1>
+      <p class="post-description">
+        Arrays appear in 70%+ of FAANG problems. Not because they're flashy, but because
+        they're the foundation everything else builds on. Master prefix sums, difference arrays,
+        in-place tricks, and string manipulation — the patterns that unlock dozens of problems.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        The first problem in most FAANG interviews involves an array or string. Interviewers
+        don't do this to be boring &mdash; they do it because how you handle the "simple" case
+        reveals everything about how you'll handle the complex cases. Do you know about prefix
+        sums? Do you reach for an O(n^2) solution when O(n) exists? Do you think about cache
+        locality? This post makes you formidable on arrays and strings.
+      </p>
+
+      <h2>Arrays: What They Actually Are</h2>
+
+      <p>
+        An array is a contiguous block of memory where each element is the same size. This
+        is the most important property &mdash; contiguous memory means O(1) random access
+        and excellent cache performance.
+      </p>
+
+      <pre><code>  Memory layout of int array [3, 7, 2, 9, 1]:
+  ─────────────────────────────────────────────────────────────
+  Address: 0x100  0x104  0x108  0x10C  0x110
+  Value:     3      7      2      9      1
+             ↑ each int is 4 bytes, perfectly contiguous
+
+  arr[i] = *(base_ptr + i * sizeof(element))
+  → Any index access is just pointer arithmetic → O(1)
+
+  Cache line is typically 64 bytes = 16 ints.
+  Scanning left-to-right = sequential cache hits (fast).
+  Column-major scan of 2D array = cache misses (slow).
+  This is why matrix operations care about access patterns.</code></pre>
+
+      <h3>Dynamic Arrays (Python list, C++ vector, Java ArrayList)</h3>
+      <pre><code>  Static array: fixed size, declared at compile time
+    int arr[100];  // C, always 100 elements
+
+  Dynamic array: grows as needed
+    arr = []      # Python list
+    arr.append(x) # O(1) amortized (doubles capacity when full)
+
+  Capacity vs Length:
+    Python list with 4 elements might have capacity 8.
+    len(arr) = 4, but arr has room for 4 more before resize.
+
+  Complexity summary:
+    Access by index:  O(1)
+    Append (end):     O(1) amortized
+    Insert at index:  O(n) — must shift elements right
+    Delete at index:  O(n) — must shift elements left
+    Search:           O(n) — linear scan
+    Search (sorted):  O(log n) — binary search</code></pre>
+
+      <h2>Prefix Sums: The Most Powerful O(1) Query Technique</h2>
+
+      <p>
+        Prefix sums let you answer "what is the sum of elements from index l to r?" in O(1)
+        after an O(n) preprocessing step. This pattern appears constantly.
+      </p>
+
+      <pre><code>  Concept:
+    prefix[i] = arr[0] + arr[1] + ... + arr[i]
+    prefix[i] = prefix[i-1] + arr[i]
+
+  Building prefix sum array:
+  def build_prefix(arr):
+      n = len(arr)
+      prefix = [0] * (n + 1)  # prefix[0] = 0 (sentinel)
+      for i in range(n):
+          prefix[i+1] = prefix[i] + arr[i]
+      return prefix
+
+  # With 1-indexed prefix (cleaner for range queries):
+  # sum from index l to r (0-indexed) =
+  # prefix[r+1] - prefix[l]
+
+  arr = [3, 1, 4, 1, 5, 9, 2, 6]
+  #      0  1  2  3  4  5  6  7
+  prefix = [0, 3, 4, 8, 9, 14, 23, 25, 31]
+
+  Sum from index 2 to 5 = prefix[6] - prefix[2] = 23 - 4 = 19
+  Verify: 4 + 1 + 5 + 9 = 19 ✓
+
+  Time: O(n) build, O(1) per query
+  Space: O(n)
+
+  ─── Problem: Subarray Sum Equals K ──────────────────────────
+  Count subarrays with sum exactly k.
+
+  def subarray_sum(nums, k):
+      count = 0
+      prefix_sum = 0
+      freq = {0: 1}  # empty prefix has sum 0, seen once
+
+      for num in nums:
+          prefix_sum += num
+          # If (prefix_sum - k) exists in freq,
+          # those many subarrays end at current index with sum k
+          if prefix_sum - k in freq:
+              count += freq[prefix_sum - k]
+          freq[prefix_sum] = freq.get(prefix_sum, 0) + 1
+
+      return count
+
+  # Time: O(n), Space: O(n)
+  # The insight: if prefix[j] - prefix[i] = k, then subarray i+1..j has sum k
+  # So we look for prefix[i] = prefix[j] - k in our hash map</code></pre>
+
+      <h2>Difference Arrays: O(1) Range Updates</h2>
+
+      <p>
+        The dual of prefix sums. Instead of O(1) queries, you get O(1) range updates
+        with O(n) final reconstruction.
+      </p>
+
+      <pre><code>  Problem: Apply multiple range increment operations, then answer point queries.
+  Naive: O(n) per update → O(n*q) total for q queries.
+  Difference array: O(1) per update → O(n + q) total.
+
+  How it works:
+    diff[i] = arr[i] - arr[i-1]  (difference between consecutive elements)
+
+    To add val to range [l, r]:
+      diff[l]   += val    # start adding from here
+      diff[r+1] -= val    # stop adding after here
+
+    To reconstruct: arr[i] = sum(diff[0..i]) = prefix sum of diff
+
+  Example:
+  def apply_updates(n, updates):
+      # updates = [(l, r, val), ...]
+      diff = [0] * (n + 1)
+      for l, r, val in updates:
+          diff[l] += val
+          diff[r+1] -= val
+
+      result = []
+      running = 0
+      for i in range(n):
+          running += diff[i]
+          result.append(running)
+      return result
+
+  # n=5, updates: add 3 to [1,3], add 2 to [2,4]
+  # diff after updates: [0, 3, 2, 0, -3, -2] (plus sentinel)
+  # running: [0, 3, 5, 5, 2, 0] → result = [0, 3, 5, 5, 2]
+  # Verify [1,3]+3: [0,3,3,3,0] + [2,4]+2: [0,0,2,2,2] = [0,3,5,5,2] ✓</code></pre>
+
+      <h2>In-Place Array Manipulation</h2>
+
+      <p>
+        In-place means O(1) extra space. The key techniques are two-pointer swaps and
+        using the array itself as a hash map.
+      </p>
+
+      <pre><code>  ─── Reverse an Array ──────────────────────────────────────
+  def reverse(arr):
+      left, right = 0, len(arr) - 1
+      while left < right:
+          arr[left], arr[right] = arr[right], arr[left]
+          left += 1
+          right -= 1
+  # O(n) time, O(1) space
+
+  ─── Remove Duplicates from Sorted Array ───────────────────
+  # Classic two-pointer: one reads, one writes
+  def remove_duplicates(arr):
+      if not arr: return 0
+      write = 1  # next position to write unique element
+      for read in range(1, len(arr)):
+          if arr[read] != arr[read-1]:  # found new unique
+              arr[write] = arr[read]
+              write += 1
+      return write
+  # O(n) time, O(1) space — modifies array in-place
+
+  ─── Move Zeros to End ─────────────────────────────────────
+  def move_zeros(arr):
+      write = 0  # position for next non-zero
+      for read in range(len(arr)):
+          if arr[read] != 0:
+              arr[write] = arr[read]
+              write += 1
+      while write < len(arr):
+          arr[write] = 0
+          write += 1
+  # O(n) time, O(1) space
+
+  ─── Array as Hash Map: Find Missing Number ───────────────
+  # Numbers 1..n in array of size n. Find the missing one.
+  # Trick: use index as key, negate value to mark "seen"
+  def find_missing(arr):
+      n = len(arr)
+      # Remap 0 to n+1 (since 0 can't be negated usefully)
+      for i in range(n):
+          if arr[i] == 0:
+              arr[i] = n + 1
+
+      for i in range(n):
+          idx = abs(arr[i]) - 1
+          if 0 <= idx < n:
+              arr[idx] = -abs(arr[idx])
+
+      for i in range(n):
+          if arr[i] > 0:
+              return i + 1
+      return n + 1
+  # O(n) time, O(1) extra space — uses the array itself!</code></pre>
+
+      <h2>Strings: The Immutability Trap</h2>
+
+      <p>
+        In Python and Java, strings are immutable. Every concatenation creates a new string.
+        This is the single most common source of hidden O(n^2) complexity in interview solutions.
+      </p>
+
+      <pre><code>  The trap:
+  result = ""
+  for char in s:          # n iterations
+      result += char      # each += creates a new string: O(n)
+  # Total: O(n^2) — this is catastrophically slow for large inputs!
+
+  The fix:
+  parts = []
+  for char in s:
+      parts.append(char)  # O(1) amortized
+  result = "".join(parts) # O(n) final join
+  # Total: O(n)
+
+  Or simply: "".join(transform(c) for c in s)
+
+  ─── C++ note: std::string ────────────────────────────────
+  std::string result;
+  result.reserve(n);      // pre-allocate to avoid reallocations
+  for (char c : s)
+      result += c;        // still O(n^2) without reserve in theory,
+                          // but amortized O(1) with doubling strategy
+  // Use std::string or std::ostringstream for building strings</code></pre>
+
+      <h2>Character Frequency Maps: The Anagram Foundation</h2>
+
+      <pre><code>  Most string problems reduce to "count character frequencies."
+
+  # Frequency map
+  from collections import Counter
+  freq = Counter(s)        # {'a': 3, 'b': 2, ...}
+  freq = Counter(s) - Counter(t)  # subtract frequencies!
+
+  # Fixed-size array (faster for ASCII):
+  freq = [0] * 26
+  for c in s:
+      freq[ord(c) - ord('a')] += 1
+
+  ─── Valid Anagram ─────────────────────────────────────────
+  def is_anagram(s, t):
+      if len(s) != len(t): return False
+      return Counter(s) == Counter(t)
+  # O(n) time, O(1) space (bounded by alphabet size)
+
+  ─── Group Anagrams ────────────────────────────────────────
+  def group_anagrams(strs):
+      groups = {}
+      for s in strs:
+          key = tuple(sorted(s))    # "eat" → ('a','e','t')
+          # Or: key = tuple(Counter(s).items()) — but sort is cleaner
+          groups.setdefault(key, []).append(s)
+      return list(groups.values())
+  # O(n * k log k) where n=number of strings, k=max string length
+
+  ─── Longest Substring with At Most K Distinct Chars ───────
+  def longest_k_distinct(s, k):
+      freq = {}
+      left = 0
+      max_len = 0
+      for right in range(len(s)):
+          freq[s[right]] = freq.get(s[right], 0) + 1
+          while len(freq) > k:
+              freq[s[left]] -= 1
+              if freq[s[left]] == 0:
+                  del freq[s[left]]
+              left += 1
+          max_len = max(max_len, right - left + 1)
+      return max_len
+  # Sliding window + freq map: O(n) time, O(k) space</code></pre>
+
+      <h2>12 Must-Know Array/String Problems</h2>
+
+      <h3>1. Two Sum</h3>
+      <pre><code>  # Find two indices that sum to target
+  def two_sum(nums, target):
+      seen = {}  # value → index
+      for i, num in enumerate(nums):
+          complement = target - num
+          if complement in seen:
+              return [seen[complement], i]
+          seen[num] = i
+      return []
+  # O(n) time, O(n) space</code></pre>
+
+      <h3>2. Best Time to Buy and Sell Stock</h3>
+      <pre><code>  # Maximum profit from one transaction
+  def max_profit(prices):
+      min_price = float('inf')
+      max_profit = 0
+      for price in prices:
+          min_price = min(min_price, price)
+          max_profit = max(max_profit, price - min_price)
+      return max_profit
+  # O(n) time, O(1) space
+  # Insight: at each day, the best we can do is sell at current price
+  # and have bought at the historical minimum before today.</code></pre>
+
+      <h3>3. Product of Array Except Self</h3>
+      <pre><code>  # result[i] = product of all elements except arr[i]
+  # No division allowed, O(1) extra space
+  def product_except_self(nums):
+      n = len(nums)
+      result = [1] * n
+
+      # Forward pass: result[i] = product of all elements left of i
+      prefix = 1
+      for i in range(n):
+          result[i] = prefix
+          prefix *= nums[i]
+
+      # Backward pass: multiply by product of all elements right of i
+      suffix = 1
+      for i in range(n-1, -1, -1):
+          result[i] *= suffix
+          suffix *= nums[i]
+
+      return result
+  # O(n) time, O(1) extra space (result array doesn't count)</code></pre>
+
+      <h3>4. Maximum Subarray (Kadane's Algorithm)</h3>
+      <pre><code>  # Largest sum contiguous subarray
+  def max_subarray(nums):
+      max_sum = nums[0]
+      current_sum = nums[0]
+      for num in nums[1:]:
+          # Either extend current subarray or start fresh
+          current_sum = max(num, current_sum + num)
+          max_sum = max(max_sum, current_sum)
+      return max_sum
+  # O(n) time, O(1) space
+  # Kadane's insight: if current_sum goes negative, any future
+  # subarray is better off starting fresh from the next element.</code></pre>
+
+      <h3>5. Rotate Array</h3>
+      <pre><code>  # Rotate right by k positions
+  # [1,2,3,4,5], k=2 → [4,5,1,2,3]
+  def rotate(nums, k):
+      n = len(nums)
+      k %= n  # handle k > n
+      # Three reverses trick:
+      nums.reverse()          # [5,4,3,2,1]
+      nums[:k] = nums[:k][::-1]   # [4,5,3,2,1]
+      nums[k:] = nums[k:][::-1]   # [4,5,1,2,3] ✓
+  # O(n) time, O(1) space</code></pre>
+
+      <h3>6. Spiral Matrix</h3>
+      <pre><code>  def spiral_order(matrix):
+      result = []
+      top, bottom = 0, len(matrix) - 1
+      left, right = 0, len(matrix[0]) - 1
+
+      while top <= bottom and left <= right:
+          for col in range(left, right + 1):    # left → right
+              result.append(matrix[top][col])
+          top += 1
+
+          for row in range(top, bottom + 1):    # top → bottom
+              result.append(matrix[row][right])
+          right -= 1
+
+          if top <= bottom:                      # right → left
+              for col in range(right, left - 1, -1):
+                  result.append(matrix[bottom][col])
+              bottom -= 1
+
+          if left <= right:                      # bottom → top
+              for row in range(bottom, top - 1, -1):
+                  result.append(matrix[row][left])
+              left += 1
+      return result
+  # O(m*n) time, O(1) extra space</code></pre>
+
+      <h3>7. Trapping Rain Water</h3>
+      <pre><code>  # Amount of water trapped between heights
+  def trap(height):
+      left, right = 0, len(height) - 1
+      left_max = right_max = 0
+      water = 0
+
+      while left < right:
+          if height[left] < height[right]:
+              if height[left] >= left_max:
+                  left_max = height[left]
+              else:
+                  water += left_max - height[left]
+              left += 1
+          else:
+              if height[right] >= right_max:
+                  right_max = height[right]
+              else:
+                  water += right_max - height[right]
+              right -= 1
+      return water
+  # O(n) time, O(1) space
+  # Insight: water at position i = min(max_left, max_right) - height[i]
+  # Two-pointer guarantees we process each position once in O(n).</code></pre>
+
+      <h3>8. Minimum Window Substring</h3>
+      <pre><code>  from collections import Counter
+  def min_window(s, t):
+      need = Counter(t)
+      missing = len(t)  # characters still needed
+      start = 0
+      best_start, best_end = 0, float('inf')
+
+      for end, char in enumerate(s, 1):
+          if need[char] > 0:
+              missing -= 1
+          need[char] -= 1
+
+          if missing == 0:  # valid window found
+              # Shrink from left
+              while need[s[start]] < 0:
+                  need[s[start]] += 1
+                  start += 1
+              # Update best
+              if end - start < best_end - best_start:
+                  best_start, best_end = start, end
+              # Move start to invalidate window
+              need[s[start]] += 1
+              missing += 1
+              start += 1
+
+      return "" if best_end == float('inf') else s[best_start:best_end]
+  # O(|s| + |t|) time, O(|t|) space</code></pre>
+
+      <h3>9. Longest Palindromic Substring</h3>
+      <pre><code>  # Expand around center approach
+  def longest_palindrome(s):
+      def expand(l, r):
+          while l >= 0 and r < len(s) and s[l] == s[r]:
+              l -= 1
+              r += 1
+          return s[l+1:r]  # l and r are now outside the palindrome
+
+      result = ""
+      for i in range(len(s)):
+          # Odd-length palindromes (center at i)
+          odd = expand(i, i)
+          # Even-length palindromes (center between i and i+1)
+          even = expand(i, i+1)
+          if len(odd) > len(result): result = odd
+          if len(even) > len(result): result = even
+      return result
+  # O(n^2) time, O(1) space
+  # Manacher's algorithm achieves O(n) but is interview-overkill</code></pre>
+
+      <h3>10. Find All Anagrams in String</h3>
+      <pre><code>  def find_anagrams(s, p):
+      need = Counter(p)
+      window = Counter()
+      result = []
+      k = len(p)
+
+      for i, char in enumerate(s):
+          window[char] += 1
+          if i >= k:
+              left_char = s[i - k]
+              window[left_char] -= 1
+              if window[left_char] == 0:
+                  del window[left_char]
+          if window == need:
+              result.append(i - k + 1)
+      return result
+  # O(n) time — fixed window slides through s</code></pre>
+
+      <h3>11. 3Sum</h3>
+      <pre><code>  def three_sum(nums):
+      nums.sort()
+      result = []
+      for i in range(len(nums) - 2):
+          if i > 0 and nums[i] == nums[i-1]:  # skip duplicates
+              continue
+          left, right = i + 1, len(nums) - 1
+          while left < right:
+              s = nums[i] + nums[left] + nums[right]
+              if s == 0:
+                  result.append([nums[i], nums[left], nums[right]])
+                  while left < right and nums[left] == nums[left+1]:
+                      left += 1    # skip duplicate left
+                  while left < right and nums[right] == nums[right-1]:
+                      right -= 1   # skip duplicate right
+                  left += 1; right -= 1
+              elif s < 0:
+                  left += 1
+              else:
+                  right -= 1
+      return result
+  # O(n^2) time, O(1) extra space (sorting is in-place)</code></pre>
+
+      <h3>12. Next Permutation</h3>
+      <pre><code>  def next_permutation(nums):
+      n = len(nums)
+      # Step 1: Find rightmost index i where nums[i] < nums[i+1]
+      i = n - 2
+      while i >= 0 and nums[i] >= nums[i+1]:
+          i -= 1
+
+      if i >= 0:
+          # Step 2: Find rightmost j where nums[j] > nums[i]
+          j = n - 1
+          while nums[j] <= nums[i]:
+              j -= 1
+          # Step 3: Swap
+          nums[i], nums[j] = nums[j], nums[i]
+
+      # Step 4: Reverse suffix starting at i+1
+      nums[i+1:] = nums[i+1:][::-1]
+  # O(n) time, O(1) space
+  # This is the exact algorithm std::next_permutation uses in C++</code></pre>
+
+      <h2>2D Arrays and Matrix Problems</h2>
+
+      <pre><code>  Key matrix operations and their complexities:
+
+  Transpose in-place (square matrix):
+  def transpose(matrix):
+      n = len(matrix)
+      for i in range(n):
+          for j in range(i+1, n):
+              matrix[i][j], matrix[j][i] = matrix[j][i], matrix[i][j]
+  # O(n^2) time, O(1) space
+
+  Rotate 90 degrees clockwise:
+  def rotate(matrix):
+      # Transpose + reverse each row
+      n = len(matrix)
+      for i in range(n):
+          for j in range(i+1, n):
+              matrix[i][j], matrix[j][i] = matrix[j][i], matrix[i][j]
+      for row in matrix:
+          row.reverse()
+  # O(n^2) time, O(1) space
+
+  Set Zeros (if element is 0, zero its row and column):
+  def set_zeros(matrix):
+      m, n = len(matrix), len(matrix[0])
+      zero_rows = set()
+      zero_cols = set()
+      for i in range(m):
+          for j in range(n):
+              if matrix[i][j] == 0:
+                  zero_rows.add(i)
+                  zero_cols.add(j)
+      for i in range(m):
+          for j in range(n):
+              if i in zero_rows or j in zero_cols:
+                  matrix[i][j] = 0
+  # O(m*n) time, O(m+n) space</code></pre>
+
+      <h2>Interview Checklist for Array Problems</h2>
+
+      <pre><code>  Before coding, ask yourself:
+  ─────────────────────────────────────────────────────────────
+  1. Is the array sorted? (enables binary search, two pointers)
+  2. Are elements unique? (simplifies duplicate handling)
+  3. What's the value range? (enables bit manipulation, counting sort)
+  4. Can I modify the input? (enables in-place tricks)
+  5. Is O(n) space acceptable? (enables prefix sums, hash maps)
+
+  Common array patterns and when to reach for them:
+  ─────────────────────────────────────────────────────────────
+  Need range sum queries          → Prefix sum
+  Need range update queries       → Difference array
+  Sorted array, find target       → Binary search
+  Two elements with property      → Two pointers
+  Subarray with property          → Sliding window
+  Maximum subarray                → Kadane's algorithm
+  All pairs, triplets             → Sort + two pointers
+  Count/group by frequency        → Hash map
+  Space O(1) with values 1..n     → Array as hash map (negate trick)
+
+  String-specific:
+  ─────────────────────────────────────────────────────────────
+  Anagram detection               → Sort or frequency array
+  Substring search                → Sliding window + hash map
+  Palindrome                      → Two pointers from center/ends
+  Pattern matching                → KMP (interview rarely needs it)</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase2-linked-lists.html">Linked Lists &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

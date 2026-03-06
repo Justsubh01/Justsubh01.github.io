@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graphs: BFS and DFS — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 35 min read</span>
+      </div>
+      <h1>Graphs: BFS, DFS, and Classic Interview Problems</h1>
+      <p class="post-description">
+        Graphs are the most versatile data structure in computer science and a staple of
+        FAANG interviews. Once you understand adjacency list representation, DFS, and BFS,
+        you have the tools to solve connected components, shortest path, cycle detection,
+        bipartite check, and most graph problems.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        The dirty secret of graph problems: most of them are just "run BFS or DFS from
+        some starting nodes, tracking visited nodes." The complexity comes from knowing
+        <em>when</em> to use BFS vs DFS, what to track, and how to handle the specific
+        problem constraints. Get the traversal right; the rest is logic.
+      </p>
+
+      <h2>Graph Representations</h2>
+
+      <pre><code>  Graph: G = (V, E) — vertices and edges.
+  Directed: edges have direction (A → B ≠ B → A)
+  Undirected: edges are bidirectional (A — B)
+  Weighted: edges have weights
+  Unweighted: all edges equal
+
+  ─── Adjacency List ──────────────────────────────────────
+  # Best for sparse graphs (most real-world graphs)
+  graph = {
+      0: [1, 2],
+      1: [2],
+      2: [3],
+      3: []
+  }
+  # Or: defaultdict(list)
+  from collections import defaultdict
+  graph = defaultdict(list)
+  graph[0].append(1)  # add edge 0 → 1
+
+  Space: O(V + E)
+  Edge lookup: O(degree(v))
+  Neighbor iteration: O(degree(v))
+
+  ─── Adjacency Matrix ────────────────────────────────────
+  # Best for dense graphs or when O(1) edge lookup needed
+  V = 4
+  matrix = [[0]*V for _ in range(V)]
+  matrix[0][1] = 1  # edge 0 → 1
+
+  Space: O(V^2)
+  Edge lookup: O(1)
+  Neighbor iteration: O(V)
+
+  ─── Edge List ───────────────────────────────────────────
+  # Simplest, useful for Kruskal's MST
+  edges = [(weight, u, v) for each edge]
+
+  ─── Grid as Graph ───────────────────────────────────────
+  # Extremely common in FAANG interviews
+  # Each cell is a vertex, edges to 4 adjacent cells (or 8 for diagonal)
+  DIRECTIONS = [(0,1),(0,-1),(1,0),(-1,0)]
+  def neighbors(r, c, rows, cols):
+      for dr, dc in DIRECTIONS:
+          nr, nc = r+dr, c+dc
+          if 0 <= nr < rows and 0 <= nc < cols:
+              yield nr, nc</code></pre>
+
+      <h2>Depth-First Search (DFS)</h2>
+
+      <pre><code>  # DFS: go as deep as possible, backtrack when stuck.
+  # Natural with recursion (using call stack).
+
+  ─── Recursive DFS ───────────────────────────────────────
+  def dfs(graph, node, visited):
+      visited.add(node)
+      for neighbor in graph[node]:
+          if neighbor not in visited:
+              dfs(graph, neighbor, visited)
+
+  # Full connected components:
+  def count_components(n, edges):
+      graph = defaultdict(list)
+      for u, v in edges:
+          graph[u].append(v)
+          graph[v].append(u)  # undirected
+
+      visited = set()
+      count = 0
+      def dfs(node):
+          visited.add(node)
+          for nb in graph[node]:
+              if nb not in visited:
+                  dfs(nb)
+
+      for node in range(n):
+          if node not in visited:
+              dfs(node)
+              count += 1
+      return count
+
+  ─── Iterative DFS (using explicit stack) ────────────────
+  def dfs_iterative(graph, start):
+      visited = set()
+      stack = [start]
+      result = []
+      while stack:
+          node = stack.pop()
+          if node in visited: continue
+          visited.add(node)
+          result.append(node)
+          for nb in graph[node]:
+              if nb not in visited:
+                  stack.append(nb)
+      return result
+
+  DFS time: O(V + E) — visit each vertex and edge once
+  DFS space: O(V) — recursion depth or stack</code></pre>
+
+      <h2>Breadth-First Search (BFS)</h2>
+
+      <pre><code>  # BFS: explore level by level.
+  # Uses a queue. Finds SHORTEST PATH in unweighted graphs.
+
+  from collections import deque
+
+  def bfs(graph, start):
+      visited = {start}
+      queue = deque([start])
+      result = []
+      while queue:
+          node = queue.popleft()
+          result.append(node)
+          for nb in graph[node]:
+              if nb not in visited:
+                  visited.add(nb)
+                  queue.append(nb)
+      return result
+
+  ─── BFS Shortest Path (Unweighted) ──────────────────────
+  def shortest_path(graph, start, end):
+      if start == end: return 0
+      visited = {start}
+      queue = deque([(start, 0)])   # (node, distance)
+      while queue:
+          node, dist = queue.popleft()
+          for nb in graph[node]:
+              if nb == end: return dist + 1
+              if nb not in visited:
+                  visited.add(nb)
+                  queue.append((nb, dist + 1))
+      return -1  # unreachable
+
+  BFS time: O(V + E)
+  BFS space: O(V) — queue can hold at most V vertices
+
+  BFS vs DFS:
+  ─────────────────────────────────────────────────────────────
+  BFS: shortest path (unweighted), level-order, finds closest
+  DFS: cycle detection, topological sort, backtracking, all paths</code></pre>
+
+      <h2>Grid BFS/DFS: The Island Pattern</h2>
+
+      <pre><code>  # Islands problem: count connected components of '1's in binary matrix.
+  # This template appears in dozens of variations.
+
+  def num_islands(grid):
+      rows, cols = len(grid), len(grid[0])
+      visited = set()
+      count = 0
+
+      def dfs(r, c):
+          if (r, c) in visited or r<0 or r>=rows or c<0 or c>=cols:
+              return
+          if grid[r][c] != '1':
+              return
+          visited.add((r, c))
+          dfs(r+1, c); dfs(r-1, c); dfs(r, c+1); dfs(r, c-1)
+
+      for r in range(rows):
+          for c in range(cols):
+              if grid[r][c] == '1' and (r, c) not in visited:
+                  dfs(r, c)
+                  count += 1
+      return count
+
+  ─── Variations on Islands ────────────────────────────────
+  Max area island:     count cells in DFS, track maximum
+  Surrounded regions: flood fill from borders first
+  Pacific/Atlantic:    BFS/DFS from each ocean boundary
+  Shortest bridge:     DFS first island, BFS to second island
+
+  ─── Multi-Source BFS ─────────────────────────────────────
+  # Start BFS from multiple sources simultaneously.
+  # Each cell gets the distance to its nearest source.
+
+  def walls_and_gates(rooms):
+      # rooms: -1=wall, 0=gate, INF=empty room
+      rows, cols = len(rooms), len(rooms[0])
+      INF = float('inf')
+      queue = deque()
+
+      # Seed queue with all gates
+      for r in range(rows):
+          for c in range(cols):
+              if rooms[r][c] == 0:
+                  queue.append((r, c))
+
+      while queue:
+          r, c = queue.popleft()
+          for dr, dc in [(0,1),(0,-1),(1,0),(-1,0)]:
+              nr, nc = r+dr, c+dc
+              if 0<=nr<rows and 0<=nc<cols and rooms[nr][nc] == INF:
+                  rooms[nr][nc] = rooms[r][c] + 1
+                  queue.append((nr, nc))
+  # All empty rooms get filled with their distance to nearest gate</code></pre>
+
+      <h2>Cycle Detection</h2>
+
+      <pre><code>  ─── Undirected Graph: DFS with Parent ───────────────────
+  def has_cycle_undirected(n, edges):
+      graph = defaultdict(list)
+      for u, v in edges:
+          graph[u].append(v)
+          graph[v].append(u)
+
+      visited = set()
+      def dfs(node, parent):
+          visited.add(node)
+          for nb in graph[node]:
+              if nb == parent: continue   # don't go back through same edge
+              if nb in visited: return True  # found cycle
+              if dfs(nb, node): return True
+          return False
+
+      for node in range(n):
+          if node not in visited:
+              if dfs(node, -1): return True
+      return False
+
+  ─── Directed Graph: DFS with Three Colors ───────────────
+  # 0 = unvisited, 1 = in current path (gray), 2 = done (black)
+  def has_cycle_directed(n, edges):
+      graph = defaultdict(list)
+      for u, v in edges:
+          graph[u].append(v)
+      color = [0] * n
+      def dfs(node):
+          color[node] = 1   # start processing
+          for nb in graph[node]:
+              if color[nb] == 1: return True    # back edge = cycle
+              if color[nb] == 0 and dfs(nb): return True
+          color[node] = 2   # done processing
+          return False
+      return any(dfs(i) for i in range(n) if color[i] == 0)</code></pre>
+
+      <h2>Bipartite Check</h2>
+
+      <pre><code>  # A graph is bipartite if its vertices can be divided into two sets
+  # such that all edges connect vertices from different sets.
+  # Equivalent: graph has no odd-length cycles.
+
+  def is_bipartite(graph):
+      n = len(graph)
+      color = [-1] * n
+      def bfs(start):
+          queue = deque([start])
+          color[start] = 0
+          while queue:
+              node = queue.popleft()
+              for nb in graph[node]:
+                  if color[nb] == -1:
+                      color[nb] = 1 - color[node]  # opposite color
+                      queue.append(nb)
+                  elif color[nb] == color[node]:
+                      return False  # same color = not bipartite
+          return True
+
+      for i in range(n):
+          if color[i] == -1:
+              if not bfs(i): return False
+      return True</code></pre>
+
+      <h2>Clone Graph</h2>
+
+      <pre><code>  def clone_graph(node):
+      if not node: return None
+      cloned = {}  # old node → cloned node
+      def dfs(n):
+          if n in cloned: return cloned[n]
+          copy = Node(n.val)
+          cloned[n] = copy
+          for nb in n.neighbors:
+              copy.neighbors.append(dfs(nb))
+          return copy
+      return dfs(node)</code></pre>
+
+      <h2>12 Essential Graph Problems</h2>
+
+      <h3>1. Number of Islands</h3>
+      <pre><code>  # (DFS template shown above)</code></pre>
+
+      <h3>2. Max Area of Island</h3>
+      <pre><code>  def max_area_of_island(grid):
+      rows, cols = len(grid), len(grid[0])
+      def dfs(r, c):
+          if r<0 or r>=rows or c<0 or c>=cols or grid[r][c] != 1:
+              return 0
+          grid[r][c] = 0  # mark visited by setting to 0
+          return 1 + dfs(r+1,c) + dfs(r-1,c) + dfs(r,c+1) + dfs(r,c-1)
+      return max(dfs(r,c) for r in range(rows) for c in range(cols))</code></pre>
+
+      <h3>3. Pacific Atlantic Water Flow</h3>
+      <pre><code>  def pacific_atlantic(heights):
+      rows, cols = len(heights), len(heights[0])
+      pacific = set()   # reachable from Pacific
+      atlantic = set()  # reachable from Atlantic
+
+      def dfs(r, c, visited, prev_h):
+          if (r,c) in visited or r<0 or r>=rows or c<0 or c>=cols:
+              return
+          if heights[r][c] < prev_h: return  # water flows down, not up
+          visited.add((r,c))
+          for dr, dc in [(0,1),(0,-1),(1,0),(-1,0)]:
+              dfs(r+dr, c+dc, visited, heights[r][c])
+
+      # Flow from Pacific (top and left borders)
+      for r in range(rows): dfs(r, 0, pacific, 0)
+      for c in range(cols): dfs(0, c, pacific, 0)
+      # Flow from Atlantic (bottom and right borders)
+      for r in range(rows): dfs(r, cols-1, atlantic, 0)
+      for c in range(cols): dfs(rows-1, c, atlantic, 0)
+
+      return [[r,c] for r in range(rows) for c in range(cols)
+              if (r,c) in pacific and (r,c) in atlantic]</code></pre>
+
+      <h3>4. Rotting Oranges</h3>
+      <pre><code>  def oranges_rotting(grid):
+      rows, cols = len(grid), len(grid[0])
+      fresh = 0
+      queue = deque()
+      for r in range(rows):
+          for c in range(cols):
+              if grid[r][c] == 2: queue.append((r, c, 0))  # rotten + time
+              elif grid[r][c] == 1: fresh += 1
+
+      max_time = 0
+      while queue:
+          r, c, t = queue.popleft()
+          for dr, dc in [(0,1),(0,-1),(1,0),(-1,0)]:
+              nr, nc = r+dr, c+dc
+              if 0<=nr<rows and 0<=nc<cols and grid[nr][nc] == 1:
+                  grid[nr][nc] = 2
+                  fresh -= 1
+                  max_time = max(max_time, t+1)
+                  queue.append((nr, nc, t+1))
+      return max_time if fresh == 0 else -1</code></pre>
+
+      <h3>5. Word Ladder (Shortest Transformation)</h3>
+      <pre><code>  def ladder_length(beginWord, endWord, wordList):
+      word_set = set(wordList)
+      if endWord not in word_set: return 0
+      queue = deque([(beginWord, 1)])
+      visited = {beginWord}
+      while queue:
+          word, length = queue.popleft()
+          for i in range(len(word)):
+              for c in 'abcdefghijklmnopqrstuvwxyz':
+                  new_word = word[:i] + c + word[i+1:]
+                  if new_word == endWord: return length + 1
+                  if new_word in word_set and new_word not in visited:
+                      visited.add(new_word)
+                      queue.append((new_word, length + 1))
+      return 0
+  # BFS on implicit graph where nodes are words and edges connect
+  # words that differ by one letter. Classic BFS shortest path.</code></pre>
+
+      <h3>6. Surrounded Regions</h3>
+      <pre><code>  def solve(board):
+      rows, cols = len(board), len(board[0])
+      def dfs(r, c):
+          if r<0 or r>=rows or c<0 or c>=cols or board[r][c] != 'O': return
+          board[r][c] = 'S'  # safe
+          for dr, dc in [(0,1),(0,-1),(1,0),(-1,0)]:
+              dfs(r+dr, c+dc)
+
+      # Mark all 'O's connected to border as safe
+      for r in range(rows):
+          dfs(r, 0); dfs(r, cols-1)
+      for c in range(cols):
+          dfs(0, c); dfs(rows-1, c)
+
+      # Flip: 'O' → 'X', 'S' → 'O'
+      for r in range(rows):
+          for c in range(cols):
+              if board[r][c] == 'O': board[r][c] = 'X'
+              elif board[r][c] == 'S': board[r][c] = 'O'</code></pre>
+
+      <h3>7. Course Schedule (Cycle Detection)</h3>
+      <pre><code>  def can_finish(numCourses, prerequisites):
+      graph = defaultdict(list)
+      for course, pre in prerequisites:
+          graph[pre].append(course)
+      # 0=unvisited, 1=visiting, 2=visited
+      state = [0] * numCourses
+      def dfs(node):
+          if state[node] == 1: return False  # cycle
+          if state[node] == 2: return True   # already processed
+          state[node] = 1
+          for nb in graph[node]:
+              if not dfs(nb): return False
+          state[node] = 2
+          return True
+      return all(dfs(i) for i in range(numCourses))</code></pre>
+
+      <h3>8. Number of Connected Components in Undirected Graph</h3>
+      <pre><code>  def count_components(n, edges):
+      graph = defaultdict(list)
+      for u, v in edges:
+          graph[u].append(v); graph[v].append(u)
+      visited = set()
+      def dfs(node):
+          visited.add(node)
+          for nb in graph[node]:
+              if nb not in visited: dfs(nb)
+      count = 0
+      for node in range(n):
+          if node not in visited:
+              dfs(node); count += 1
+      return count</code></pre>
+
+      <h3>9. Find if Path Exists in Graph</h3>
+      <pre><code>  def valid_path(n, edges, source, destination):
+      if source == destination: return True
+      graph = defaultdict(list)
+      for u, v in edges:
+          graph[u].append(v); graph[v].append(u)
+      visited = {source}
+      queue = deque([source])
+      while queue:
+          node = queue.popleft()
+          for nb in graph[node]:
+              if nb == destination: return True
+              if nb not in visited:
+                  visited.add(nb); queue.append(nb)
+      return False</code></pre>
+
+      <h3>10–12. Other Classics</h3>
+      <pre><code>  10. Minimum Jumps to Reach End → BFS on index positions
+  11. Snakes and Ladders → BFS with board transformation
+  12. Open the Lock → BFS on string states (4-digit combination)</code></pre>
+
+      <h2>BFS vs DFS: When to Use Which</h2>
+
+      <pre><code>  Use BFS when:
+  ─────────────────────────────────────────────────────────────
+  - Shortest path in unweighted graph
+  - Level-order processing
+  - Finding closest node with some property
+  - Multi-source propagation (rotting oranges, walls and gates)
+
+  Use DFS when:
+  ─────────────────────────────────────────────────────────────
+  - Cycle detection
+  - Topological sort
+  - Finding all paths
+  - Checking connectivity (components, bipartite)
+  - Backtracking problems on a graph
+
+  Both work for:
+  ─────────────────────────────────────────────────────────────
+  - Connected components (either visits all nodes in component)
+  - Bipartite check
+  - Most "reachability" questions
+
+  Key graph complexity:
+  ─────────────────────────────────────────────────────────────
+  BFS/DFS traversal:   O(V + E) time, O(V) space
+  Adjacency list:      O(V + E) space
+  Adjacency matrix:    O(V^2) space
+  V = vertices, E = edges</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase4-advanced-graphs.html">Advanced Graphs &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

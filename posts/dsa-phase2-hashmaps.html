@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hash Maps &amp; Sets — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 22 min read</span>
+      </div>
+      <h1>Hash Maps &amp; Sets: O(1) and When It Lies to You</h1>
+      <p class="post-description">
+        Hash maps are the Swiss Army knife of interviews — they convert O(n^2) solutions to O(n)
+        in dozens of problems. Understand how they actually work: hash functions, collision handling,
+        load factor, and the cases where "O(1)" quietly becomes O(n).
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        The single most impactful technique for improving interview solutions is knowing when
+        to reach for a hash map. But "just use a hash map" is dangerous advice if you don't
+        understand what's happening underneath. This post covers both: the internals that make
+        you dangerous in system design rounds, and the patterns that make your coding solutions
+        optimal.
+      </p>
+
+      <h2>How Hash Maps Work</h2>
+
+      <pre><code>  Core components:
+  ─────────────────────────────────────────────────────────────
+  1. Hash function: converts key → integer index
+     hash("apple") → 42 (mod table_size) → bucket 42
+
+  2. Array of buckets: where key-value pairs are stored
+
+  3. Collision resolution: what happens when two keys
+     hash to the same bucket
+
+  The ideal hash function:
+  - Deterministic: same key → same hash always
+  - Uniform: distributes keys evenly across buckets
+  - Fast: O(1) to compute
+  - No collisions (impossible in practice, minimize them)
+
+  ─── Collision Resolution: Chaining ──────────────────────
+  Each bucket holds a linked list of entries.
+  On collision: append to the list.
+  Lookup: hash → bucket → scan list for key.
+
+  bucket[0]: []
+  bucket[1]: [(key1, val1) → (key2, val2)]  ← collision
+  bucket[2]: [(key3, val3)]
+  ...
+
+  Worst case: all keys hash to same bucket → O(n) per operation
+  (This is why birthday attack matters for security hash maps)
+
+  ─── Collision Resolution: Open Addressing ───────────────
+  No linked lists. On collision: probe next slot.
+  Linear probing: try bucket+1, bucket+2, ...
+  Quadratic probing: try bucket+1², bucket+2², ...
+  Double hashing: use second hash function for step size
+
+  Deletion is tricky: must use tombstone markers
+  Better cache performance (no pointer chasing)
+  Used in: Python dict (compact table with open addressing)</code></pre>
+
+      <h3>Load Factor and Resizing</h3>
+      <pre><code>  load_factor = n_entries / n_buckets
+
+  When load_factor > threshold (typically 0.75):
+  → Resize: create new table (2x size), rehash all entries
+  → Cost: O(n) for the resize operation
+  → But amortized over all inserts: O(1) per insert
+
+  Python dict: resizes at 2/3 load factor
+  Java HashMap: resizes at 0.75 load factor
+
+  Key insight: if you know n upfront, pre-size the map!
+  Java: new HashMap<>(n * 2)  ← avoids costly resizes
+  Python: no direct equivalent (just be aware of the cost)</code></pre>
+
+      <h2>Python dict vs defaultdict vs Counter vs OrderedDict</h2>
+
+      <pre><code>  # dict: standard hash map
+  d = {}
+  d['a'] = 1
+  d.get('b', 0)  # returns 0 if not found (no KeyError)
+  d.setdefault('c', []).append(1)  # get or create
+
+  # defaultdict: auto-creates default value on missing key
+  from collections import defaultdict
+  dd = defaultdict(int)    # default value: 0
+  dd['a'] += 1             # no KeyError
+  dd = defaultdict(list)   # default value: []
+  dd['group'].append(1)    # no KeyError
+
+  # Counter: frequency counting
+  from collections import Counter
+  c = Counter("hello")     # {'l': 2, 'h': 1, 'e': 1, 'o': 1}
+  c.most_common(2)         # [('l', 2), ('h', 1)]
+  c1 + c2                  # merge counts
+  c1 - c2                  # subtract counts (keep positive only)
+  c1 & c2                  # min of each count (intersection)
+  c1 | c2                  # max of each count (union)
+
+  # OrderedDict: remembers insertion order (Python 3.7+ dict also does)
+  from collections import OrderedDict
+  od = OrderedDict()
+  od.move_to_end('key')    # move to front or back
+  od.popitem(last=False)   # pop from front
+
+  # When to use which:
+  dict         → standard use, key existence checks, key-value storage
+  defaultdict  → when you're adding to values (lists, ints, sets)
+  Counter      → frequency analysis, anagram, majority element
+  OrderedDict  → LRU cache, maintaining insertion order operations</code></pre>
+
+      <h2>The Core Hash Map Patterns</h2>
+
+      <h3>Pattern 1: Two-Sum / Complement Lookup</h3>
+      <pre><code>  # "Is there an element in the array that pairs with current element?"
+  # Solution: store seen elements in a set/map as you go.
+
+  def two_sum(nums, target):
+      seen = {}  # value → index
+      for i, num in enumerate(nums):
+          complement = target - num
+          if complement in seen:
+              return [seen[complement], i]
+          seen[num] = i
+
+  # Generalization: any time you need "does X exist that satisfies
+  # some property with current element Y" → build lookup structure
+  # while iterating.</code></pre>
+
+      <h3>Pattern 2: Frequency Counting</h3>
+      <pre><code>  # Count occurrences, then use the counts.
+
+  # Most common element:
+  def majority_element(nums):
+      count = Counter(nums)
+      return max(count, key=count.get)
+  # O(n) time, O(n) space
+
+  # Boyer-Moore voting (O(1) space):
+  def majority_element_v2(nums):
+      candidate, count = None, 0
+      for num in nums:
+          if count == 0:
+              candidate = num
+          count += 1 if num == candidate else -1
+      return candidate
+  # Insight: majority element "survives" vote cancellation</code></pre>
+
+      <h3>Pattern 3: Grouping</h3>
+      <pre><code>  # Group elements by some property.
+
+  def group_anagrams(strs):
+      groups = defaultdict(list)
+      for s in strs:
+          key = tuple(sorted(s))  # canonical form of anagram
+          groups[key].append(s)
+      return list(groups.values())
+
+  # Same pattern: group by frequency signature, group by modulo, etc.
+  # Key insight: what makes two elements "equivalent"? That's your key.</code></pre>
+
+      <h3>Pattern 4: Sliding Window with Hash Map</h3>
+      <pre><code>  # When window validity depends on element frequencies.
+
+  def length_of_longest_substring(s):
+      last_seen = {}  # char → last index where we saw it
+      left = 0
+      max_len = 0
+      for right, char in enumerate(s):
+          if char in last_seen and last_seen[char] >= left:
+              left = last_seen[char] + 1  # shrink window past duplicate
+          last_seen[char] = right
+          max_len = max(max_len, right - left + 1)
+      return max_len
+  # O(n) time, O(alphabet size) space</code></pre>
+
+      <h3>Pattern 5: Prefix Sum with Hash Map</h3>
+      <pre><code>  # Count subarrays with specific property using prefix sums
+  # stored in a hash map.
+
+  def subarray_sum_equals_k(nums, k):
+      prefix_count = {0: 1}  # prefix_sum → how many times seen
+      prefix_sum = 0
+      count = 0
+      for num in nums:
+          prefix_sum += num
+          count += prefix_count.get(prefix_sum - k, 0)
+          prefix_count[prefix_sum] = prefix_count.get(prefix_sum, 0) + 1
+      return count
+
+  # The invariant: if prefix[j] - prefix[i] = k,
+  # then the subarray (i, j] has sum k.
+  # We look for prefix[j] - k in our map as we build it.</code></pre>
+
+      <h2>10 Must-Know Hash Map Problems</h2>
+
+      <h3>1. Contains Duplicate</h3>
+      <pre><code>  def contains_duplicate(nums):
+      return len(nums) != len(set(nums))
+  # O(n) time, O(n) space</code></pre>
+
+      <h3>2. Word Pattern</h3>
+      <pre><code>  def word_pattern(pattern, s):
+      words = s.split()
+      if len(pattern) != len(words): return False
+      # Need bijection: pattern char ↔ word
+      p2w = {}  # pattern char → word
+      w2p = {}  # word → pattern char
+      for p, w in zip(pattern, words):
+          if p in p2w and p2w[p] != w: return False
+          if w in w2p and w2p[w] != p: return False
+          p2w[p] = w
+          w2p[w] = p
+      return True
+  # O(n), uses two maps to enforce bijection (both directions)</code></pre>
+
+      <h3>3. Longest Consecutive Sequence</h3>
+      <pre><code>  def longest_consecutive(nums):
+      num_set = set(nums)
+      max_len = 0
+      for num in num_set:
+          if num - 1 not in num_set:  # start of a sequence
+              length = 1
+              while num + length in num_set:
+                  length += 1
+              max_len = max(max_len, length)
+      return max_len
+  # O(n) time — each number processed at most twice
+  # Key: only start counting from sequence start (no left neighbor)</code></pre>
+
+      <h3>4. Top K Frequent Elements</h3>
+      <pre><code>  def top_k_frequent(nums, k):
+      count = Counter(nums)
+      # Bucket sort by frequency: index = frequency
+      buckets = [[] for _ in range(len(nums) + 1)]
+      for num, freq in count.items():
+          buckets[freq].append(num)
+      result = []
+      for freq in range(len(buckets) - 1, -1, -1):
+          for num in buckets[freq]:
+              result.append(num)
+              if len(result) == k:
+                  return result
+  # O(n) time — frequency can be at most n, so buckets array is O(n)
+  # Avoids the O(n log k) heap solution for an O(n) one</code></pre>
+
+      <h3>5. Subarray Sum Equals K</h3>
+      <pre><code>  def subarray_sum(nums, k):
+      prefix_count = {0: 1}
+      prefix_sum = count = 0
+      for num in nums:
+          prefix_sum += num
+          count += prefix_count.get(prefix_sum - k, 0)
+          prefix_count[prefix_sum] = prefix_count.get(prefix_sum, 0) + 1
+      return count</code></pre>
+
+      <h3>6. Isomorphic Strings</h3>
+      <pre><code>  def is_isomorphic(s, t):
+      return (len(set(zip(s, t))) == len(set(s)) == len(set(t)))
+  # Elegant: zip creates pairs, set removes duplicates.
+  # If isomorphic, unique pairs = unique chars in s = unique chars in t.
+  # Longer form for clarity:
+  def is_isomorphic_v2(s, t):
+      s_to_t = {}
+      t_to_s = {}
+      for sc, tc in zip(s, t):
+          if s_to_t.get(sc, tc) != tc or t_to_s.get(tc, sc) != sc:
+              return False
+          s_to_t[sc] = tc
+          t_to_s[tc] = sc
+      return True</code></pre>
+
+      <h3>7. Find Duplicate in Array</h3>
+      <pre><code>  # O(1) space using Floyd's — treating array as linked list
+  def find_duplicate(nums):
+      # Phase 1: find meeting point
+      slow = fast = nums[0]
+      while True:
+          slow = nums[slow]
+          fast = nums[nums[fast]]
+          if slow == fast:
+              break
+      # Phase 2: find cycle entry
+      slow = nums[0]
+      while slow != fast:
+          slow = nums[slow]
+          fast = nums[fast]
+      return slow
+  # O(n) time, O(1) space — uses linked list cycle detection
+  # The value in each cell is the "next pointer"</code></pre>
+
+      <h3>8. Longest Substring Without Repeating Characters</h3>
+      <pre><code>  def length_of_longest_substring(s):
+      last_seen = {}
+      left = max_len = 0
+      for right, char in enumerate(s):
+          if char in last_seen and last_seen[char] >= left:
+              left = last_seen[char] + 1
+          last_seen[char] = right
+          max_len = max(max_len, right - left + 1)
+      return max_len</code></pre>
+
+      <h3>9. 4Sum Count (Count Tuples Summing to Zero)</h3>
+      <pre><code>  def four_sum_count(A, B, C, D):
+      ab_sums = Counter(a + b for a in A for b in B)
+      return sum(ab_sums.get(-(c + d), 0) for c in C for d in D)
+  # O(n^2) time, O(n^2) space
+  # Split into two halves: store sums of A+B, look up -(C+D)</code></pre>
+
+      <h3>10. Minimum Window Substring</h3>
+      <pre><code>  from collections import Counter
+  def min_window(s, t):
+      need = Counter(t)
+      missing = len(t)
+      start = best_start = 0
+      best_end = float('inf')
+
+      for end, c in enumerate(s, 1):
+          missing -= need[c] > 0
+          need[c] -= 1
+          if missing == 0:
+              while need[s[start]] < 0:
+                  need[s[start]] += 1
+                  start += 1
+              if end - start < best_end - best_start:
+                  best_start, best_end = start, end
+              need[s[start]] += 1
+              missing += 1
+              start += 1
+      return s[best_start:best_end] if best_end < float('inf') else ""</code></pre>
+
+      <h2>Hash Set: Membership Testing</h2>
+
+      <pre><code>  # Hash set = hash map where you only care about key presence
+  seen = set()
+  seen.add(x)          # O(1) amortized
+  x in seen            # O(1) amortized
+  seen.discard(x)      # O(1) amortized (no error if not present)
+  seen.remove(x)       # O(1) amortized (raises KeyError if absent)
+
+  # Set operations:
+  a | b     # union
+  a & b     # intersection
+  a - b     # difference (in a but not b)
+  a ^ b     # symmetric difference (in a or b but not both)
+  a <= b    # subset
+  a >= b    # superset
+
+  # Frozenset: immutable set, can be used as dict key
+  key = frozenset([1, 2, 3])
+  d[key] = "value"</code></pre>
+
+      <h2>Hash Map Pitfalls in Interviews</h2>
+
+      <pre><code>  Pitfall 1: Mutating while iterating
+  for k, v in d.items():  # Don't modify d inside this loop!
+      del d[k]            # RuntimeError in Python
+
+  Fix: iterate over a copy: for k in list(d.keys()):
+
+  Pitfall 2: Unhashable types as keys
+  d[[1,2,3]] = "value"    # TypeError: list is unhashable
+  d[tuple([1,2,3])] = "value"  # OK: tuples are hashable
+  d[frozenset({1,2})] = "value"  # OK
+
+  Pitfall 3: Assuming O(1) lookup on large keys
+  d["a" * 1000000] = 1    # Hash computation is O(key_size)
+  # For strings, hash is O(length). Usually fine, but be aware.
+
+  Pitfall 4: Integer keys in Python always hash correctly
+  d[1] and d[1.0] are THE SAME KEY (1 == 1.0 and hash(1) == hash(1.0))
+
+  Pitfall 5: The "hash collision DoS" risk
+  In security-sensitive code, don't use hash maps with user-controlled
+  keys without randomized hash seeds. Python uses PYTHONHASHSEED=random
+  since 3.3 to prevent this. Java has the same protection since 6u31.
+
+  Interview note: when asked "what's the worst case?",
+  always say: "O(1) amortized, O(n) worst case due to collisions,
+  though with good hash functions this is extremely rare."</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase2-trees.html">Trees &amp; Binary Search Trees &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

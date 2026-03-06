@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advanced Graphs — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 38 min read</span>
+      </div>
+      <h1>Advanced Graphs: Dijkstra, Union-Find, and Topological Sort</h1>
+      <p class="post-description">
+        The algorithms that differentiate senior candidates: Dijkstra for weighted shortest paths,
+        Union-Find for dynamic connectivity, topological sort for dependencies, and Kruskal's for
+        minimum spanning trees. Each has a beautiful core insight. Understand that, and the
+        implementation follows naturally.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        At senior interview levels (L5+ at Google/Meta, SDE2+ at Amazon), you're expected
+        to know these algorithms cold and recognize when to apply them. "What if the graph
+        has weights?" → Dijkstra. "Are these nodes connected?" → Union-Find. "What order
+        should I process these dependencies?" → Topological sort. Know the patterns.
+      </p>
+
+      <h2>Dijkstra's Algorithm: Shortest Path in Weighted Graphs</h2>
+
+      <pre><code>  Problem: Find shortest path from source to all vertices in a
+  weighted graph with non-negative edge weights.
+
+  Why BFS doesn't work: BFS finds shortest path by hop count.
+  In a weighted graph, fewer hops might mean longer distance.
+
+  Dijkstra's core idea:
+  - Maintain distances: dist[v] = shortest known distance to v
+  - Use a min-heap (priority queue) to always process the
+    closest unfinalized vertex next
+  - When we pop vertex v, its distance is finalized
+    (any other path to v would be longer)
+
+  import heapq
+  def dijkstra(graph, source):
+      # graph: {node: [(neighbor, weight), ...]}
+      dist = {node: float('inf') for node in graph}
+      dist[source] = 0
+      heap = [(0, source)]  # (distance, node)
+
+      while heap:
+          d, node = heapq.heappop(heap)
+          if d > dist[node]: continue  # outdated entry, skip
+          for neighbor, weight in graph[node]:
+              new_dist = dist[node] + weight
+              if new_dist < dist[neighbor]:
+                  dist[neighbor] = new_dist
+                  heapq.heappush(heap, (new_dist, neighbor))
+
+      return dist
+
+  Time: O((V + E) log V) — each edge triggers at most one heap push
+  Space: O(V + E) — graph + distance array + heap
+
+  The "outdated entry" check:
+  ─────────────────────────────────────────────────────────────
+  Python's heapq doesn't support decrease-key.
+  We push duplicate entries and skip stale ones.
+  When we pop (d, node) and d > dist[node], we found a stale entry.
+  This is called "lazy deletion" and is common in Python Dijkstra.
+
+  Dijkstra FAILS when:
+  ─────────────────────────────────────────────────────────────
+  - Negative edge weights (use Bellman-Ford instead)
+  - Negative cycles (path can be infinitely short)
+  - Exception: Dijkstra works with negative weights if you add
+    a constant to make all weights non-negative (Johnson's algorithm)</code></pre>
+
+      <h3>Network Delay Time</h3>
+      <pre><code>  def network_delay_time(times, n, k):
+      graph = defaultdict(list)
+      for u, v, w in times:
+          graph[u].append((v, w))
+
+      dist = {i: float('inf') for i in range(1, n+1)}
+      dist[k] = 0
+      heap = [(0, k)]
+
+      while heap:
+          d, node = heapq.heappop(heap)
+          if d > dist[node]: continue
+          for nb, w in graph[node]:
+              if dist[node] + w < dist[nb]:
+                  dist[nb] = dist[node] + w
+                  heapq.heappush(heap, (dist[nb], nb))
+
+      max_dist = max(dist.values())
+      return max_dist if max_dist < float('inf') else -1</code></pre>
+
+      <h3>Cheapest Flights Within K Stops</h3>
+      <pre><code>  # Variation: find shortest path using at most k edges.
+  # Bellman-Ford with k iterations (or Dijkstra with stops tracking):
+  def find_cheapest_price(n, flights, src, dst, k):
+      prices = [float('inf')] * n
+      prices[src] = 0
+      for _ in range(k+1):
+          temp = prices.copy()
+          for u, v, w in flights:
+              if prices[u] + w < temp[v]:
+                  temp[v] = prices[u] + w
+          prices = temp
+      return prices[dst] if prices[dst] < float('inf') else -1
+  # Bellman-Ford relaxes edges k+1 times (k stops = k+1 edges)
+  # O(k * E) time</code></pre>
+
+      <h3>Path With Minimum Effort</h3>
+      <pre><code>  # Dijkstra on grid: find path minimizing maximum height difference.
+  def minimum_effort_path(heights):
+      rows, cols = len(heights), len(heights[0])
+      dist = [[float('inf')] * cols for _ in range(rows)]
+      dist[0][0] = 0
+      heap = [(0, 0, 0)]  # (effort, row, col)
+      while heap:
+          effort, r, c = heapq.heappop(heap)
+          if r == rows-1 and c == cols-1: return effort
+          if effort > dist[r][c]: continue
+          for dr, dc in [(0,1),(0,-1),(1,0),(-1,0)]:
+              nr, nc = r+dr, c+dc
+              if 0<=nr<rows and 0<=nc<cols:
+                  new_effort = max(effort, abs(heights[nr][nc]-heights[r][c]))
+                  if new_effort < dist[nr][nc]:
+                      dist[nr][nc] = new_effort
+                      heapq.heappush(heap, (new_effort, nr, nc))</code></pre>
+
+      <h2>Bellman-Ford: Handles Negative Weights</h2>
+
+      <pre><code>  # Relaxes all edges V-1 times.
+  # If we can still relax after V-1 iterations: negative cycle exists.
+
+  def bellman_ford(V, edges, source):
+      # edges: [(u, v, weight), ...]
+      dist = [float('inf')] * V
+      dist[source] = 0
+
+      for _ in range(V - 1):
+          for u, v, w in edges:
+              if dist[u] + w < dist[v]:
+                  dist[v] = dist[u] + w
+
+      # Check for negative cycles
+      for u, v, w in edges:
+          if dist[u] + w < dist[v]:
+              return None  # negative cycle detected
+
+      return dist
+
+  Time: O(V * E)
+  Space: O(V)
+
+  When to use Bellman-Ford over Dijkstra:
+  - Negative edge weights
+  - Detecting negative cycles
+  - Simpler to implement in many contest settings</code></pre>
+
+      <h2>Union-Find (Disjoint Set Union)</h2>
+
+      <pre><code>  # Efficiently answers: "Are nodes A and B in the same component?"
+  # and "Merge component of A with component of B."
+
+  # Core operations:
+  # find(x): which component does x belong to?
+  # union(x, y): merge components of x and y
+
+  class UnionFind:
+      def __init__(self, n):
+          self.parent = list(range(n))  # parent[i] = i (self-loop = root)
+          self.rank = [0] * n           # for union by rank
+
+      def find(self, x):
+          # Path compression: make every node point directly to root
+          if self.parent[x] != x:
+              self.parent[x] = self.find(self.parent[x])
+          return self.parent[x]
+
+      def union(self, x, y):
+          rx, ry = self.find(x), self.find(y)
+          if rx == ry: return False  # already in same component
+          # Union by rank: attach smaller tree to larger
+          if self.rank[rx] < self.rank[ry]:
+              rx, ry = ry, rx
+          self.parent[ry] = rx
+          if self.rank[rx] == self.rank[ry]:
+              self.rank[rx] += 1
+          return True
+
+      def connected(self, x, y):
+          return self.find(x) == self.find(y)
+
+  Complexity with path compression + union by rank:
+  ─────────────────────────────────────────────────────────────
+  Nearly O(1) per operation — amortized O(α(n)) where α is the
+  inverse Ackermann function, effectively a constant ≤ 4 for
+  any practical input size.
+
+  When to use Union-Find vs DFS for connectivity:
+  ─────────────────────────────────────────────────────────────
+  Union-Find: edges added dynamically (online), just connectivity
+  DFS: graph fixed upfront, need more than just connectivity
+  (e.g., find the actual path, detect cycles in directed graph)</code></pre>
+
+      <h3>Number of Provinces (Connected Components with UF)</h3>
+      <pre><code>  def find_circle_num(isConnected):
+      n = len(isConnected)
+      uf = UnionFind(n)
+      for i in range(n):
+          for j in range(i+1, n):
+              if isConnected[i][j] == 1:
+                  uf.union(i, j)
+      return len(set(uf.find(i) for i in range(n)))</code></pre>
+
+      <h3>Redundant Connection (Find Cycle-Forming Edge)</h3>
+      <pre><code>  def find_redundant_connection(edges):
+      uf = UnionFind(len(edges) + 1)
+      for u, v in edges:
+          if not uf.union(u, v):  # already connected = redundant
+              return [u, v]</code></pre>
+
+      <h3>Accounts Merge</h3>
+      <pre><code>  def accounts_merge(accounts):
+      email_to_id = {}
+      email_to_name = {}
+      uf = UnionFind(len(accounts) * 10)  # generous size
+      id_gen = 0
+      for account in accounts:
+          name = account[0]
+          first_email = None
+          for email in account[1:]:
+              if email not in email_to_id:
+                  email_to_id[email] = id_gen
+                  email_to_name[email] = name
+                  id_gen += 1
+              if first_email is None:
+                  first_email = email
+              uf.union(email_to_id[first_email], email_to_id[email])
+
+      from collections import defaultdict
+      groups = defaultdict(list)
+      for email, eid in email_to_id.items():
+          groups[uf.find(eid)].append(email)
+
+      return [[email_to_name[emails[0]]] + sorted(emails)
+              for emails in groups.values()]</code></pre>
+
+      <h2>Topological Sort</h2>
+
+      <pre><code>  # Topological sort: linear ordering of vertices such that
+  # for every directed edge u → v, u comes before v.
+  # Only possible in DAGs (Directed Acyclic Graphs).
+
+  Applications: course scheduling, task dependencies, build systems,
+  compilation order, spreadsheet cell evaluation.
+
+  ─── Kahn's Algorithm (BFS-based) ────────────────────────
+  from collections import deque
+  def topological_sort_kahn(n, prerequisites):
+      graph = defaultdict(list)
+      indegree = [0] * n
+      for course, pre in prerequisites:
+          graph[pre].append(course)
+          indegree[course] += 1
+
+      queue = deque(node for node in range(n) if indegree[node] == 0)
+      order = []
+
+      while queue:
+          node = queue.popleft()
+          order.append(node)
+          for nb in graph[node]:
+              indegree[nb] -= 1
+              if indegree[nb] == 0:
+                  queue.append(nb)
+
+      return order if len(order) == n else []  # [] means cycle exists
+  # Time: O(V + E), Space: O(V + E)
+
+  ─── DFS-based Topological Sort ──────────────────────────
+  def topological_sort_dfs(n, edges):
+      graph = defaultdict(list)
+      for u, v in edges:
+          graph[u].append(v)
+      visited = [0] * n
+      result = []
+      def dfs(node):
+          if visited[node] == 1: return False  # cycle
+          if visited[node] == 2: return True
+          visited[node] = 1
+          for nb in graph[node]:
+              if not dfs(nb): return False
+          visited[node] = 2
+          result.append(node)
+          return True
+      if not all(dfs(i) for i in range(n) if visited[i] == 0):
+          return []
+      return result[::-1]  # reverse postorder = topological order</code></pre>
+
+      <h3>Course Schedule II</h3>
+      <pre><code>  def find_order(numCourses, prerequisites):
+      graph = defaultdict(list)
+      indegree = [0] * numCourses
+      for course, pre in prerequisites:
+          graph[pre].append(course)
+          indegree[course] += 1
+      queue = deque(i for i in range(numCourses) if indegree[i] == 0)
+      order = []
+      while queue:
+          node = queue.popleft()
+          order.append(node)
+          for nb in graph[node]:
+              indegree[nb] -= 1
+              if indegree[nb] == 0:
+                  queue.append(nb)
+      return order if len(order) == numCourses else []</code></pre>
+
+      <h3>Alien Dictionary (Topo Sort from Character Ordering)</h3>
+      <pre><code>  def alien_order(words):
+      # Build graph from character precedence
+      graph = {c: set() for word in words for c in word}
+      for i in range(len(words)-1):
+          w1, w2 = words[i], words[i+1]
+          min_len = min(len(w1), len(w2))
+          if len(w1) > len(w2) and w1[:min_len] == w2[:min_len]:
+              return ""  # invalid: w1 is prefix of shorter w2
+          for j in range(min_len):
+              if w1[j] != w2[j]:
+                  graph[w1[j]].add(w2[j])
+                  break
+
+      # DFS topological sort
+      WHITE, GRAY, BLACK = 0, 1, 2
+      color = {c: WHITE for c in graph}
+      result = []
+      def dfs(c):
+          if color[c] == GRAY: return False  # cycle
+          if color[c] == BLACK: return True
+          color[c] = GRAY
+          for nb in graph[c]:
+              if not dfs(nb): return False
+          color[c] = BLACK
+          result.append(c)
+          return True
+      if not all(dfs(c) for c in graph if color[c] == WHITE):
+          return ""
+      return "".join(reversed(result))</code></pre>
+
+      <h2>Minimum Spanning Tree (MST)</h2>
+
+      <pre><code>  # MST: subset of edges connecting all vertices with minimum total weight.
+  # Applications: network design, clustering, Prim's for Dijkstra-like trees.
+
+  ─── Kruskal's Algorithm (Union-Find based) ───────────────
+  def kruskal(n, edges):
+      # edges: [(weight, u, v)]
+      edges.sort()  # sort by weight
+      uf = UnionFind(n)
+      mst_cost = 0
+      mst_edges = []
+      for w, u, v in edges:
+          if uf.union(u, v):       # don't add edge that forms cycle
+              mst_cost += w
+              mst_edges.append((u, v, w))
+              if len(mst_edges) == n-1: break  # MST is complete
+      return mst_cost, mst_edges
+  # Time: O(E log E) for sorting + O(E α(V)) for UF = O(E log E)
+
+  ─── Prim's Algorithm (Greedy, heap-based) ────────────────
+  def prim(n, edges):
+      graph = defaultdict(list)
+      for u, v, w in edges:
+          graph[u].append((w, v))
+          graph[v].append((w, u))
+
+      visited = set()
+      heap = [(0, 0)]  # (weight, node), start at node 0
+      total = 0
+      while heap and len(visited) < n:
+          w, node = heapq.heappop(heap)
+          if node in visited: continue
+          visited.add(node)
+          total += w
+          for edge_w, nb in graph[node]:
+              if nb not in visited:
+                  heapq.heappush(heap, (edge_w, nb))
+      return total if len(visited) == n else -1
+  # Time: O(E log V)</code></pre>
+
+      <h3>Min Cost to Connect All Points</h3>
+      <pre><code>  def min_cost_connect_points(points):
+      # All points form a complete graph with Manhattan distance weights.
+      # Find MST using Prim's.
+      n = len(points)
+      in_mst = [False] * n
+      min_cost = [float('inf')] * n
+      min_cost[0] = 0
+      total = 0
+      for _ in range(n):
+          # Pick vertex with minimum cost not yet in MST
+          u = min((i for i in range(n) if not in_mst[i]), key=lambda x: min_cost[x])
+          in_mst[u] = True
+          total += min_cost[u]
+          # Update costs for neighbors
+          for v in range(n):
+              if not in_mst[v]:
+                  dist = abs(points[u][0]-points[v][0]) + abs(points[u][1]-points[v][1])
+                  min_cost[v] = min(min_cost[v], dist)
+      return total
+  # O(n^2) — acceptable for complete graph where E = O(n^2)</code></pre>
+
+      <h2>Floyd-Warshall: All-Pairs Shortest Path</h2>
+
+      <pre><code>  # Find shortest path between ALL pairs of vertices.
+  # Works with negative weights (but not negative cycles).
+
+  def floyd_warshall(n, graph):
+      # graph[i][j] = weight of edge i→j, inf if no edge
+      dist = [row[:] for row in graph]
+
+      for k in range(n):           # intermediate vertex
+          for i in range(n):       # source
+              for j in range(n):   # destination
+                  if dist[i][k] + dist[k][j] < dist[i][j]:
+                      dist[i][j] = dist[i][k] + dist[k][j]
+
+      # Negative cycle: if dist[i][i] < 0 for any i
+      return dist
+
+  Time: O(V^3)
+  Space: O(V^2)
+
+  Use when: need all-pairs shortest paths, V is small (≤ 500)
+  Don't use when: V is large, only need single-source → Dijkstra</code></pre>
+
+      <h2>Algorithm Selection Guide</h2>
+
+      <pre><code>  Problem → Algorithm:
+  ─────────────────────────────────────────────────────────────
+  Shortest path, unweighted graph        → BFS
+  Shortest path, weighted, no neg edges  → Dijkstra O((V+E)logV)
+  Shortest path, weighted, negative ok   → Bellman-Ford O(VE)
+  All-pairs shortest path                → Floyd-Warshall O(V^3)
+  Minimum spanning tree                  → Kruskal's or Prim's O(E logE)
+  Dynamic connectivity                   → Union-Find O(α(n))
+  Dependency ordering                    → Topological Sort O(V+E)
+  Cycle in undirected graph              → UF or DFS
+  Cycle in directed graph                → DFS (3-color)
+  SCC (Strongly Connected Components)    → Tarjan's / Kosaraju's
+
+  Complexity comparison for shortest path:
+  ─────────────────────────────────────────────────────────────
+  BFS:           O(V + E)        Unweighted only
+  Dijkstra:      O((V+E) log V)  Non-negative weights
+  Bellman-Ford:  O(V * E)        Any weights, detects neg cycles
+  Floyd-Warshall: O(V^3)         All-pairs, small V</code></pre>
+
+      <p>
+        Next up: <a href="dsa-phase5-interview-prep.html">FAANG Interview Playbook &rarr;</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

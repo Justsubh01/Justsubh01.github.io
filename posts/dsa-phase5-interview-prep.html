@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAANG Interview Playbook — DSA Series — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="dsa-mastery-hub.html" class="back-link">&larr; back to DSA series</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">dsa</span>
+        <span class="read-time">&middot; 45 min read</span>
+      </div>
+      <h1>FAANG Interview Playbook: Patterns, Mindset, and the 8-Week Plan</h1>
+      <p class="post-description">
+        This is the meta-guide. The 14 patterns that cover 90% of problems. The 5-step
+        problem-solving framework. Company-specific tendencies. Behavioral questions with STAR.
+        An 8-week study plan from zero to offer-ready. And 30+ Q&amp;As on everything from
+        arrays to graphs.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        You've learned the data structures. You've learned the algorithms. Now the question
+        is: when you're sitting in an interview with 45 minutes and a blank screen, how do
+        you put it all together? This post is about the meta-skill: problem-solving under
+        pressure, pattern recognition, and interviewer communication.
+      </p>
+
+      <h2>The 5-Step Interview Framework</h2>
+
+      <pre><code>  Step 1: Understand the Problem (2-3 minutes)
+  ─────────────────────────────────────────────────────────────
+  - Restate the problem in your own words
+  - Ask about input format and constraints
+  - Confirm edge cases: empty input? single element? negative numbers?
+  - Ask about expected complexity (sometimes they tell you the target)
+
+  Questions to always ask:
+    "What is the range of input values?"
+    "Can there be duplicates?"
+    "Is the array sorted or can I sort it?"
+    "Should I return the first/any/all solutions?"
+    "What should I return if no solution exists?"
+
+  Step 2: Work Through Examples (2-3 minutes)
+  ─────────────────────────────────────────────────────────────
+  - Draw the example from the problem
+  - Trace through at least ONE example manually BEFORE coding
+  - Create your own edge case: empty, single element, all same
+  - This often reveals the algorithm
+
+  Step 3: Identify the Pattern (1-2 minutes)
+  ─────────────────────────────────────────────────────────────
+  Ask yourself:
+  - Is the data sorted? → binary search, two pointers
+  - Do I need a contiguous subarray? → sliding window
+  - Do I need to track min/max? → heap
+  - Do I need grouping? → hash map
+  - Is it a tree? → DFS/BFS
+  - Is it a graph? → BFS (shortest path) or DFS (all paths)
+  - Is it asking "how many ways"? → DP
+  - Is it asking for all combinations? → backtracking
+
+  Step 4: Code the Solution (15-20 minutes)
+  ─────────────────────────────────────────────────────────────
+  - Start with the brute force if you're stuck
+  - Talk through your approach before coding
+  - Write clean, readable code (interviewers read it)
+  - Handle edge cases as you code, not at the end
+  - Name variables clearly (left/right > l/r; found > f)
+
+  Step 5: Test and Optimize (5-7 minutes)
+  ─────────────────────────────────────────────────────────────
+  - Trace through your example manually with your code
+  - Test edge cases: empty, single, all same
+  - State time and space complexity unprompted
+  - Suggest optimization if current solution is suboptimal
+  - Don't fix bugs silently: say what you're doing</code></pre>
+
+      <h2>The 14 Patterns: The Complete Reference</h2>
+
+      <pre><code>  Pattern 1: Sliding Window
+  ─────────────────────────────────────────────────────────
+  Trigger: "subarray/substring with property"
+  Use: O(n) instead of O(n^2) for contiguous subarray problems
+  Fixed window: sum/max of k consecutive elements
+  Variable window: longest substring without repeats
+  Key problems: Min Window Substring, Longest Substring K Distinct,
+                Find All Anagrams, Max Sum Subarray of Size K
+
+  Pattern 2: Two Pointers (Converging)
+  ─────────────────────────────────────────────────────────
+  Trigger: sorted array, find pair with property
+  Use: O(n) instead of O(n^2) nested loops
+  Key problems: Two Sum II, 3Sum, Container With Most Water,
+                Sort Colors, Trapping Rain Water
+
+  Pattern 3: Fast & Slow Pointers
+  ─────────────────────────────────────────────────────────
+  Trigger: linked list cycle, find middle, circular array
+  Use: O(1) space cycle detection
+  Key problems: Linked List Cycle, Find Cycle Start,
+                Happy Number, Palindrome Linked List
+
+  Pattern 4: Merge Intervals
+  ─────────────────────────────────────────────────────────
+  Trigger: "overlapping intervals", "merge", "insert interval"
+  Use: Sort by start, greedily merge overlapping pairs
+  Key problems: Merge Intervals, Insert Interval, Meeting Rooms,
+                Employee Free Time
+
+  Pattern 5: Cyclic Sort
+  ─────────────────────────────────────────────────────────
+  Trigger: array of numbers 1 to n, find missing/duplicate
+  Use: Place each number at its correct index, O(n) time O(1) space
+  Key problems: Find Missing Number, Find All Duplicates,
+                Find Duplicate Number, Set Mismatch
+
+  Pattern 6: Linked List Reversal
+  ─────────────────────────────────────────────────────────
+  Trigger: reverse a linked list or sublist
+  Use: Three-pointer in-place reversal
+  Key problems: Reverse Linked List, Reverse Between, Rotate List,
+                Reverse K-Group, Palindrome Linked List
+
+  Pattern 7: Binary Search
+  ─────────────────────────────────────────────────────────
+  Trigger: sorted array search, "minimize maximum", "find smallest k"
+  Use: O(log n) by halving search space each step
+  Key problems: Search Rotated Array, Koko Eating Bananas,
+                Split Array Largest Sum, Median of Two Sorted Arrays
+
+  Pattern 8: Tree BFS (Level Order)
+  ─────────────────────────────────────────────────────────
+  Trigger: "level by level", "minimum depth", "right side view"
+  Use: Queue-based BFS, process one level at a time
+  Key problems: Level Order, Zigzag, Right Side View,
+                Average of Levels, Minimum Depth
+
+  Pattern 9: Tree DFS
+  ─────────────────────────────────────────────────────────
+  Trigger: any tree traversal, path problems, subtree queries
+  Use: Recursive DFS returning value from subtrees
+  Key problems: Max Path Sum, Diameter, LCA, Path Sum,
+                Validate BST, Serialize/Deserialize
+
+  Pattern 10: Trie
+  ─────────────────────────────────────────────────────────
+  Trigger: prefix matching, word dictionary, autocomplete
+  Use: O(L) insert/search where L = word length
+  Key problems: Implement Trie, Word Search II, Design Search Autocomplete,
+                Replace Words, Map Sum Pairs
+
+  Pattern 11: Dynamic Programming
+  ─────────────────────────────────────────────────────────
+  Trigger: "number of ways", "minimum cost", "can you achieve"
+  Use: Overlapping subproblems + optimal substructure
+  Key problems: Coin Change, LCS, LIS, House Robber, Knapsack,
+                Edit Distance, Word Break, Burst Balloons
+
+  Pattern 12: Topological Sort
+  ─────────────────────────────────────────────────────────
+  Trigger: dependencies, prerequisites, ordering tasks
+  Use: Kahn's (BFS with indegree) or DFS postorder
+  Key problems: Course Schedule I/II, Alien Dictionary,
+                Task Scheduler, Minimum Height Trees
+
+  Pattern 13: Backtracking
+  ─────────────────────────────────────────────────────────
+  Trigger: "all combinations", "generate all", "find all paths"
+  Use: Make choice → recurse → undo choice
+  Key problems: Subsets, Permutations, Combinations,
+                N-Queens, Sudoku Solver, Word Search
+
+  Pattern 14: Union-Find
+  ─────────────────────────────────────────────────────────
+  Trigger: "dynamic connectivity", "are A and B connected",
+           "number of groups/components"
+  Use: Near O(1) find/union with path compression + rank
+  Key problems: Number of Provinces, Redundant Connection,
+                Accounts Merge, Min Cost to Connect Points</code></pre>
+
+      <h2>Pattern Recognition Cheat Sheet</h2>
+
+      <pre><code>  Problem contains:         → Think:
+  ─────────────────────────────────────────────────────────────
+  "pair that sums to X"    → Two Pointers / Hash Map
+  "subarray with sum = K"  → Prefix Sum + Hash Map
+  "all subsets of size k"  → Backtracking
+  "minimum window"         → Sliding Window (variable)
+  "next greater element"   → Monotonic Stack
+  "k-th largest/smallest"  → Heap (size k)
+  "top-k frequent"         → Hash Map + Heap or Bucket Sort
+  "can we form sequence"   → Greedy + Sorting
+  "how many paths/ways"    → DP (often 2D)
+  "maximum subarray"       → Kadane's / DP
+  "merge k sorted"         → Min-Heap K-way merge
+  "transform in min steps" → BFS (shortest path on states)
+  "detect cycle"           → DFS (3-color) / Fast-Slow Pointer
+  "level order"            → BFS with level snapshot
+  "serialize tree"         → Preorder DFS
+  "match pattern"          → Backtracking / Trie
+  "count distinct"         → Hash Set
+  "shortest path weighted" → Dijkstra
+  "order dependencies"     → Topological Sort
+  "find connected groups"  → Union-Find / DFS
+  "interval overlap"       → Sort + Greedy Merge
+  "all permutations"       → Backtracking
+  "divide into groups"     → DP / Greedy
+  "maximize minimum"       → Binary Search on Answer
+  "minimize maximum"       → Binary Search on Answer</code></pre>
+
+      <h2>30+ Interview Q&amp;As</h2>
+
+      <h3>Arrays and Strings</h3>
+      <pre><code>  Q: What is the time complexity of accessing an element by index in an array?
+  A: O(1). Arrays are contiguous in memory, so index lookup is a
+     single pointer arithmetic operation: base_ptr + i * element_size.
+
+  Q: Why is appending to a Python list O(1) amortized, not O(n)?
+  A: Python list doubles capacity when full. Individual appends cost O(1)
+     until resize, then O(n) to copy. Amortized over n appends:
+     total copies = 1+2+4+...+n = O(n), so O(1) per append.
+
+  Q: What's the danger of string concatenation in a loop?
+  A: In Python and Java, strings are immutable. s += char creates a new
+     string O(len(s)) each time → O(n^2) total. Use "".join(parts) instead.
+
+  Q: What is a prefix sum and when do you use it?
+  A: prefix[i] = sum(arr[0..i]). After O(n) build, any range sum
+     [l,r] = prefix[r] - prefix[l-1] in O(1). Use it for:
+     range sum queries, subarray sum counting, running averages.</code></pre>
+
+      <h3>Hash Maps</h3>
+      <pre><code>  Q: What is the worst-case complexity of a hash map operation?
+  A: O(n) if all keys hash to the same bucket (hash collision attack).
+     Amortized O(1) with a good hash function and load factor management.
+
+  Q: How does a hash map handle resizing?
+  A: When load factor > threshold (usually 0.75), creates a new array
+     2x the size and rehashes all elements. O(n) per resize,
+     O(1) amortized per insertion.
+
+  Q: When should you use a hash map vs a sorted map (BST)?
+  A: Hash map: O(1) average for exact lookup, no ordering needed.
+     Sorted map (Python sortedcontainers, Java TreeMap): O(log n) but
+     supports range queries, predecessor/successor, ordered iteration.
+     Use sorted map when you need "find all keys in range [a, b]".</code></pre>
+
+      <h3>Trees</h3>
+      <pre><code>  Q: What is the inorder traversal of a BST? Why is it significant?
+  A: Inorder (left→root→right) of a BST produces elements in sorted order.
+     This is the basis for BST validation and kth smallest finding.
+
+  Q: What is the height of a balanced binary tree with n nodes?
+  A: O(log n). A perfectly balanced tree of height h has 2^(h+1)-1 nodes.
+
+  Q: What is the difference between tree height and depth?
+  A: Height: distance from a node to its deepest descendant.
+     Depth: distance from root to a node.
+     Root has depth=0, height=tree height.
+
+  Q: What is LCA? How do you find it efficiently?
+  A: Lowest Common Ancestor of nodes p and q: the deepest node that is
+     an ancestor of both. DFS approach: return node if it's p or q,
+     else return left or right result; if both non-null, return root.
+     O(n) time. For BSTs: use BST property for O(h) time.</code></pre>
+
+      <h3>Dynamic Programming</h3>
+      <pre><code>  Q: What are the two conditions for a problem to be solvable with DP?
+  A: 1. Optimal substructure: optimal solution built from optimal subproblems.
+     2. Overlapping subproblems: same subproblems computed multiple times.
+     Without (2), divide and conquer is sufficient (merge sort, binary search).
+
+  Q: When should you use top-down vs bottom-up DP?
+  A: Top-down (memoization): natural to write, only computes needed states,
+     easier when not all states are reachable. Risk: stack overflow for deep recursion.
+     Bottom-up (tabulation): no stack overflow, often faster (no function call overhead),
+     easier to space-optimize with rolling array. Use bottom-up for production.
+
+  Q: What is the 0/1 knapsack pattern and how does it differ from unbounded?
+  A: 0/1: each item used at most once. Iterate items outer, weights inner (backwards).
+     Unbounded: items can be reused. Iterate weights forward (or items outer, weights inner forward).
+     Backwards iteration in 0/1 prevents double-counting the same item.</code></pre>
+
+      <h3>Graphs</h3>
+      <pre><code>  Q: What is the difference between BFS and DFS for finding paths?
+  A: BFS finds the shortest path (fewest hops) in unweighted graphs.
+     DFS finds a path (not necessarily shortest) using O(V) space.
+     For weighted graphs, use Dijkstra (not BFS).
+
+  Q: When does Dijkstra fail?
+  A: Negative edge weights. Dijkstra assumes that once a vertex is popped
+     from the heap, its distance is finalized (can't decrease). Negative
+     edges break this assumption. Use Bellman-Ford instead.
+
+  Q: What is the time complexity of Kruskal's MST?
+  A: O(E log E) for sorting edges + O(E α(V)) for Union-Find operations.
+     Overall: O(E log E). With E ≤ V^2, this is O(E log V).
+
+  Q: What is topological sort and when does it not exist?
+  A: Linear ordering of vertices so all edges point forward.
+     Does not exist for graphs with cycles (only for DAGs).
+     Kahn's algorithm: if output has fewer than V nodes, a cycle exists.
+
+  Q: What is the difference between Union-Find and DFS for connectivity?
+  A: Union-Find: O(α(n)) per operation, supports dynamic edge addition.
+     DFS: O(V+E) for the whole graph, better when you need more info
+     (actual path, cycle detection in directed graphs, etc.).</code></pre>
+
+      <h2>Company-Specific Tendencies</h2>
+
+      <pre><code>  Google:
+  ─────────────────────────────────────────────────────────────
+  - Loves: graphs, trees, system design, optimization problems
+  - Often asks: "can you do it in O(n log n) / O(n)?"
+  - Coding interviews: 2 technical problems in 45 min on docs
+  - Watch out: they love problems that look like DP but have greedy solutions
+  - Behavioral: STAR format, emphasize scale and impact
+
+  Meta (Facebook):
+  ─────────────────────────────────────────────────────────────
+  - Loves: arrays/strings, tree problems, system design
+  - Often asks: "solve it for social network scale"
+  - Coding: clean code matters as much as correctness
+  - Two coding rounds with the same interviewer pair
+  - Behavioral: focus on "moving fast", "impact at scale"
+
+  Amazon:
+  ─────────────────────────────────────────────────────────────
+  - Loves: OOP design, system design, leadership principles
+  - Often asks: behavioral questions tied to LP (Leadership Principles)
+  - Coding: expects you to ask about constraints and handle edge cases
+  - 14 leadership principles — know them, have stories for each
+  - Technical bar is lower than Google/Meta but LP bar is very high
+
+  Apple:
+  ─────────────────────────────────────────────────────────────
+  - Loves: fundamentals, real-world scenarios, problem framing
+  - Interview process longer and more holistic
+  - Domain knowledge matters more than at Google/Meta
+  - Coding: expects production-quality code, not just working code
+  - Culture: "do fewer things better" reflected in interviews
+
+  Microsoft:
+  ─────────────────────────────────────────────────────────────
+  - Loves: clarity, communication, incremental problem solving
+  - Growth mindset over perfection
+  - Often gives hints, wants to see how you respond to feedback
+  - System design with Azure context for senior roles</code></pre>
+
+      <h2>The Behavioral Interview: STAR Format</h2>
+
+      <pre><code>  STAR = Situation, Task, Action, Result
+
+  Structure every behavioral answer as:
+  1. Situation: context, what was happening (1-2 sentences)
+  2. Task: what you were responsible for (1 sentence)
+  3. Action: what YOU specifically did (3-4 sentences, most important)
+  4. Result: measurable outcome (1-2 sentences)
+
+  Common questions and angle to take:
+  ─────────────────────────────────────────────────────────────
+  "Tell me about a time you disagreed with your manager"
+  Angle: Show you pushed back respectfully with data, listened,
+  and either convinced them or updated your view. Show intellectual honesty.
+
+  "Tell me about the hardest technical problem you solved"
+  Angle: Deep dive into architecture, trade-offs, iterations.
+  Show systematic thinking. Quantify impact.
+
+  "Tell me about a time you failed"
+  Angle: Genuine failure (not a humblebrag). What you learned.
+  How you applied that learning. Show self-awareness.
+
+  "Tell me about a time you influenced without authority"
+  Angle: Built alignment through data/demos/prototypes.
+  Brought skeptics around. Collaborative, not political.
+
+  "Tell me about a conflict with a teammate"
+  Angle: Addressed it directly, sought to understand their view,
+  found common ground. No blame, show empathy.
+
+  Red flags to avoid:
+  ─────────────────────────────────────────────────────────────
+  - Stories where you're the only hero and teammates are obstacles
+  - "I" when you should say "we" (and vice versa)
+  - Vague outcomes ("it went really well")
+  - Dodging the failure question ("I can't think of a failure")</code></pre>
+
+      <h2>The 8-Week Study Plan</h2>
+
+      <pre><code>  Week 1: Foundations
+  ─────────────────────────────────────────────────────────────
+  Days 1-2: Complexity analysis (post 1.1). Solve 10 easy array problems.
+  Days 3-4: Arrays & strings (post 1.2). Solve 10 more.
+  Days 5-6: Hash maps & sets (post 2.3). Solve 8 hash map problems.
+  Day 7:    Review, redo wrong problems without looking at solutions.
+  Target: 30-40 problems solved.
+
+  Week 2: Core Data Structures
+  ─────────────────────────────────────────────────────────────
+  Days 1-2: Linked lists (post 2.1). Solve 8 linked list problems.
+  Days 3-4: Stacks & queues (post 2.2). Focus on monotonic stack.
+  Days 5-6: Trees (post 2.4). Solve 10 tree problems.
+  Day 7:    Review, focus on problems you couldn't solve.
+  Target: 25-30 more problems.
+
+  Week 3: More Data Structures + Two Pointers
+  ─────────────────────────────────────────────────────────────
+  Days 1-2: Heaps (post 2.5). Top-K pattern problems.
+  Days 3-5: Two pointers & sliding window (post 3.1).
+  Days 6-7: Binary search (post 3.2). Answer-space binary search.
+  Target: 25-30 more problems.
+
+  Week 4: Recursion, Backtracking, and Review
+  ─────────────────────────────────────────────────────────────
+  Days 1-3: Recursion & backtracking (post 3.3).
+  Days 4-5: Review weeks 1-3. Redo problems wrong first time.
+  Days 6-7: Mock interviews (timed, no hints).
+  Target: 20-25 more problems.
+
+  Week 5: Dynamic Programming
+  ─────────────────────────────────────────────────────────────
+  Days 1-2: 1D DP. Fibonacci, climbing stairs, house robber, coin change.
+  Days 3-4: 2D DP. LCS, edit distance, unique paths.
+  Days 5-6: Knapsack variants. Subset sum, unbounded, bounded.
+  Day 7:    DP on intervals and sequences.
+  Target: 25-30 DP problems.
+
+  Week 6: Graphs
+  ─────────────────────────────────────────────────────────────
+  Days 1-2: Basic BFS/DFS. Islands, components, bipartite.
+  Days 3-4: Topological sort. Course schedule, alien dictionary.
+  Days 5-6: Dijkstra and Union-Find.
+  Day 7:    Advanced: Bellman-Ford, Floyd-Warshall, MST.
+  Target: 20-25 graph problems.
+
+  Week 7: Mock Interviews + Weak Areas
+  ─────────────────────────────────────────────────────────────
+  Days 1-2: Identify your 3 weakest topics. Deep practice there.
+  Days 3-5: Daily mock interviews (45 min, timed, on blank editor).
+  Days 6-7: System design basics. Behavioral stories.
+  Target: 10-15 problems + 4-6 mock sessions.
+
+  Week 8: Final Prep
+  ─────────────────────────────────────────────────────────────
+  Days 1-2: Review all patterns. Read through this playbook.
+  Days 3-5: Company-specific questions. Glassdoor, Blind, Leetcode.
+  Days 6-7: Rest, confidence building. Trust the work.
+
+  Total: ~150-200 problems over 8 weeks.
+  Quality > quantity: redo wrong problems, understand patterns.
+  Don't skip mocks: real-time simulation is irreplaceable.
+
+  Recommended Leetcode list by pattern:
+  ─────────────────────────────────────────────────────────────
+  Sliding Window:   3, 76, 209, 239, 424, 567
+  Two Pointers:     11, 15, 42, 167, 283, 977
+  Binary Search:    33, 34, 153, 162, 410, 875
+  Linked List:      19, 21, 141, 143, 146, 206
+  Stack/Queue:      20, 84, 155, 232, 739, 150
+  Trees:            98, 100, 102, 104, 105, 124, 297
+  Heaps:            23, 215, 295, 347, 973
+  Backtracking:     17, 39, 46, 51, 78, 79
+  DP 1D:            70, 91, 139, 198, 300, 322
+  DP 2D:            62, 72, 1143, 221, 309
+  Graphs:           130, 200, 207, 323, 399, 417
+  Advanced Graphs:  743, 787, 778, 684, 1584</code></pre>
+
+      <h2>Interview Day Checklist</h2>
+
+      <pre><code>  Before the interview:
+  ─────────────────────────────────────────────────────────────
+  ✓ Get 8 hours of sleep. Cognitive performance drops massively on 6.
+  ✓ Eat a meal 1-2 hours before. Hungry brain is slow brain.
+  ✓ Test your setup: camera, microphone, internet, IDE/whiteboard.
+  ✓ Have water within reach. Dry mouth affects speaking clarity.
+  ✓ Know the format: how many rounds? What type? (Leetcode? System design?)
+  ✓ Have 3 behavioral stories ready (failure, conflict, success).
+
+  During the interview:
+  ─────────────────────────────────────────────────────────────
+  ✓ Read the problem FULLY before saying anything.
+  ✓ Ask clarifying questions. Silence while thinking is fine (5-10 sec max).
+  ✓ State the brute force first, then say "I can do better."
+  ✓ Talk through your approach before coding (2-3 sentences).
+  ✓ Code deliberately. Think out loud.
+  ✓ If stuck: try a simpler example. Try brute force. Ask for a hint.
+  ✓ Test your code with the example. Find the bug before they do.
+  ✓ State complexity unprompted at the end.
+
+  Red flags for interviewers (avoid these):
+  ─────────────────────────────────────────────────────────────
+  - Jumping to code without understanding the problem
+  - Silently debugging for 10+ minutes without talking
+  - Getting defensive when the interviewer points out an issue
+  - "I know this problem" and typing a memorized solution
+    (interviewers can tell, and they'll add constraints)
+  - Ignoring the interviewer's hints
+
+  Green flags (do these):
+  ─────────────────────────────────────────────────────────────
+  - "Let me think through this." [pause] "I think I'll use..."
+  - "I see two approaches. The first is O(n^2), but we can optimize to..."
+  - "Good catch! I was missing the case where..." [fix]
+  - "I'm going to handle the edge case where..."
+  - Draws a diagram or example on the board</code></pre>
+
+      <h2>When You're Stuck: The Unstuck Framework</h2>
+
+      <pre><code>  Stuck? Run through this checklist in order:
+
+  1. Simplify the problem
+     - Try with 2-3 elements instead of n
+     - What's the brute force? Can you say it out loud?
+
+  2. Look for structure
+     - Is the array sorted? Can sorting help?
+     - Are there duplicates? Does order matter?
+     - What's the constraint that's hard? Focus there.
+
+  3. Pattern scan
+     - Run through the 14 patterns. Does this look like any of them?
+     - "What if I used a hash map here?"
+     - "What if I used a two-pointer approach?"
+
+  4. Work backwards from the desired output
+     - What does the answer look like?
+     - What information do I need to construct it?
+     - Where does that information come from?
+
+  5. Ask for a hint
+     - "I'm thinking about [approach] but I'm not sure how to handle [X].
+       Is this the right direction?"
+     - Better to get a hint and finish the problem than to be stuck and silent.
+
+  Final secret:
+  ─────────────────────────────────────────────────────────────
+  Most FAANG interviews are not "pass if you get it, fail if you don't."
+  They're holistic evaluations of how you think.
+  A candidate who clearly understands the problem, communicates well,
+  and has the right direction — even if they don't fully finish —
+  often passes over someone who silently hacks out a correct solution
+  without explanation.
+  Communicate. Think out loud. Show your process.</code></pre>
+
+      <h2>The Mental Game</h2>
+
+      <pre><code>  Imposter syndrome is universal.
+  Everyone feels like they don't belong.
+  The candidates who get offers aren't the ones who feel confident.
+  They're the ones who perform despite the self-doubt.
+
+  Reframe the interview:
+  - Not "they're testing me" → "I'm showing them how I think"
+  - Not "I must solve it perfectly" → "I must communicate my process"
+  - Not "getting stuck means I'm failing" → "asking smart questions shows I'm thoughtful"
+
+  After a bad interview:
+  - Write down what you got stuck on
+  - Solve the exact problem THAT SAME DAY
+  - Understand the pattern, not just the solution
+  - Move on. One interview is data, not destiny.
+
+  The best preparation:
+  1. Solve problems until the patterns are automatic
+  2. Do mock interviews until talking while coding is natural
+  3. Sleep and eat well in the week before
+  4. Show up and trust the work you've done</code></pre>
+
+      <p>
+        You've made it through the full series. Go solve problems. Good luck.
+      </p>
+      <p>
+        &larr; <a href="dsa-mastery-hub.html">Back to DSA Series Hub</a>
+      </p>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>
