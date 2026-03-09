@@ -8,9 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
-    .phase-section {
-      margin: 2.5rem 0;
-    }
+    .phase-section { margin: 2.5rem 0; }
     .phase-title {
       font-size: 1.1rem;
       font-weight: 600;
@@ -21,10 +19,7 @@
       padding-bottom: 0.5rem;
       border-bottom: 2px solid var(--accent, #2563eb);
     }
-    .module-grid {
-      display: grid;
-      gap: 1rem;
-    }
+    .module-grid { display: grid; gap: 1rem; }
     .module-card {
       display: flex;
       align-items: flex-start;
@@ -48,16 +43,8 @@
       min-width: 3rem;
       padding-top: 0.1rem;
     }
-    .module-info h3 {
-      margin: 0 0 0.25rem;
-      font-size: 1rem;
-      font-weight: 600;
-    }
-    .module-info p {
-      margin: 0;
-      font-size: 0.875rem;
-      color: var(--text-secondary, #666);
-    }
+    .module-info h3 { margin: 0 0 0.25rem; font-size: 1rem; font-weight: 600; }
+    .module-info p  { margin: 0; font-size: 0.875rem; color: var(--text-secondary, #666); }
     .module-meta {
       margin-left: auto;
       font-size: 0.75rem;
@@ -65,29 +52,37 @@
       white-space: nowrap;
       padding-top: 0.2rem;
     }
-    .difficulty-badge {
-      display: inline-block;
-      font-size: 0.65rem;
+    .callout {
+      background: #eff6ff;
+      border-left: 3px solid var(--accent, #2563eb);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.5rem 0;
+      font-size: 0.95rem;
+    }
+    .callout strong { color: var(--accent, #2563eb); }
+    .truth-box {
+      background: #fafaf8;
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.75rem 0;
+    }
+    .truth-box h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.95rem;
       font-weight: 600;
-      letter-spacing: 0.04em;
       text-transform: uppercase;
-      padding: 0.1rem 0.45rem;
-      border-radius: 99px;
-      margin-left: 0.5rem;
+      letter-spacing: 0.04em;
+      color: var(--text-muted, #6b7280);
     }
-    .diff-easy   { background: #dcfce7; color: #166534; }
-    .diff-medium { background: #fef9c3; color: #854d0e; }
-    .diff-hard   { background: #fee2e2; color: #991b1b; }
-    .pattern-pill {
-      display: inline-block;
-      font-size: 0.7rem;
-      font-weight: 500;
-      background: var(--accent-soft, #dbeafe);
-      color: var(--accent, #2563eb);
-      padding: 0.1rem 0.5rem;
-      border-radius: 99px;
-      margin: 0.1rem;
-    }
+    .truth-box p { margin: 0; color: var(--text, #1a1a1a); }
+    .vs-table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: 0.875rem; }
+    .vs-table th { text-align: left; padding: 0.5rem 0.75rem; background: var(--tag-bg, #f3f4f6); font-weight: 600; }
+    .vs-table td { padding: 0.5rem 0.75rem; border-top: 1px solid var(--border, #e5e7eb); vertical-align: top; }
+    .vs-table tr:hover td { background: #f8f9ff; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.5rem 0 1.25rem; }
+    .tag { font-size: 0.72rem; font-weight: 500; background: var(--accent-soft, #dbeafe); color: var(--accent, #2563eb); padding: 0.15rem 0.55rem; border-radius: 99px; }
   </style>
 </head>
 <body>
@@ -107,72 +102,191 @@
       <div class="post-meta">
         <span class="post-date">March 2026</span>
         <span class="post-tag">dsa</span>
-        <span class="read-time">&middot; series hub</span>
+        <span class="read-time">&middot; series hub &middot; 15 posts</span>
       </div>
       <h1>DSA Mastery Series &mdash; FAANG Interview Complete Guide</h1>
       <p class="post-description">
-        A structured, pattern-first journey through Data Structures &amp; Algorithms for
-        cracking FAANG-level interviews. From complexity analysis and core data structures
-        all the way to dynamic programming, graphs, and the 14 patterns that cover 90% of
-        interview problems. 15 in-depth posts, 200+ code examples in Python and C++,
-        and everything you need to go from beginner to offer.
+        Not another "here are 500 problems, good luck" guide. This is a pattern-first, deeply
+        explained series that teaches you <em>how to think</em> about problems &mdash; so you can
+        walk into any interview and recognize what's being asked within 60 seconds. 200+ code
+        examples, real aha-moments, and an 8-week path from zero to offer.
       </p>
     </div>
 
     <div class="post-body">
 
+      <h2>Let me be honest with you</h2>
+
       <p>
-        This series is built on one belief: most DSA tutorials teach you data structures.
-        FAANG interviews test your ability to <em>recognize patterns</em>. The difference
-        between someone who grinds 500 Leetcode problems randomly and someone who solves
-        150 problems with a pattern-first mindset &mdash; the second person gets the offer.
+        I watched a friend grind 600 Leetcode problems over 6 months. He failed 4 Google
+        interviews in a row. Another friend solved exactly 120 problems &mdash; but studied
+        them by <em>pattern</em> &mdash; and got offers from Meta and Stripe in his first attempt.
       </p>
 
       <p>
-        Each post stands alone but they're designed to be read in order. Phase 1 builds
-        your analytical foundation. Phases 2&ndash;3 are core structures and algorithms.
-        Phase 4 covers the hard stuff that separates good candidates from great ones.
-        Phase 5 is pure interview strategy.
+        The difference wasn't work ethic. It was <strong>strategy</strong>.
       </p>
 
-      <pre><code>  DSA Interview Mastery Path:
+      <p>
+        Most people approach DSA prep like this: open Leetcode, pick a random problem,
+        get stuck after 10 minutes, look at the solution, feel bad, repeat. After 6 months
+        they've "done" 300 problems but can't solve anything they haven't seen before.
+      </p>
 
-  Phase 1: Foundations (2 posts)
-    &boxur;&boxh;&boxh; Complexity Analysis &rarr; Arrays &amp; Strings
+      <p>
+        The pattern-first approach is different. You learn that there are roughly
+        <strong>14 patterns</strong> that cover about 90% of what FAANG actually asks.
+        Once you internalize those patterns, a problem you've never seen before becomes:
+        <em>"Oh, this is just sliding window with a hash map"</em> or
+        <em>"This is Dijkstra with a twist on the state."</em>
+        That recognition &mdash; that's what gets you the offer.
+      </p>
 
-  Phase 2: Core Data Structures (5 posts)
-    &boxur;&boxh;&boxh; Linked Lists &rarr; Stacks &amp; Queues &rarr; Hash Maps &rarr; Trees &rarr; Heaps
+      <div class="callout">
+        <strong>The real interview question is never the problem itself.</strong>
+        It's: can you see through the surface description and identify the underlying
+        structure? A Google interviewer asking about "rotten oranges spreading in a grid"
+        is really asking: do you know multi-source BFS?
+      </div>
 
-  Phase 3: Core Algorithms (3 posts)
-    &boxur;&boxh;&boxh; Two Pointers &amp; Sliding Window &rarr; Binary Search &rarr; Recursion &amp; Backtracking
+      <h2>The "aha" that changes everything</h2>
 
-  Phase 4: Advanced Topics (3 posts)
-    &boxur;&boxh;&boxh; Dynamic Programming &rarr; Graphs (BFS/DFS) &rarr; Advanced Graphs
+      <p>Here's a concrete example. Two Sum is usually the first problem anyone solves:</p>
 
-  Phase 5: Interview Prep (1 post)
-    &boxur;&boxh;&boxh; The 14 Patterns + FAANG Playbook + Mock Problems
+      <pre><code>  # Given [2, 7, 11, 15], target = 9
+  # Find indices of the two numbers that sum to target.
 
-  The 14 Patterns That Cover ~90% of FAANG Problems:
-    1. Sliding Window          8. Tree BFS / Level Order
-    2. Two Pointers            9. Tree DFS / Path Problems
-    3. Fast &amp; Slow Pointers  10. Trie
-    4. Merge Intervals         11. Dynamic Programming
-    5. Cyclic Sort             12. Topological Sort
-    6. Linked List Reversal   13. Backtracking
-    7. Binary Search          14. Union-Find</code></pre>
+  # Most beginners write this:
+  for i in range(len(nums)):
+      for j in range(i+1, len(nums)):
+          if nums[i] + nums[j] == target:
+              return [i, j]
+  # O(n^2). Fine. It works.
+
+  # The pattern-thinker immediately sees:
+  # "I need to know if (target - current) exists in what I've seen."
+  # → Hash map. One pass.
+
+  seen = {}
+  for i, num in enumerate(nums):
+      complement = target - num
+      if complement in seen:
+          return [seen[complement], i]
+      seen[num] = i
+  # O(n). Always.</code></pre>
+
+      <p>
+        That jump &mdash; from nested loops to "store what I've seen, look up the complement"
+        &mdash; is a pattern. And the same exact jump applies to hundreds of other problems:
+        3Sum, 4Sum, pair with closest sum, subarray with target sum, two strings with
+        matching characters. <strong>One mental model, dozens of problems.</strong>
+      </p>
+
+      <p>
+        This series is about building those mental models, not collecting problem solutions.
+      </p>
+
+      <h2>The 14 Patterns at a Glance</h2>
+
+      <p>
+        These aren't arbitrary categories. They're the actual underlying algorithmic ideas
+        that keep showing up in disguise. Learn to spot the disguise; the solution follows.
+      </p>
+
+      <pre><code>  Pattern              Trigger phrase in problem              Example
+  ─────────────────────────────────────────────────────────────────────────────
+  Sliding Window       "longest/shortest subarray with..."    Minimum Window Substring
+  Two Pointers         "find pair in sorted array..."         3Sum, Container With Most Water
+  Fast &amp; Slow          "detect cycle...", "find middle..."    Linked List Cycle (Floyd's)
+  Merge Intervals      "overlapping intervals..."             Meeting Rooms, Insert Interval
+  Cyclic Sort          "missing/duplicate in 1..n array"      Find All Duplicates
+  Linked List Reversal "reverse a sublist..."                 Reverse Between Positions
+  Binary Search        "minimize the maximum..."              Koko Eating Bananas
+  Tree BFS             "level by level...", "min depth..."    Level Order, Right Side View
+  Tree DFS             "path sum...", "diameter..."           Max Path Sum, LCA
+  Trie                 "prefix matching...", "autocomplete"   Word Search II
+  Dynamic Programming  "how many ways...", "min cost..."      Coin Change, LCS
+  Topological Sort     "dependency order...", "course prereq" Course Schedule
+  Backtracking         "all combinations/permutations..."     N-Queens, Sudoku Solver
+  Union-Find           "connected groups...", "merge..."      Accounts Merge</code></pre>
+
+      <div class="truth-box">
+        <h3>How to use this table</h3>
+        <p>
+          In an interview, the moment you read the problem, skim the trigger phrases above.
+          The problem says "find the minimum window that contains all characters of t"?
+          That's <em>sliding window</em> with a frequency map &mdash; before you've even
+          thought about code. Problem says "you can take 1 or 2 steps, how many ways to
+          reach the top"? That's <em>dynamic programming</em> &mdash; it's Fibonacci in
+          disguise. Start here, not at the code.
+        </p>
+      </div>
+
+      <h2>Why most people get stuck on DP (and how this series fixes it)</h2>
+
+      <p>
+        Dynamic Programming has a reputation for being impossible. People see a DP problem,
+        freeze, and write "I'm not good at DP" in their prep notes. Here's the actual reason
+        DP is hard: <strong>nobody teaches you how to define the state.</strong>
+      </p>
+
+      <p>
+        Every DP tutorial starts at the recurrence. But defining the state &mdash;
+        <em>what does dp[i] mean?</em> &mdash; is 80% of the work. Once you nail that,
+        the recurrence almost writes itself.
+      </p>
+
+      <pre><code>  Coin Change — most people's mental block:
+  ─────────────────────────────────────────────────────────────
+  Coins = [1, 5, 10], Amount = 12
+
+  Wrong mental model: "I'll try every combination of coins."
+  → That's backtracking → O(amount^coins) → too slow.
+
+  Right mental model: define dp[a] = min coins to make amount a.
+  Then: for each coin c, dp[a] = min(dp[a], dp[a-c] + 1)
+  Because: "if I use coin c once, I need dp[a-c] coins for the rest."
+
+  dp[0]  = 0   (0 coins needed to make 0)
+  dp[1]  = 1   (one coin of value 1)
+  dp[2]  = 2   (two coins of value 1)
+  dp[5]  = 1   (one coin of value 5)
+  dp[6]  = 2   (5 + 1)
+  dp[10] = 1   (one coin of value 10)
+  dp[11] = 2   (10 + 1)
+  dp[12] = 3   (10 + 1 + 1)
+
+  The state dp[a] is the key. Everything else is just bookkeeping.</code></pre>
+
+      <p>
+        The DP post in this series walks through <strong>15 problems</strong> using this
+        exact framework &mdash; state first, recurrence second, code last. By the end,
+        you'll be able to define a DP state for problems you've never seen.
+      </p>
+
+      <h2>The series, in order</h2>
 
       <!-- PHASE 1 -->
       <div class="phase-section">
         <div class="phase-title">Phase 1 &mdash; Foundations</div>
+
+        <p style="font-size:0.9rem; color:var(--text-muted,#6b7280); margin-bottom:1rem;">
+          Before you can solve problems fast, you need two things: a way to measure
+          "fast" (complexity analysis) and fluency with the most common data type in
+          all of FAANG interviews (arrays and strings). This phase is short but dense.
+          Don't skip it.
+        </p>
+
         <div class="module-grid">
 
           <a href="dsa-phase1-complexity.html" class="module-card">
             <span class="module-num">1.1</span>
             <div class="module-info">
               <h3>Big-O &amp; Complexity Analysis: The Mental Model That Matters</h3>
-              <p>Time and space complexity from first principles. Big-O, Big-Theta, Big-Omega.
-                 Amortized analysis. Recursion tree method. Master Theorem. How to analyze
-                 any algorithm in an interview in under 60 seconds &mdash; with 20 worked examples.</p>
+              <p>Why <code>O(n log n)</code> beats <code>O(n&sup2;)</code> for n=10,000 but
+                 <em>loses</em> for n=10. The Master Theorem in 3 cases. Amortized analysis
+                 (why Python list append is O(1) even though it sometimes copies everything).
+                 How to state complexity in an interview in under 30 seconds.</p>
             </div>
             <span class="module-meta">25 min</span>
           </a>
@@ -181,9 +295,10 @@
             <span class="module-num">1.2</span>
             <div class="module-info">
               <h3>Arrays &amp; Strings: The Bread and Butter of FAANG</h3>
-              <p>Static vs dynamic arrays, cache locality, in-place operations, prefix sums,
-                 difference arrays. String immutability, StringBuilder pattern, character frequency
-                 maps. 12 must-know array/string problems with optimal solutions.</p>
+              <p>Prefix sums: O(n) build, O(1) range queries &mdash; the technique behind
+                 a dozen problems. The <em>product except self</em> trick with no division.
+                 Why <code>s += char</code> in a loop is secretly O(n&sup2;) in Python.
+                 Kadane's algorithm for max subarray. 12 must-know problems fully solved.</p>
             </div>
             <span class="module-meta">30 min</span>
           </a>
@@ -194,15 +309,24 @@
       <!-- PHASE 2 -->
       <div class="phase-section">
         <div class="phase-title">Phase 2 &mdash; Core Data Structures</div>
+
+        <p style="font-size:0.9rem; color:var(--text-muted,#6b7280); margin-bottom:1rem;">
+          You already know what these are. This phase is about knowing them well enough
+          to <em>implement them from scratch under pressure</em>, and more importantly,
+          to recognize when the problem is actually asking for them in disguise.
+          The monotonic stack section alone is worth the read.
+        </p>
+
         <div class="module-grid">
 
           <a href="dsa-phase2-linked-lists.html" class="module-card">
             <span class="module-num">2.1</span>
             <div class="module-info">
               <h3>Linked Lists: Pointers, Cycles, and Interview Classics</h3>
-              <p>Singly vs doubly vs circular. The dummy node trick. Fast/slow pointer (Floyd's
-                 algorithm). Reversing a list in-place. Finding cycles, detecting mid-point,
-                 merging sorted lists. 10 classic problems every FAANG candidate must know.</p>
+              <p>The dummy node trick (eliminates 80% of edge cases instantly). Floyd's
+                 cycle detection: two pointers, one at 1x speed, one at 2x &mdash; they
+                 <em>always</em> meet inside the cycle, and the math tells you exactly
+                 where the cycle starts. LRU Cache from scratch. 10 classics, fully solved.</p>
             </div>
             <span class="module-meta">28 min</span>
           </a>
@@ -211,9 +335,10 @@
             <span class="module-num">2.2</span>
             <div class="module-info">
               <h3>Stacks &amp; Queues: LIFO, FIFO, and Their Hidden Power</h3>
-              <p>Monotonic stacks &mdash; the single most underrated interview pattern. Deques
-                 for sliding window maximum. Queue from two stacks. The "next greater element"
-                 family of problems. Using stack to simulate recursion. 10 classic problems.</p>
+              <p>The <strong>monotonic stack</strong> &mdash; possibly the most underrated pattern
+                 in all of interview prep. "Next greater element" in O(n) instead of O(n&sup2;).
+                 Largest rectangle in a histogram (a beautiful problem). Sliding window
+                 maximum in O(n) with a deque. This post will change how you see sequences.</p>
             </div>
             <span class="module-meta">25 min</span>
           </a>
@@ -222,9 +347,11 @@
             <span class="module-num">2.3</span>
             <div class="module-info">
               <h3>Hash Maps &amp; Sets: O(1) and When It Lies to You</h3>
-              <p>Hash functions, collision resolution (chaining vs open addressing), load factor,
-                 resizing amortized cost. When hash maps are O(n) in disguise. Frequency counting,
-                 two-sum pattern, anagram detection, grouping. 10 must-know problems.</p>
+              <p>What actually happens inside a hash map: hash functions, chaining,
+                 open addressing, the load factor that triggers an O(n) resize.
+                 The cases where "O(1) lookup" quietly becomes O(n). The frequency
+                 map pattern that solves anagrams, top-K, and subarray-sum in one
+                 mental framework.</p>
             </div>
             <span class="module-meta">22 min</span>
           </a>
@@ -233,9 +360,10 @@
             <span class="module-num">2.4</span>
             <div class="module-info">
               <h3>Trees &amp; Binary Search Trees: The Most Interview-Dense Data Structure</h3>
-              <p>Tree traversals (in/pre/post/level order) and what each reveals. BST invariant
-                 and operations. Balanced trees (AVL, Red-Black conceptually). LCA, diameter,
-                 path sum, serialization. 15 classic tree problems with full solutions.</p>
+              <p>The universal DFS template: <em>what does my function return from each
+                 subtree, and how do I combine those?</em> With this one question, diameter,
+                 max path sum, LCA, balance check, and 10 other problems all collapse into
+                 the same pattern. 15 classic tree problems, all solved this way.</p>
             </div>
             <span class="module-meta">35 min</span>
           </a>
@@ -244,9 +372,10 @@
             <span class="module-num">2.5</span>
             <div class="module-info">
               <h3>Heaps &amp; Priority Queues: Always Know Your Top-K</h3>
-              <p>Binary heap internals, heapify up/down, the heap property. Min-heap vs max-heap.
-                 Top-K elements pattern. K-way merge. Median of data stream. Heap sort.
-                 Using heaps for Dijkstra. 8 priority-queue-centric interview problems.</p>
+              <p>Why building a heap from n elements is O(n) and not O(n log n) &mdash;
+                 most candidates get this wrong. The two-heap trick for median of a
+                 stream (one max-heap for the lower half, one min-heap for the upper).
+                 K-way merge. The IPO problem. Real heap internals, not just the API.</p>
             </div>
             <span class="module-meta">25 min</span>
           </a>
@@ -257,16 +386,24 @@
       <!-- PHASE 3 -->
       <div class="phase-section">
         <div class="phase-title">Phase 3 &mdash; Core Algorithms</div>
+
+        <p style="font-size:0.9rem; color:var(--text-muted,#6b7280); margin-bottom:1rem;">
+          These three posts cover the techniques with the highest problem-per-pattern ROI.
+          Two pointers and sliding window alone solve maybe 15% of all Leetcode mediums.
+          Binary search on answer space is the "secret weapon" that most candidates never
+          discover. And backtracking is how you approach every "generate all..." problem.
+        </p>
+
         <div class="module-grid">
 
           <a href="dsa-phase3-two-pointers.html" class="module-card">
             <span class="module-num">3.1</span>
             <div class="module-info">
               <h3>Two Pointers &amp; Sliding Window: One Pass to Rule Them All</h3>
-              <p>Left/right converging pointers vs same-direction pointers. Fixed vs variable
-                 sliding window. The shrink condition. Longest substring without repeats,
-                 minimum window substring, container with most water. 12 essential problems
-                 and the exact template to recognize when to use each variant.</p>
+              <p>The three variants: converging (sorted array, find pair), same-direction
+                 (fast/slow), fixed/variable window. The <em>shrink condition</em> for variable
+                 windows. The "at most K" &minus; "at most K&minus;1" trick for "exactly K"
+                 problems. 12 problems with the exact line where the O(n) insight clicks.</p>
             </div>
             <span class="module-meta">30 min</span>
           </a>
@@ -275,10 +412,11 @@
             <span class="module-num">3.2</span>
             <div class="module-info">
               <h3>Binary Search: The Most Underestimated Technique in Interviews</h3>
-              <p>Left-closed right-open vs closed intervals &mdash; and why the template matters.
-                 Binary search on answer space (not just sorted arrays). Rotated arrays, finding
-                 peak elements, search in 2D matrix. The "minimize the maximum" family.
-                 10 problems where binary search is the non-obvious key.</p>
+              <p>Everyone knows binary search on sorted arrays. <em>Nobody talks about</em>
+                 binary search on the answer space. "Koko eats bananas" &mdash; the answer
+                 is a speed, not an index. "Ship packages in D days" &mdash; the answer is
+                 a capacity. Binary search on a monotonic feasibility function: O(n log n)
+                 where the brute force is O(n&sup2;) or worse.</p>
             </div>
             <span class="module-meta">28 min</span>
           </a>
@@ -287,10 +425,11 @@
             <span class="module-num">3.3</span>
             <div class="module-info">
               <h3>Recursion &amp; Backtracking: How to Think in Trees</h3>
-              <p>The recursion mental model: trust the function. Call stack and stack overflow.
-                 Backtracking as constrained DFS &mdash; the universal template. Subsets, permutations,
-                 combinations, N-Queens, Sudoku solver, word search. Pruning techniques that
-                 turn exponential into tractable. 10 backtracking problems dissected.</p>
+              <p>The one mindset shift that makes recursion click: <em>trust the function.</em>
+                 Write the recursive case assuming the recursive call magically works. Then
+                 just handle base case + combination. Backtracking as constrained DFS: make
+                 a choice, recurse, <strong>undo the choice</strong>. N-Queens, Sudoku, Word
+                 Search, subsets &mdash; all from one template.</p>
             </div>
             <span class="module-meta">32 min</span>
           </a>
@@ -301,16 +440,25 @@
       <!-- PHASE 4 -->
       <div class="phase-section">
         <div class="phase-title">Phase 4 &mdash; Advanced Topics</div>
+
+        <p style="font-size:0.9rem; color:var(--text-muted,#6b7280); margin-bottom:1rem;">
+          This is where L4 engineers separate from L5 candidates. DP, graphs, and advanced
+          graph algorithms appear in every senior interview. The goal here isn't to memorize
+          solutions &mdash; it's to internalize the frameworks so you can reconstruct them
+          under pressure with a problem you've never seen.
+        </p>
+
         <div class="module-grid">
 
           <a href="dsa-phase4-dp.html" class="module-card">
             <span class="module-num">4.1</span>
             <div class="module-info">
               <h3>Dynamic Programming: From Memoization to Tabulation</h3>
-              <p>The DP mindset: overlapping subproblems + optimal substructure. Top-down
-                 (memoization) vs bottom-up (tabulation) &mdash; when to use each. State definition
-                 is 80% of the problem. 1D DP, 2D DP, DP on intervals, DP on trees.
-                 Fibonacci to longest common subsequence to knapsack to edit distance. 15 problems.</p>
+              <p>Four-step framework: define the state &rarr; write the recurrence &rarr;
+                 identify base cases &rarr; determine computation order. The state definition
+                 is 80% of the problem &mdash; the code is almost automatic after that.
+                 1D, 2D, interval, knapsack. Fibonacci to LCS to edit distance to burst
+                 balloons. 15 problems, from easy to hard.</p>
             </div>
             <span class="module-meta">40 min</span>
           </a>
@@ -319,10 +467,11 @@
             <span class="module-num">4.2</span>
             <div class="module-info">
               <h3>Graphs: BFS, DFS, and Classic Interview Problems</h3>
-              <p>Adjacency list vs matrix. DFS and BFS from scratch. Connected components,
-                 islands problem, clone graph, bipartite check. BFS for shortest path in
-                 unweighted graphs. Multi-source BFS. Cycle detection. 12 essential graph
-                 problems with the exact traversal pattern for each.</p>
+              <p>The dirty secret: most graph problems are "run BFS or DFS, track visited
+                 nodes." The art is knowing <em>which</em> and <em>from where</em>. Multi-source
+                 BFS (rotting oranges, walls &amp; gates) &mdash; seed the queue with all sources
+                 simultaneously. BFS for shortest path. Word Ladder as BFS on a string graph.
+                 Bipartite check. 12 problems with the exact traversal for each.</p>
             </div>
             <span class="module-meta">35 min</span>
           </a>
@@ -331,10 +480,11 @@
             <span class="module-num">4.3</span>
             <div class="module-info">
               <h3>Advanced Graphs: Dijkstra, Union-Find, and Topological Sort</h3>
-              <p>Dijkstra's algorithm step-by-step with priority queue. Bellman-Ford for
-                 negative weights. Union-Find (Disjoint Set) with path compression and
-                 union by rank. Topological sort (Kahn's + DFS). Course schedule problems.
-                 Minimum spanning tree (Kruskal's). 10 advanced graph problems.</p>
+              <p>Dijkstra's core insight: the closest unfinalized vertex's distance is
+                 already optimal (greedy). Why it breaks on negative edges. Union-Find:
+                 near-O(1) dynamic connectivity with path compression &mdash; the data
+                 structure that makes "are these points connected?" trivial. Topological
+                 sort: why Kahn's algorithm detects cycles for free. Kruskal's MST.</p>
             </div>
             <span class="module-meta">38 min</span>
           </a>
@@ -344,17 +494,25 @@
 
       <!-- PHASE 5 -->
       <div class="phase-section">
-        <div class="phase-title">Phase 5 &mdash; FAANG Interview Preparation</div>
+        <div class="phase-title">Phase 5 &mdash; Interview Preparation</div>
+
+        <p style="font-size:0.9rem; color:var(--text-muted,#6b7280); margin-bottom:1rem;">
+          Knowing DSA is necessary but not sufficient. The last 20% is the meta-skill:
+          how do you perform under pressure, communicate while coding, and recognize
+          patterns when your heart is beating fast? This post is about that.
+        </p>
+
         <div class="module-grid">
 
           <a href="dsa-phase5-interview-prep.html" class="module-card">
             <span class="module-num">5</span>
             <div class="module-info">
               <h3>FAANG Interview Playbook: Patterns, Mindset, and the 8-Week Plan</h3>
-              <p>The 14 patterns that cover 90% of problems. How to approach any problem in
-                 an interview (the 5-step framework). 30+ Q&amp;As covering every major topic.
-                 Company-specific tendencies (Google vs Meta vs Amazon vs Apple). Behavioral
-                 questions with STAR. An 8-week study plan from zero to offer-ready.</p>
+              <p>The 5-step framework for any problem you've never seen. Company-specific
+                 tendencies (Google loves graphs; Amazon loves leadership principles as much
+                 as code; Meta wants clean, fast code under time pressure). 30+ Q&amp;As.
+                 The "unstuck" checklist for when your mind goes blank. An 8-week study
+                 plan with exact Leetcode problem numbers.</p>
             </div>
             <span class="module-meta">45 min</span>
           </a>
@@ -362,70 +520,102 @@
         </div>
       </div>
 
-      <h2>Quick Reference Cheat Sheet</h2>
+      <h2>The honest numbers</h2>
+
+      <table class="vs-table">
+        <thead>
+          <tr>
+            <th>Approach</th>
+            <th>Problems solved</th>
+            <th>Time spent</th>
+            <th>Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Random grinding</td>
+            <td>500+</td>
+            <td>6&ndash;12 months</td>
+            <td>Knows solutions, can't generalize</td>
+          </tr>
+          <tr>
+            <td>Pattern-first (this series)</td>
+            <td>120&ndash;150</td>
+            <td>6&ndash;8 weeks</td>
+            <td>Recognizes structure, solves unseen problems</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        Total reading time for this series: ~8 hours. Total practice: 120&ndash;150
+        problems over 6&ndash;8 weeks, with deliberate focus on patterns.
+        That's the realistic path to a FAANG offer &mdash; not 500 random problems,
+        not a Leetcode premium subscription, not memorizing editorial solutions.
+      </p>
+
+      <h2>Quick Reference: Complexity Cheat Sheet</h2>
 
       <pre><code>  Time Complexity at a Glance:
-  ─────────────────────────────────────────────────────────────────
-  O(1)        Hash map lookup, array index, stack push/pop
+  ────────────────────────────────────────────────────────────────────
+  O(1)        Hash map lookup, array index, heap peek
   O(log n)    Binary search, balanced BST ops, heap push/pop
-  O(n)        Linear scan, BFS/DFS, sliding window
-  O(n log n)  Merge sort, heap sort, most "efficient" sorts
-  O(n^2)      Nested loops, bubble sort, some DP
-  O(2^n)      Backtracking/subsets (before pruning)
-  O(n!)       Permutations
+  O(n)        Linear scan, BFS/DFS, sliding window, prefix sum build
+  O(n log n)  Merge sort, heap sort, Dijkstra O((V+E) log V)
+  O(n²)       Nested loops, naive string match, some DP
+  O(2ⁿ)       Subsets enumeration, backtracking (before pruning)
+  O(n!)       All permutations
 
-  Space Complexity Reminders:
-  ─────────────────────────────────────────────────────────────────
-  Recursion depth     = O(depth) stack space
-  Hash map size       = O(n) in worst case
-  BFS queue           = O(width of tree/graph)
-  DP table            = O(n) or O(n*m) depending on dimensions
-  In-place algorithms = O(1) extra space
+  n size → what complexity you need:
+  ────────────────────────────────────────────────────────────────────
+  n ≤ 12        O(n!) is fine       (permutations, brute force)
+  n ≤ 25        O(2ⁿ) is fine       (backtracking, bitmask)
+  n ≤ 500       O(n³) is fine       (Floyd-Warshall, naive DP)
+  n ≤ 5,000     O(n²) is fine       (bubble sort, O(n²) DP)
+  n ≤ 100,000   O(n log n) needed   (merge sort, Dijkstra)
+  n ≤ 10⁶       O(n) needed         (sliding window, BFS)
+  n ≤ 10⁹       O(log n) needed     (binary search, math)
 
-  The 14 Patterns — Quick Trigger Guide:
-  ─────────────────────────────────────────────────────────────────
-  "find pair that sums to X"          → Two Pointers / Hash Map
-  "max/min subarray of length k"      → Sliding Window (fixed)
-  "longest subarray with condition"   → Sliding Window (variable)
-  "find cycle in linked list"         → Fast &amp; Slow Pointers
-  "find duplicate / missing number"   → Cyclic Sort
-  "merge/insert interval"             → Sort + Merge Intervals
-  "k-th largest / top-k"             → Heap (size-k)
-  "combinations / permutations"       → Backtracking
-  "how many ways to reach target"     → Dynamic Programming
-  "shortest path unweighted"          → BFS
-  "shortest path weighted"            → Dijkstra (heap + BFS)
-  "prerequisite / dependency order"   → Topological Sort
-  "connected components"              → Union-Find / DFS
-  "prefix/word matching"              → Trie
+  The 14 Patterns — Quick Trigger:
+  ────────────────────────────────────────────────────────────────────
+  "find pair that sums to X"         → Two Pointers or Hash Map
+  "longest/shortest subarray with.." → Sliding Window (variable)
+  "max/min in every window of size k"→ Sliding Window + Deque
+  "detect cycle in linked list"      → Fast &amp; Slow Pointers
+  "missing/duplicate in 1..n"        → Cyclic Sort
+  "merge overlapping intervals"      → Sort by start + greedy merge
+  "k-th largest / top-k elements"    → Min-heap of size k
+  "all combinations / permutations"  → Backtracking
+  "how many ways to reach target"    → Dynamic Programming
+  "shortest path, no weights"        → BFS
+  "shortest path, positive weights"  → Dijkstra (heap)
+  "prerequisite / dependency order"  → Topological Sort (Kahn's)
+  "are nodes A and B connected?"     → Union-Find
+  "prefix / autocomplete matching"   → Trie
 
-  Key Formulas:
-  ─────────────────────────────────────────────────────────────────
-  Prefix sum:     prefix[i] = prefix[i-1] + arr[i]
-  Subarray sum:   sum(l..r) = prefix[r] - prefix[l-1]
-  Binary search:  mid = lo + (hi - lo) // 2   (avoids overflow)
-  Heap size-k:    push all, pop when size &gt; k
-  DP base case:   always define dp[0] and dp[1] explicitly
-  BFS levels:     use len(queue) snapshot to process level by level</code></pre>
+  Key one-liners:
+  ────────────────────────────────────────────────────────────────────
+  Prefix sum:   prefix[i] = prefix[i-1] + arr[i]
+  Range sum:    sum(l, r) = prefix[r+1] - prefix[l]
+  Binary search: mid = lo + (hi - lo) // 2   ← never (lo+hi)//2
+  Heap (size k): push all elements, pop when len > k
+  DP state:     dp[i] = "answer for subproblem of size i"
+  BFS by level: snapshot = len(queue), process exactly that many</code></pre>
 
-      <h2>Prerequisites</h2>
-      <ul>
-        <li>Comfortable with one programming language (Python or C++ recommended)</li>
-        <li>Basic programming: loops, conditionals, functions, classes</li>
-        <li>No prior DSA knowledge required &mdash; we build from scratch</li>
-        <li>A Leetcode account (free tier is sufficient for this series)</li>
-      </ul>
-
-      <h2>How to Use This Series</h2>
+      <h2>Where to start</h2>
       <p>
-        Read each post, then immediately solve 5&ndash;8 Leetcode problems in that topic before
-        moving on. The post gives you the mental model; the problems burn it in. Don't move
-        forward until you can solve easy problems in the topic without looking at hints, and
-        can articulate your approach for medium ones before coding.
+        If you're a complete beginner: start at 1.1. Don't skip Phase 1.
+        Understanding <em>why</em> O(n&sup2;) is catastrophically worse than O(n log n) for
+        large inputs is the foundation everything else builds on.
       </p>
       <p>
-        Total reading: ~8 hours across all posts. Total practice: 100&ndash;150 problems
-        over 6&ndash;8 weeks. That's the path to a FAANG offer.
+        If you're intermediate (can solve easy problems, struggle with mediums):
+        jump to Phase 3 &mdash; Two Pointers &amp; Sliding Window. These patterns alone will
+        unlock a large chunk of mediums immediately. Then come back to fill gaps.
+      </p>
+      <p>
+        If you have an interview in 2 weeks: read Phase 5 first to understand the
+        meta-strategy, then hammer Phase 3 and Phase 4 with the Leetcode problems listed there.
       </p>
 
     </div>

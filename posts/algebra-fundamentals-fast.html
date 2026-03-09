@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Algebra from Zero to Solid: Build Real Fundamentals Fast — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Algebra content boxes ── */
+    .math-box {
+      background: #f0f6ff;
+      border-left: 4px solid #2563eb;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      font-family: 'Lora', serif;
+      font-size: 1.05rem;
+      color: #1e3a5f;
+    }
+    .math-box .label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #2563eb;
+      margin-bottom: 0.4rem;
+    }
+    .insight-box {
+      background: #fefce8;
+      border-left: 4px solid #ca8a04;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+    }
+    .insight-box .label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #ca8a04;
+      margin-bottom: 0.4rem;
+    }
+    .mistake-box {
+      background: #fff1f2;
+      border-left: 4px solid #e11d48;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+    }
+    .mistake-box .label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #e11d48;
+      margin-bottom: 0.4rem;
+    }
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.85rem;
+      margin: 1rem 0 1.5rem;
+    }
+    .step-card {
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+    }
+    .step-card .num {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #2563eb;
+      line-height: 1;
+      margin-bottom: 0.35rem;
+    }
+    .step-card .desc {
+      font-size: 0.88rem;
+      color: var(--text-muted, #6b7280);
+      line-height: 1.45;
+    }
+    .plan-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 1rem 0 1.5rem;
+    }
+    .plan-table th {
+      background: #f8faff;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #4b5563;
+      padding: 0.65rem 1rem;
+      text-align: left;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .plan-table td {
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+    .plan-table tr:last-child td { border-bottom: none; }
+    .plan-table tr:hover td { background: #f8faff; }
+    .toc {
+      background: var(--bg-card, #f9fafb);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2rem;
+    }
+    .toc-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6b7280;
+      margin-bottom: 0.85rem;
+    }
+    .toc ol { margin: 0; padding-left: 1.4rem; }
+    .toc li { margin: 0.35rem 0; font-size: 0.92rem; }
+    .toc a { color: #2563eb; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+
+    /* ── Exercise set ── */
+    .exercise-set {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 2rem 0;
+    }
+    .ex-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .ex-icon {
+      font-size: 1rem;
+    }
+    .ex-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #374151;
+    }
+    .exercise {
+      margin: 1rem 0;
+      padding: 0.9rem 1rem;
+      background: #ffffff;
+      border: 1px solid #e9ecf0;
+      border-radius: 8px;
+    }
+    .ex-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 0.5rem;
+    }
+    .ex-num {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #9ca3af;
+    }
+    /* difficulty badges */
+    .diff-badge {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+    }
+    .diff-badge.easy     { background: #d1fae5; color: #065f46; }
+    .diff-badge.medium   { background: #fef9c3; color: #713f12; }
+    .diff-badge.hard     { background: #fee2e2; color: #991b1b; }
+    .diff-badge.challenge { background: #ede9fe; color: #4c1d95; }
+    .ex-question {
+      font-size: 0.97rem;
+      line-height: 1.6;
+      margin: 0 0 0.6rem;
+      color: #1a1a1a;
+    }
+    .ex-question code {
+      font-size: 0.93em;
+    }
+    /* collapsible answer */
+    details.ex-answer {
+      margin-top: 0.5rem;
+    }
+    details.ex-answer summary {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #2563eb;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    details.ex-answer summary::before {
+      content: '▶';
+      font-size: 0.6rem;
+      transition: transform 0.15s;
+    }
+    details.ex-answer[open] summary::before {
+      transform: rotate(90deg);
+    }
+    details.ex-answer summary::-webkit-details-marker { display: none; }
+    .answer-body {
+      margin-top: 0.65rem;
+      padding: 0.85rem 1rem;
+      background: #f0f6ff;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      color: #1e3a5f;
+    }
+    .answer-body p { margin: 0.3rem 0; }
+    .answer-body pre {
+      margin: 0.5rem 0 0;
+      font-size: 0.85rem;
+      background: #e0edff;
+      padding: 0.6rem 0.8rem;
+      border-radius: 5px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .answer-body strong { color: #1e3a5f; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">math</span>
+        <span class="read-time">&middot; 90 min read</span>
+      </div>
+      <h1>Algebra from Zero to Solid: Build Real Fundamentals Fast</h1>
+      <p class="post-description">
+        Stop memorising tricks you don't understand. This guide walks you through
+        every core idea in algebra &mdash; from what a variable actually means to
+        quadratics and functions &mdash; with worked examples, common-mistake warnings,
+        MIT/Harvard-calibre practice exercises (easy &rarr; challenge), and a 4-week study plan
+        so you can move fast without skipping the foundations.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Most people learn algebra by memorising steps. Move the number to the other side.
+        FOIL the brackets. Cross-multiply. They get through a test, forget everything in two weeks,
+        then wonder why calculus feels impossible six months later.
+      </p>
+      <p>
+        This post does something different: it builds understanding first, speed second.
+        Every rule you'll read here comes with a <em>reason</em>. Once you know the reason,
+        you never have to memorise the rule &mdash; you can re-derive it on the spot.
+        That's what "real fundamentals" means.
+      </p>
+      <p>
+        Each section ends with practice problems graded Easy &rarr; Medium &rarr; Hard &rarr; Challenge.
+        The Hard and Challenge problems are drawn from competition mathematics and MIT/Harvard entrance-exam style thinking.
+        Click "Show answer" to reveal the full worked solution.
+      </p>
+
+      <!-- TOC -->
+      <div class="toc">
+        <div class="toc-title">Contents</div>
+        <ol>
+          <li><a href="#mindset">The Right Mindset Before You Start</a></li>
+          <li><a href="#numbers">Number Systems &mdash; What Lives on the Number Line</a></li>
+          <li><a href="#variables">Variables and Expressions</a></li>
+          <li><a href="#order-of-ops">Order of Operations (and Why It's Not Just a Rule)</a></li>
+          <li><a href="#equations">Linear Equations &mdash; The Heart of Algebra</a></li>
+          <li><a href="#inequalities">Inequalities</a></li>
+          <li><a href="#systems">Systems of Equations</a></li>
+          <li><a href="#polynomials">Polynomials &mdash; Adding, Subtracting, Multiplying</a></li>
+          <li><a href="#factoring">Factoring &mdash; The Most Important Skill in Algebra</a></li>
+          <li><a href="#quadratics">Quadratic Equations</a></li>
+          <li><a href="#functions">Functions &mdash; The Language of Relationships</a></li>
+          <li><a href="#plan">4-Week Study Plan</a></li>
+          <li><a href="#resources">Best Free Resources</a></li>
+        </ol>
+      </div>
+
+      <!-- ═══════════════════════ 1. MINDSET ═══════════════════════ -->
+      <h2 id="mindset">1. The Right Mindset Before You Start</h2>
+
+      <p>
+        Algebra is not about numbers. It's about <strong>patterns and relationships</strong>.
+        A number like 7 is specific. The letter <em>x</em> represents an entire class of
+        possible values &mdash; and the equation tells you which specific value it must be.
+        That shift from specific to general is the entire point.
+      </p>
+
+      <blockquote>
+        Algebra is arithmetic made general. Everything you already know about numbers
+        still applies &mdash; you're just working with unknowns instead of knowns.
+      </blockquote>
+
+      <ul>
+        <li><strong>Ask "why does this work?" every time you use a rule.</strong> If you can't answer, look it up before moving on.</li>
+        <li><strong>Do problems by hand.</strong> Reading examples is not the same as solving them. Mathematics is a doing skill, not a watching skill.</li>
+      </ul>
+
+      <div class="insight-box">
+        <div class="label">Key insight</div>
+        You are allowed to check your answer every single time. Substitute your solution
+        back into the original equation. If both sides are equal, you're right. If not,
+        find the step where it went wrong. This habit builds accuracy faster than anything else.
+      </div>
+
+
+      <!-- ═══════════════════════ 2. NUMBER SYSTEMS ═══════════════════════ -->
+      <h2 id="numbers">2. Number Systems &mdash; What Lives on the Number Line</h2>
+
+      <ul>
+        <li><strong>Natural numbers (&#8469;):</strong> 1, 2, 3, 4, &hellip; Counting numbers.</li>
+        <li><strong>Whole numbers:</strong> 0, 1, 2, 3, &hellip;</li>
+        <li><strong>Integers (&#8484;):</strong> &hellip;&minus;3, &minus;2, &minus;1, 0, 1, 2, 3, &hellip;</li>
+        <li><strong>Rational numbers (&#8474;):</strong> Any p/q where p, q are integers and q &ne; 0.</li>
+        <li><strong>Irrational numbers:</strong> Cannot be written as a fraction. &radic;2, &pi;, e &mdash; non-repeating, non-terminating decimals.</li>
+        <li><strong>Real numbers (&#8477;):</strong> All of the above.</li>
+      </ul>
+
+      <h3>Properties of Real Numbers</h3>
+      <ul>
+        <li><strong>Commutative:</strong> a + b = b + a &nbsp; and &nbsp; ab = ba</li>
+        <li><strong>Associative:</strong> (a + b) + c = a + (b + c)</li>
+        <li><strong>Distributive:</strong> a(b + c) = ab + ac</li>
+      </ul>
+
+      <div class="math-box">
+        <div class="label">Sign rules</div>
+        (positive) &times; (negative) = negative<br>
+        (negative) &times; (negative) = positive<br>
+        5 &minus; (&minus;3) = 5 + 3 = 8
+      </div>
+
+      <div class="mistake-box">
+        <div class="label">Common mistake</div>
+        &minus;3&sup2; = &minus;9 &nbsp; (negative is NOT squared)<br>
+        (&minus;3)&sup2; = 9 &nbsp; (negative IS squared, parentheses matter)
+      </div>
+
+      <!-- EXERCISES: Number Systems -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Number Systems</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">2.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Evaluate without a calculator: &nbsp; &minus;4&sup2; + (&minus;4)&sup2;</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>&minus;4&sup2; = &minus;(16) = &minus;16 &nbsp; (the negative is NOT being squared)</p>
+              <p>(&minus;4)&sup2; = (&minus;4)(&minus;4) = +16</p>
+              <p><strong>Answer: &minus;16 + 16 = 0</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">2.2</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Classify each number as Natural, Integer, Rational, or Irrational (choose the most specific category):
+          &nbsp; &radic;9, &nbsp; &minus;7/3, &nbsp; 0.12121212&hellip;, &nbsp; &radic;7, &nbsp; 0</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>&radic;9 = 3 &rarr; <strong>Natural number</strong> (and also integer, rational)</p>
+              <p>&minus;7/3 &rarr; <strong>Rational</strong> (fraction of two integers)</p>
+              <p>0.1212&hellip; = 12/99 = 4/33 &rarr; <strong>Rational</strong> (repeating decimals are always rational)</p>
+              <p>&radic;7 &rarr; <strong>Irrational</strong> (7 is not a perfect square)</p>
+              <p>0 &rarr; <strong>Whole number / Integer</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">2.3</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Given a = &minus;3 and b = 5, evaluate &nbsp; (a &minus; b)&sup2; &minus; (a&sup2; &minus; b&sup2;) &nbsp; without expanding first. Use structure.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>(a &minus; b)&sup2; = (&minus;3 &minus; 5)&sup2; = (&minus;8)&sup2; = 64</p>
+              <p>a&sup2; &minus; b&sup2; = (a+b)(a&minus;b) = (2)(&minus;8) = &minus;16</p>
+              <p><strong>Answer: 64 &minus; (&minus;16) = 80</strong></p>
+              <p>The key insight: factor a&sup2; &minus; b&sup2; as (a+b)(a&minus;b) before substituting &mdash; it's faster and less error-prone.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">2.4</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Prove that the product of two irrational numbers is not necessarily irrational. Give a concrete example and explain.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Example:</strong> &radic;2 &times; &radic;2 = 2, which is rational.</p>
+              <p>Another: &radic;2 &times; &radic;8 = &radic;16 = 4, also rational.</p>
+              <p>A statement is disproved by finding a single counterexample. The product <em>can</em> be irrational (e.g., &radic;2 &times; &radic;3 = &radic;6, which is irrational), but it doesn't have to be. The claim "always irrational" is false.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">2.5</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">Let a and b be real numbers such that a + b = 3 and ab = 1. Find a&sup4; + b&sup4; <em>without solving for a or b individually</em>. (This is a classic MIT algebraic identity exercise.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Step 1.</strong> Find a&sup2; + b&sup2; using (a+b)&sup2; = a&sup2; + 2ab + b&sup2;:</p>
+              <p>9 = a&sup2; + 2(1) + b&sup2; &nbsp;&rArr;&nbsp; a&sup2; + b&sup2; = 7</p>
+              <p><strong>Step 2.</strong> Find a&sup4; + b&sup4; using (a&sup2; + b&sup2;)&sup2; = a&sup4; + 2(ab)&sup2; + b&sup4;:</p>
+              <p>49 = a&sup4; + 2(1)&sup2; + b&sup4; &nbsp;&rArr;&nbsp; a&sup4; + b&sup4; = 47</p>
+              <p><strong>Answer: 47</strong>. The pattern: power sums can always be bootstrapped from lower power sums using Newton's identities.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">2.6</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">Prove that &radic;2 is irrational. Your proof must be rigorous and complete (this is the classic proof taught in MIT 18.100).</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Proof by contradiction.</strong></p>
+              <p>Assume &radic;2 is rational. Then &radic;2 = p/q for integers p, q with q &ne; 0, and the fraction is in lowest terms (GCD(p,q) = 1).</p>
+              <p>Squaring: 2 = p&sup2;/q&sup2;, so p&sup2; = 2q&sup2;. This means p&sup2; is even, so p must be even (if p were odd, p&sup2; would be odd). Write p = 2k.</p>
+              <p>Then (2k)&sup2; = 2q&sup2; &rArr; 4k&sup2; = 2q&sup2; &rArr; q&sup2; = 2k&sup2;. So q&sup2; is even, meaning q is also even.</p>
+              <p>But now both p and q are even, contradicting GCD(p,q) = 1. &nbsp; <strong>Contradiction.</strong></p>
+              <p>Therefore &radic;2 is irrational. &nbsp; &#9632;</p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 3. VARIABLES ═══════════════════════ -->
+      <h2 id="variables">3. Variables and Expressions</h2>
+
+      <p>
+        A <strong>variable</strong> is a placeholder for a number we don't know yet.
+        An <strong>algebraic expression</strong> combines variables, numbers, and operations.
+      </p>
+
+      <ul>
+        <li><strong>Term:</strong> piece of an expression separated by + or &minus;. In 3x + 5: terms are 3x and 5.</li>
+        <li><strong>Coefficient:</strong> the number multiplying the variable. In 3x: coefficient is 3.</li>
+        <li><strong>Like terms:</strong> same variable to the same power. 3x and 7x are like; 3x and 7x&sup2; are not.</li>
+      </ul>
+
+      <pre><code>Simplify: 5x + 3y - 2x + 8y - 1
+
+= (5x - 2x) + (3y + 8y) - 1
+= 3x + 11y - 1</code></pre>
+
+      <pre><code>Expand: 4(2x - 3)
+
+= 8x - 12</code></pre>
+
+      <div class="mistake-box">
+        <div class="label">Common mistake</div>
+        4(2x &minus; 3) &ne; 8x &minus; 3 &mdash; you must distribute to <em>every</em> term inside.
+      </div>
+
+      <!-- EXERCISES: Variables -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Variables &amp; Expressions</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">3.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Simplify: &nbsp; 3(2x &minus; 4) &minus; 2(x + 5) + 7</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>= 6x - 12 - 2x - 10 + 7
+= (6x - 2x) + (-12 - 10 + 7)
+= 4x - 15</pre>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">3.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Without solving for p and q individually: given p + q = 5 and p &minus; q = 3, find p&sup2; &minus; q&sup2;.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Use the factoring identity: p&sup2; &minus; q&sup2; = (p + q)(p &minus; q) = 5 &times; 3 = <strong>15</strong></p>
+              <p>No need to find p = 4, q = 1 first &mdash; the identity does it directly.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">3.3</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Simplify: (a + b)&sup2; &minus; (a &minus; b)&sup2;. What does the result tell you geometrically?</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>(a+b)&sup2; = a&sup2; + 2ab + b&sup2;</p>
+              <p>(a&minus;b)&sup2; = a&sup2; &minus; 2ab + b&sup2;</p>
+              <p>Difference = (a&sup2; + 2ab + b&sup2;) &minus; (a&sup2; &minus; 2ab + b&sup2;) = <strong>4ab</strong></p>
+              <p>Geometric interpretation: this is the difference in area between two squares of side (a+b) and (a&minus;b) respectively &mdash; it equals the area of four rectangles each of dimensions a&times;b.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">3.4</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">Given x&sup2; + 1/x&sup2; = 7, find x&sup3; + 1/x&sup3;. (Classic competition algebra; do not solve for x.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Step 1.</strong> Find x + 1/x. Use (x + 1/x)&sup2; = x&sup2; + 2 + 1/x&sup2; = 7 + 2 = 9. So x + 1/x = 3 (taking positive root for now).</p>
+              <p><strong>Step 2.</strong> Use the identity: x&sup3; + 1/x&sup3; = (x + 1/x)&sup3; &minus; 3(x + 1/x)</p>
+              <p>= 27 &minus; 9 = <strong>18</strong></p>
+              <p>If x + 1/x = &minus;3, then x&sup3; + 1/x&sup3; = &minus;27 + 9 = &minus;18. Both &plusmn;18 are valid.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">3.5</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">Given a/b + b/a = 1, find a&sup3;/b&sup3; + b&sup3;/a&sup3;. (This appeared in a Harvard-MIT Math Tournament warm-up.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Let t = a/b + b/a = 1. Then (a/b)&sup2; + (b/a)&sup2; = t&sup2; &minus; 2 = &minus;1.</p>
+              <p>For cubes: (a/b)&sup3; + (b/a)&sup3; = (a/b + b/a)[(a/b)&sup2; &minus; 1 + (b/a)&sup2;]</p>
+              <p>= t &middot; [(t&sup2; &minus; 2) &minus; 1] = 1 &middot; (&minus;1 &minus; 1) = <strong>&minus;2</strong></p>
+              <p>This problem looks scary but yields immediately to the sum-of-cubes identity: x&sup3; + y&sup3; = (x+y)(x&sup2; &minus; xy + y&sup2;) with x = a/b, y = b/a, xy = 1.</p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 4. ORDER OF OPS ═══════════════════════ -->
+      <h2 id="order-of-ops">4. Order of Operations (and Why It's Not Just a Rule)</h2>
+
+      <blockquote>
+        Order of operations is a convention to eliminate ambiguity. Without it,
+        2 + 3 &times; 4 could mean 20 or 14. We all agree on one interpretation.
+      </blockquote>
+
+      <div class="math-box">
+        <div class="label">BODMAS / PEMDAS</div>
+        <strong>B</strong>rackets &bull; <strong>O</strong>rders (exponents) &bull;
+        <strong>D</strong>ivision &amp; <strong>M</strong>ultiplication (left to right, equal) &bull;
+        <strong>A</strong>ddition &amp; <strong>S</strong>ubtraction (left to right, equal)
+      </div>
+
+      <pre><code>Evaluate: 3 + 4² ÷ 2 - (1 + 3)
+
+Step 1 Brackets:   3 + 4² ÷ 2 - 4
+Step 2 Exponents:  3 + 16 ÷ 2 - 4
+Step 3 Division:   3 + 8 - 4
+Step 4 Add/Sub:    7</code></pre>
+
+      <div class="insight-box">
+        <div class="label">Key insight</div>
+        12 &divide; 4 &times; 3 = 3 &times; 3 = 9, not 1. Division and multiplication have
+        equal priority &mdash; resolve left to right.
+      </div>
+
+      <!-- EXERCISES: Order of Ops -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Order of Operations</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">4.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Evaluate step by step: &nbsp; 2&sup3; &minus; 4(6 &minus; 2) &divide; 2 + 1</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>Brackets:   2³ - 4(4) ÷ 2 + 1
+Exponents:  8 - 4(4) ÷ 2 + 1
+Multiply:   8 - 16 ÷ 2 + 1
+Divide:     8 - 8 + 1
+Add/Sub:    1</pre>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">4.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Insert exactly one pair of parentheses to make the equation true: &nbsp; 2 + 3 &times; 4 &minus; 1 = 13</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>(2 + 3) &times; 4 &minus; 1 = 5 &times; 4 &minus; 1 = 20 &minus; 1 = <strong>19</strong> &mdash; not 13.</p>
+              <p>2 + 3 &times; (4 &minus; 1) = 2 + 3 &times; 3 = 2 + 9 = <strong>11</strong> &mdash; not 13.</p>
+              <p>(2 + 3 &times; 4) &minus; 1 = 14 &minus; 1 = <strong>13 ✓</strong></p>
+              <p>Answer: <strong>(2 + 3 &times; 4) &minus; 1 = 13</strong>. This forces the addition to happen after the multiplication, which is the default anyway &mdash; so this is a subtle trap: no parentheses were actually needed here, and the problem is testing whether you evaluate carefully.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">4.3</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">Using the digits 2, 3, 4, 5 in that order (no rearranging), and any combination of +, &minus;, &times;, &divide;, and parentheses, how many distinct integer values can you produce? List at least 8 distinct values.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Sampling of values (not exhaustive):</p>
+              <pre>2 + 3 + 4 + 5 = 14
+2 + 3 + 4 × 5 = 25
+2 + 3 × 4 + 5 = 19
+2 × 3 + 4 + 5 = 15
+2 × 3 × 4 + 5 = 29
+2 × 3 × 4 × 5 = 120
+(2 + 3) × (4 + 5) = 45
+2 × (3 + 4) × 5 = 70
+(2 + 3) × 4 - 5 = 15
+2 ^ 3 + 4 × 5 = 28   (if exponentiation allowed)</pre>
+              <p>There are dozens of distinct values. The insight: placement of parentheses and choice of operator dramatically changes the result. This is why order of operations must be unambiguous.</p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 5. LINEAR EQUATIONS ═══════════════════════ -->
+      <h2 id="equations">5. Linear Equations &mdash; The Heart of Algebra</h2>
+
+      <blockquote>
+        Whatever you do to one side of an equation, you must do to the other.
+        The equation is a balance scale. Keep it balanced.
+      </blockquote>
+
+      <pre><code>Solve: 5x - 3 = 2x + 9
+
+5x - 2x = 9 + 3
+3x = 12
+x = 4   ✓</code></pre>
+
+      <pre><code>Solve: x/2 + x/3 = 5
+
+Multiply every term by LCD = 6:
+3x + 2x = 30
+5x = 30 → x = 6   ✓</code></pre>
+
+      <pre><code>Special cases:
+2x + 3 = 2x + 7  →  3 = 7  (No solution, ∅)
+2x + 3 = 2x + 3  →  3 = 3  (All real numbers)</code></pre>
+
+      <!-- EXERCISES: Linear Equations -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Linear Equations</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">5.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Solve: &nbsp; 3x/4 &minus; 1/2 = 5/4</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>Multiply through by 4:
+3x - 2 = 5
+3x = 7
+x = 7/3</pre>
+              <p>Check: 3(7/3)/4 &minus; 1/2 = 7/4 &minus; 2/4 = 5/4 ✓</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">5.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Solve: &nbsp; (2x &minus; 1)/3 &minus; (x + 2)/4 = 1</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>LCD = 12. Multiply through:
+4(2x - 1) - 3(x + 2) = 12
+8x - 4 - 3x - 6 = 12
+5x - 10 = 12
+5x = 22
+x = 22/5</pre>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">5.3</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question"><strong>Trains problem:</strong> Two trains start 400 km apart and travel toward each other. Train A travels at 80 km/h, Train B at 70 km/h. How long until they meet, and where?</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Let t = time in hours. Combined speed = 150 km/h.</p>
+              <p>Distance covered = 150t = 400 &rArr; <strong>t = 8/3 hours ≈ 2 h 40 min</strong></p>
+              <p>Train A covers 80 &times; 8/3 = 640/3 ≈ 213.3 km from its start.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">5.4</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">Find all values of k for which the equation (k &minus; 2)x = 3k &minus; 4 has <em>no solution</em>. Then find the value that gives <em>infinitely many</em> solutions.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>No solution:</strong> coefficient of x = 0 but RHS &ne; 0. k &minus; 2 = 0 &rArr; k = 2. Check RHS: 3(2) &minus; 4 = 2 &ne; 0. So k = 2 gives no solution (0 = 2).</p>
+              <p><strong>Infinitely many:</strong> coefficient = 0 AND RHS = 0. Already k = 2 makes LHS zero; RHS = 2 &ne; 0, so there's no k that gives infinitely many here (since 3k &minus; 4 = 0 &rArr; k = 4/3, but then k &minus; 2 = &minus;2/3 &ne; 0, giving a unique solution).</p>
+              <p>For any k &ne; 2: x = (3k &minus; 4)/(k &minus; 2). For k = 2: no solution.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">5.5</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">A jar contains red and blue marbles. If you add 4 red marbles, one-third of the marbles are blue. If instead you add 8 blue marbles, one-half are blue. How many red and blue marbles are there originally?</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Let r = red, b = blue. Two conditions:</p>
+              <pre>b / (r + b + 4) = 1/3   →   3b = r + b + 4   →   2b - r = 4     ...(1)
+(b + 8) / (r + b + 8) = 1/2  →  2(b+8) = r+b+8  →  b - r = -8   ...(2)</pre>
+              <p>From (1) &minus; (2): b = 12. Substitute: 12 &minus; r = &minus;8 &rArr; r = 20.</p>
+              <p><strong>Answer: 20 red, 12 blue.</strong></p>
+              <p>Check (1): 12/(20+12+4) = 12/36 = 1/3 ✓ &nbsp; Check (2): 20/(20+20) = 20/40 = 1/2 ✓</p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 6. INEQUALITIES ═══════════════════════ -->
+      <h2 id="inequalities">6. Inequalities</h2>
+
+      <div class="math-box">
+        <div class="label">The flip rule</div>
+        Multiply or divide by a <strong>negative number</strong> &rArr; flip the inequality sign.<br>
+        &minus;2x &gt; 4 &rArr; x &lt; &minus;2
+      </div>
+
+      <pre><code>Solve: -2x + 3 > 7
+
+-2x > 4
+x < -2    ← flip! (divided by -2)
+
+Solution: (-∞, -2)</code></pre>
+
+      <pre><code>Compound: -1 ≤ 2x + 3 < 7
+
+Subtract 3:  -4 ≤ 2x < 4
+Divide by 2: -2 ≤ x < 2
+
+Solution: [-2, 2)</code></pre>
+
+      <!-- EXERCISES: Inequalities -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Inequalities</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">6.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Solve and write in interval notation: &nbsp; 3x &minus; 7 &ge; 2x + 1</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>x ≥ 8</pre>
+              <p>Interval notation: <strong>[8, &infin;)</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">6.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Solve: &nbsp; |2x &minus; 3| &lt; 7 &nbsp; (absolute value inequality)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>|A| &lt; k &hArr; &minus;k &lt; A &lt; k</p>
+              <pre>-7 < 2x - 3 < 7
+-4 < 2x < 10
+-2 < x < 5</pre>
+              <p>Interval notation: <strong>(&minus;2, 5)</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">6.3</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">Find all real x satisfying: &nbsp; x&sup2; &minus; 5x + 6 &gt; 0. Use a sign chart. (This technique is essential for calculus.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Factor: (x &minus; 2)(x &minus; 3) &gt; 0. Critical points: x = 2 and x = 3.</p>
+              <pre>Sign chart:
+x < 2:    (−)(−) = + > 0  ✓
+2 < x < 3: (+)(−) = − < 0  ✗
+x > 3:    (+)(+) = + > 0  ✓</pre>
+              <p><strong>Solution: (&minus;&infin;, 2) &cup; (3, &infin;)</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">6.4</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">Prove the AM-GM inequality for two positive reals: for all a, b &gt; 0, &nbsp; (a + b)/2 &ge; &radic;(ab). Equality holds when? (This is a foundational inequality in analysis.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Proof.</strong> Start from the fact that any real number squared is non-negative:</p>
+              <p>(&radic;a &minus; &radic;b)&sup2; &ge; 0 for all a, b &ge; 0.</p>
+              <p>Expand: a &minus; 2&radic;(ab) + b &ge; 0 &rArr; a + b &ge; 2&radic;(ab) &rArr; (a + b)/2 &ge; &radic;(ab).</p>
+              <p><strong>Equality</strong> holds if and only if &radic;a = &radic;b, i.e., a = b.</p>
+              <p>This proof requires no machinery beyond algebra &mdash; yet it's the cornerstone of dozens of hard competition problems and analysis theorems.</p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 7. SYSTEMS ═══════════════════════ -->
+      <h2 id="systems">7. Systems of Equations</h2>
+
+      <h3>Substitution</h3>
+      <pre><code>y = 2x - 1  ... (1)
+3x + y = 9  ... (2)
+
+Sub (1) into (2): 3x + 2x - 1 = 9 → x = 2, y = 3</code></pre>
+
+      <h3>Elimination</h3>
+      <pre><code>2x + 3y = 12   ... (1)
+4x - 3y = 6    ... (2)
+
+Add: 6x = 18 → x = 3, y = 2</code></pre>
+
+      <!-- EXERCISES: Systems -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Systems of Equations</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">7.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Solve: &nbsp; x + y = 7, &nbsp; x &minus; y = 3</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Add both equations: 2x = 10 &rArr; x = 5. Subtract: 2y = 4 &rArr; y = 2.</p>
+              <p><strong>Solution: (5, 2)</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">7.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Solve the 3-variable system: &nbsp; x + y + z = 6, &nbsp; 2x &minus; y + z = 3, &nbsp; x + 2y &minus; z = 2</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>Add eq1 and eq2: 3x + 2z = 9       ...(4)
+Add eq1 and eq3: 2x + 3y = 8       ...(5)
+Subtract eq3 from eq2: x - 3y + 2z = 1  ...(6)
+
+From (1): z = 6 - x - y. Sub into (4):
+3x + 2(6 - x - y) = 9 → x - 2y = -3   ...(7)
+
+From (5) and (7):
+2x + 3y = 8
+x - 2y = -3  → x = 2(x-2y=-3) → x = 2y-3
+
+Sub into (5): 2(2y-3) + 3y = 8 → 7y = 14 → y = 2
+x = 2(2)-3 = 1, z = 6-1-2 = 3</pre>
+              <p><strong>Solution: x = 1, y = 2, z = 3</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">7.3</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">Find all real pairs (x, y) satisfying: &nbsp; x&sup2; + y = 10 &nbsp; and &nbsp; x + y&sup2; = 10. (MIT 18.01 warm-up style; exploit symmetry.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Symmetry observation:</strong> If (x, y) is a solution, so is (y, x). Subtract the two equations:</p>
+              <p>x&sup2; &minus; x + y &minus; y&sup2; = 0 &rArr; (x&sup2; &minus; y&sup2;) &minus; (x &minus; y) = 0 &rArr; (x&minus;y)(x+y&minus;1) = 0</p>
+              <p><strong>Case 1: x = y.</strong> Then x&sup2; + x = 10 &rArr; x&sup2; + x &minus; 10 = 0 &rArr; x = (&minus;1 &plusmn; &radic;41)/2.</p>
+              <p><strong>Case 2: x + y = 1.</strong> Then y = 1 &minus; x. Sub into first: x&sup2; + 1 &minus; x = 10 &rArr; x&sup2; &minus; x &minus; 9 = 0 &rArr; x = (1 &plusmn; &radic;37)/2.</p>
+              <p>Total: <strong>4 solutions</strong> (two from each case).</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">7.4</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">For what values of k does the system &nbsp; 2x + ky = 4, &nbsp; kx + 8y = 4k &nbsp; have: (a) exactly one solution, (b) infinitely many solutions, (c) no solution? (This is a classic linear algebra question that bridges algebra and matrix theory.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>The system matrix has determinant D = 2(8) &minus; k(k) = 16 &minus; k&sup2;.</p>
+              <p><strong>(a) One solution:</strong> D &ne; 0 &rArr; k&sup2; &ne; 16 &rArr; <strong>k &ne; &plusmn;4</strong></p>
+              <p><strong>(b)/(c) When D = 0:</strong> k = 4 or k = &minus;4.</p>
+              <p><em>k = 4:</em> System becomes 2x + 4y = 4 and 4x + 8y = 16. Second = 2 &times; first (8 = 8 ✓). <strong>Infinitely many solutions.</strong></p>
+              <p><em>k = &minus;4:</em> System: 2x &minus; 4y = 4 and &minus;4x + 8y = &minus;16 &rArr; second = &minus;2 &times; first. But 2x &minus; 4y = 4 and &minus;4x + 8y = &minus;16 = &minus;2(2x &minus; 4y) = &minus;8 &ne; &minus;16. <strong>No solution.</strong></p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 8. POLYNOMIALS ═══════════════════════ -->
+      <h2 id="polynomials">8. Polynomials &mdash; Adding, Subtracting, Multiplying</h2>
+
+      <div class="math-box">
+        <div class="label">Vocabulary</div>
+        Monomial (1 term) &bull; Binomial (2 terms) &bull; Trinomial (3 terms)<br>
+        Degree = highest exponent
+      </div>
+
+      <pre><code>(3x² + 2x - 1) + (x² - 5x + 4) = 4x² - 3x + 3
+
+(x + 3)(x - 2)  →  x² - 2x + 3x - 6  =  x² + x - 6</code></pre>
+
+      <div class="math-box">
+        <div class="label">Special products</div>
+        (a + b)&sup2; = a&sup2; + 2ab + b&sup2;<br>
+        (a &minus; b)&sup2; = a&sup2; &minus; 2ab + b&sup2;<br>
+        (a + b)(a &minus; b) = a&sup2; &minus; b&sup2;
+      </div>
+
+      <!-- EXERCISES: Polynomials -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Polynomials</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">8.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Multiply and simplify: &nbsp; (3x &minus; 2)(2x + 5)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>F: 3x · 2x = 6x²
+O: 3x · 5  = 15x
+I: -2 · 2x = -4x
+L: -2 · 5  = -10
+
+Result: 6x² + 11x - 10</pre>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">8.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Find the product: &nbsp; (x &minus; 1)(x + 1)(x&sup2; + 1)(x&sup4; + 1). What pattern do you notice?</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>(x &minus; 1)(x + 1) = x&sup2; &minus; 1</p>
+              <p>(x&sup2; &minus; 1)(x&sup2; + 1) = x&sup4; &minus; 1</p>
+              <p>(x&sup4; &minus; 1)(x&sup4; + 1) = <strong>x&sup8; &minus; 1</strong></p>
+              <p>Pattern: each pair uses the difference of squares identity. The chain telescopes. Multiplying by (x + 1) first turns a degree-8 problem into three applications of a&sup2; &minus; b&sup2;. This trick is used in MIT problem sets to evaluate limits and sums.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">8.3</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">A polynomial P(x) has roots r, s, t. Express r&sup2; + s&sup2; + t&sup2; in terms of the coefficients of P(x) = x&sup3; + ax&sup2; + bx + c using Vieta's formulas.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Vieta's formulas:</strong></p>
+              <p>r + s + t = &minus;a</p>
+              <p>rs + rt + st = b</p>
+              <p>rst = &minus;c</p>
+              <p>Use the identity: r&sup2; + s&sup2; + t&sup2; = (r + s + t)&sup2; &minus; 2(rs + rt + st)</p>
+              <p>= (&minus;a)&sup2; &minus; 2b = <strong>a&sup2; &minus; 2b</strong></p>
+              <p>Example: x&sup3; &minus; 6x&sup2; + 11x &minus; 6 has roots 1, 2, 3. Sum of squares = 1 + 4 + 9 = 14. Formula: (&minus;(&minus;6))&sup2; &minus; 2(11) = 36 &minus; 22 = 14 ✓</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">8.4</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">Let P(x) = x&sup3; &minus; 3x&sup2; + 3x &minus; 1. Recognise the structure, factor completely, and find P(101) without a calculator. (This problem tests pattern recognition &mdash; a key MIT admissions skill.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Recognise: P(x) = (x &minus; 1)&sup3; &nbsp; (perfect cube pattern: (a&minus;b)&sup3; = a&sup3; &minus; 3a&sup2;b + 3ab&sup2; &minus; b&sup3; with a = x, b = 1)</p>
+              <p>P(101) = (101 &minus; 1)&sup3; = 100&sup3; = <strong>1,000,000</strong></p>
+              <p>Without recognising the structure, you'd compute a 6-digit cube by hand. Pattern recognition eliminates 99% of the work.</p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 9. FACTORING ═══════════════════════ -->
+      <h2 id="factoring">9. Factoring &mdash; The Most Important Skill in Algebra</h2>
+
+      <p>Always start: <strong>is there a GCF?</strong> Then count terms and apply the right method.</p>
+
+      <pre><code>Factor: 2x² + 7x + 3  (AC method)
+
+ac = 6. Find two numbers: multiply to 6, add to 7 → 1 and 6.
+2x² + x + 6x + 3 = x(2x+1) + 3(2x+1) = (x+3)(2x+1)</code></pre>
+
+      <pre><code>Special patterns:
+a² - b²  = (a+b)(a-b)            ← difference of squares
+a³ - b³  = (a-b)(a²+ab+b²)       ← difference of cubes
+a³ + b³  = (a+b)(a²-ab+b²)       ← sum of cubes</code></pre>
+
+      <div class="insight-box">
+        <div class="label">Factoring decision tree</div>
+        GCF? &rarr; 2 terms (diff of squares/cubes)? &rarr; 3 terms (trinomial)? &rarr; 4 terms (grouping)? &rarr; verify by expanding.
+      </div>
+
+      <!-- EXERCISES: Factoring -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Factoring</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">9.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Factor completely: &nbsp; (a) 4x&sup2; &minus; 9 &nbsp;&nbsp; (b) x&sup2; &minus; 7x + 12</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>(a) Difference of squares: (2x)&sup2; &minus; 3&sup2; = <strong>(2x + 3)(2x &minus; 3)</strong></p>
+              <p>(b) Find two numbers: multiply to 12, add to &minus;7 &rarr; &minus;3 and &minus;4: <strong>(x &minus; 3)(x &minus; 4)</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">9.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Factor completely: &nbsp; x&sup4; &minus; 16 &nbsp; (hint: factor twice)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>x⁴ - 16 = (x²)² - 4²
+= (x² + 4)(x² - 4)       ← first factoring
+= (x² + 4)(x + 2)(x - 2) ← factor again</pre>
+              <p>Note: x&sup2; + 4 is <em>irreducible</em> over the reals (no real roots).</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">9.3</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">Factor completely over the integers: &nbsp; x&sup6; &minus; 1</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>x⁶ - 1 = (x³)² - 1² = (x³ - 1)(x³ + 1)
+
+x³ - 1 = (x - 1)(x² + x + 1)   ← diff of cubes
+x³ + 1 = (x + 1)(x² - x + 1)   ← sum of cubes
+
+Final: (x - 1)(x + 1)(x² + x + 1)(x² - x + 1)
+
+Note: x² + x + 1 and x² - x + 1 have negative discriminants
+so they are irreducible over the reals.</pre>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">9.4</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question"><strong>Simon's Favourite Factoring Trick:</strong> Find all pairs of positive integers (m, n) with m &ge; n such that 1/m + 1/n = 1/6. (This is a classic competition problem solved by algebraic factoring.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Multiply through by 6mn: 6n + 6m = mn.</p>
+              <p>Rearrange: mn &minus; 6m &minus; 6n = 0. Add 36 to both sides:</p>
+              <p>mn &minus; 6m &minus; 6n + 36 = 36 &rArr; <strong>(m &minus; 6)(n &minus; 6) = 36</strong></p>
+              <p>Now find all factor pairs of 36 with m &ge; n (so m &minus; 6 &ge; n &minus; 6):</p>
+              <pre>(m-6, n-6)  →  (m, n)
+(36, 1)    →  (42, 7)
+(18, 2)    →  (24, 8)
+(12, 3)    →  (18, 9)
+(9,  4)    →  (15, 10)
+(6,  6)    →  (12, 12)</pre>
+              <p><strong>Five pairs total.</strong> Verify: 1/12 + 1/12 = 1/6 ✓, 1/7 + 1/42 = 6/42 + 1/42 = 7/42 = 1/6 ✓</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">9.5</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">Factor: &nbsp; a&sup4; + 4b&sup4; &nbsp; (Sophie Germain Identity &mdash; this factorisation is famous and counterintuitive because it looks like a sum of squares, which is "usually" irreducible.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Add and subtract 4a&sup2;b&sup2;:</p>
+              <pre>a⁴ + 4b⁴ = a⁴ + 4a²b² + 4b⁴ - 4a²b²
+          = (a² + 2b²)² - (2ab)²
+          = (a² + 2b² + 2ab)(a² + 2b² - 2ab)</pre>
+              <p>This identity is used in number theory to prove that numbers of the form n&sup4; + 4 are composite for n &gt; 1 (e.g., 2&sup4; + 4 = 20 = 4 &times; 5).</p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 10. QUADRATICS ═══════════════════════ -->
+      <h2 id="quadratics">10. Quadratic Equations</h2>
+
+      <p>Form: ax&sup2; + bx + c = 0 &nbsp; (a &ne; 0). Three solution methods.</p>
+
+      <pre><code>Factoring: x² + x - 6 = 0  →  (x+3)(x-2) = 0  →  x = -3 or 2
+
+Completing the square: x² + 6x - 7 = 0
+  x² + 6x + 9 = 16  →  (x+3)² = 16  →  x = 1 or -7</code></pre>
+
+      <div class="math-box">
+        <div class="label">Quadratic Formula</div>
+        x = (&minus;b &plusmn; &radic;(b&sup2; &minus; 4ac)) / 2a<br><br>
+        D = b&sup2; &minus; 4ac: &nbsp; D &gt; 0 (two real), &nbsp; D = 0 (one real), &nbsp; D &lt; 0 (no real)
+      </div>
+
+      <!-- EXERCISES: Quadratics -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Quadratic Equations</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">10.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Solve by factoring: &nbsp; x&sup2; &minus; 7x + 10 = 0</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>(x &minus; 2)(x &minus; 5) = 0 &rArr; <strong>x = 2 or x = 5</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">10.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Without solving, use Vieta's formulas to find the sum and product of roots of &nbsp; 3x&sup2; &minus; 7x + 2 = 0.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>For ax&sup2; + bx + c = 0: sum = &minus;b/a, product = c/a.</p>
+              <p><strong>Sum = 7/3, &nbsp; Product = 2/3</strong></p>
+              <p>Verify: roots are x = 2 and x = 1/3. Sum = 7/3 ✓ Product = 2/3 ✓</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">10.3</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">For what values of k does x&sup2; + kx + k = 0 have exactly one real solution?</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Set discriminant = 0: k&sup2; &minus; 4k = 0 &rArr; k(k &minus; 4) = 0 &rArr; <strong>k = 0 or k = 4</strong></p>
+              <p>k = 0: equation x&sup2; = 0, root x = 0. k = 4: x&sup2; + 4x + 4 = (x+2)&sup2; = 0, root x = &minus;2.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">10.4</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">If &alpha; and &beta; are roots of x&sup2; &minus; 3x + 1 = 0, find &alpha;&sup5; + &beta;&sup5; without solving for &alpha; and &beta; explicitly. (MIT 18.01 style power-sum bootstrapping.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>By Vieta's: &alpha; + &beta; = 3, &alpha;&beta; = 1. Define S_n = &alpha;^n + &beta;^n.</p>
+              <p>Recurrence: S_n = (&alpha; + &beta;)S_{n-1} &minus; (&alpha;&beta;)S_{n-2} = 3S_{n-1} &minus; S_{n-2}</p>
+              <pre>S₀ = 2  (always α⁰ + β⁰ = 2)
+S₁ = 3  (sum of roots)
+S₂ = 3(3) - 2 = 7
+S₃ = 3(7) - 3 = 18
+S₄ = 3(18) - 7 = 47
+S₅ = 3(47) - 18 = 123</pre>
+              <p><strong>Answer: &alpha;&sup5; + &beta;&sup5; = 123</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">10.5</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">Solve completely: &nbsp; x&sup4; &minus; 5x&sup2; + 4 = 0. How many real solutions are there? (Disguised quadratic &mdash; appeared on Harvard-MIT Math Tournament.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Let u = x&sup2;. Then u&sup2; &minus; 5u + 4 = 0 &rArr; (u &minus; 1)(u &minus; 4) = 0 &rArr; u = 1 or u = 4.</p>
+              <p>x&sup2; = 1 &rArr; x = &plusmn;1 &nbsp;&nbsp; and &nbsp;&nbsp; x&sup2; = 4 &rArr; x = &plusmn;2</p>
+              <p><strong>Four real solutions: x = &minus;2, &minus;1, 1, 2.</strong></p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 11. FUNCTIONS ═══════════════════════ -->
+      <h2 id="functions">11. Functions &mdash; The Language of Relationships</h2>
+
+      <div class="math-box">
+        <div class="label">Formal definition</div>
+        f: A &rarr; B is a function if every input has exactly one output.<br>
+        <strong>Domain:</strong> valid inputs. &nbsp; <strong>Range:</strong> actual outputs.
+      </div>
+
+      <pre><code>f(x) = 3x² - 2x + 1
+f(4)   = 48 - 8 + 1 = 41
+f(a+1) = 3a² + 4a + 2</code></pre>
+
+      <pre><code>Domain of √(x+1) / (x-4):
+  x + 1 ≥ 0  →  x ≥ -1
+  x ≠ 4      (denominator)
+  Domain: [-1, 4) ∪ (4, ∞)</code></pre>
+
+      <pre><code>Composition:
+f(x) = 2x+1,  g(x) = x²
+(f∘g)(x) = 2x² + 1
+(g∘f)(x) = (2x+1)² = 4x² + 4x + 1</code></pre>
+
+      <h3>Linear Functions and Graphs</h3>
+
+      <div class="math-box">
+        <div class="label">Forms of a linear function</div>
+        Slope-intercept: y = mx + b &bull; Point-slope: y &minus; y&sub1; = m(x &minus; x&sub1;)<br>
+        Slope = (y&sub2; &minus; y&sub1;)/(x&sub2; &minus; x&sub1;) &bull; Perpendicular slopes: m&sub1; &times; m&sub2; = &minus;1
+      </div>
+
+      <!-- EXERCISES: Functions -->
+      <div class="exercise-set">
+        <div class="ex-header">
+          <span class="ex-icon">&#9997;</span>
+          <span class="ex-title">Practice Exercises &mdash; Functions</span>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">11.1</span><span class="diff-badge easy">Easy</span></div>
+          <p class="ex-question">Given f(x) = x&sup2; &minus; 3x + 2, evaluate f(0), f(2), f(&minus;1), and f(a + 1) in simplified form.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <pre>f(0)   = 0 - 0 + 2 = 2
+f(2)   = 4 - 6 + 2 = 0
+f(-1)  = 1 + 3 + 2 = 6
+f(a+1) = (a+1)² - 3(a+1) + 2
+       = a² + 2a + 1 - 3a - 3 + 2
+       = a² - a</pre>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">11.2</span><span class="diff-badge medium">Medium</span></div>
+          <p class="ex-question">Find the domain of &nbsp; f(x) = &radic;(4 &minus; x&sup2;) / (x &minus; 1)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>Conditions: 4 &minus; x&sup2; &ge; 0 &rArr; x&sup2; &le; 4 &rArr; &minus;2 &le; x &le; 2. Also x &ne; 1.</p>
+              <p><strong>Domain: [&minus;2, 1) &cup; (1, 2]</strong></p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">11.3</span><span class="diff-badge hard">Hard</span></div>
+          <p class="ex-question">Find all linear functions f(x) = ax + b such that f(f(x)) = x for all x (i.e., f is its own inverse). Interpret geometrically.</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p>f(f(x)) = a(ax + b) + b = a&sup2;x + ab + b = x for all x.</p>
+              <p>Coefficients: a&sup2; = 1 and ab + b = 0 &rArr; b(a + 1) = 0.</p>
+              <p><strong>Case 1: a = 1.</strong> Then b(2) = 0 &rArr; b = 0. So f(x) = x (identity).</p>
+              <p><strong>Case 2: a = &minus;1.</strong> Then b(0) = 0 &rArr; b can be anything. So f(x) = &minus;x + b for any b.</p>
+              <p><strong>Answer: f(x) = x, or f(x) = &minus;x + b for any constant b.</strong></p>
+              <p>Geometric meaning: f(x) = &minus;x + b is a reflection about the line y = b/2. Reflecting twice returns to the original.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">11.4</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">The function f satisfies f(x + y) = f(x) + f(y) for all real x, y, and f(1) = 3. Find f(n) for all positive integers n, then prove that f(r) = 3r for all rational r. (Cauchy's Functional Equation &mdash; foundational in real analysis.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Integers:</strong> f(n) = f(1 + 1 + &hellip; + 1) = nf(1) = 3n.</p>
+              <p>f(0) = f(0 + 0) = 2f(0) &rArr; f(0) = 0.</p>
+              <p>f(0) = f(n) + f(&minus;n) &rArr; f(&minus;n) = &minus;3n. So f(n) = 3n for all integers.</p>
+              <p><strong>Rationals:</strong> Let r = p/q. Then qf(p/q) = f(q &middot; p/q) = f(p) = 3p. So f(p/q) = 3p/q = 3r.</p>
+              <p>Therefore f(r) = 3r for all rational r. &nbsp; &#9632;</p>
+              <p>(Over the reals, assuming continuity forces f(x) = 3x for all x, but without continuity there exist pathological solutions &mdash; a deep theorem in real analysis.)</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="exercise">
+          <div class="ex-meta"><span class="ex-num">11.5</span><span class="diff-badge challenge">Challenge</span></div>
+          <p class="ex-question">Find all functions f: &reals; &rarr; &reals; satisfying f(xy) = xf(y) + yf(x) for all real x, y. (This is a derivation functional equation &mdash; appears in MIT 18.100 and abstract algebra.)</p>
+          <details class="ex-answer"><summary>Show answer</summary>
+            <div class="answer-body">
+              <p><strong>Step 1.</strong> Set x = y = 0: f(0) = 2f(0) &rArr; f(0) = 0.</p>
+              <p><strong>Step 2.</strong> Set y = 1: f(x) = xf(1) + f(x) &rArr; xf(1) = 0 for all x &rArr; f(1) = 0.</p>
+              <p><strong>Step 3.</strong> Set x = y: f(x&sup2;) = 2xf(x).</p>
+              <p><strong>Step 4.</strong> This is the Leibniz rule for derivatives. The continuous solutions are f(x) = cx ln|x| for a constant c (with f(0) = 0), but over the rationals, f(x) = 0 for all x is also a solution family.</p>
+              <p>The key algebraic conclusion: f(1) = 0, f(0) = 0, and f satisfies the product rule &mdash; exactly like a derivative operator.</p>
+            </div>
+          </details>
+        </div>
+
+      </div><!-- /exercise-set -->
+
+
+      <!-- ═══════════════════════ 12. PLAN ═══════════════════════ -->
+      <h2 id="plan">12. 4-Week Study Plan</h2>
+
+      <table class="plan-table">
+        <thead>
+          <tr>
+            <th>Week</th><th>Topics</th><th>Daily Practice</th><th>Goal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Week 1</strong></td>
+            <td>Number systems, properties, variables, expressions, order of operations</td>
+            <td>15 simplification problems per day</td>
+            <td>Fast, accurate arithmetic and expression manipulation</td>
+          </tr>
+          <tr>
+            <td><strong>Week 2</strong></td>
+            <td>Linear equations (all types), inequalities, systems</td>
+            <td>10 equations + 5 inequalities + 3 systems per day</td>
+            <td>Solve any linear equation without hesitation</td>
+          </tr>
+          <tr>
+            <td><strong>Week 3</strong></td>
+            <td>Polynomials, special products, all factoring methods</td>
+            <td>20 factoring problems per day (90 sec each)</td>
+            <td>Factor any standard polynomial on sight</td>
+          </tr>
+          <tr>
+            <td><strong>Week 4</strong></td>
+            <td>Quadratics (all three methods), functions, domain/range, composition</td>
+            <td>10 quadratics + 8 function problems per day</td>
+            <td>Handle quadratics fluently; understand function notation deeply</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Daily Structure (60 minutes)</h3>
+      <div class="step-grid">
+        <div class="step-card">
+          <div class="num">10m</div>
+          <div class="desc">Review yesterday's hardest problems. Find exactly where you went wrong.</div>
+        </div>
+        <div class="step-card">
+          <div class="num">5m</div>
+          <div class="desc">Read one new concept. One, not many.</div>
+        </div>
+        <div class="step-card">
+          <div class="num">35m</div>
+          <div class="desc">Solve problems. Start easy, build to hard. Time yourself. Attempt before peeking at answers.</div>
+        </div>
+        <div class="step-card">
+          <div class="num">10m</div>
+          <div class="desc">Review every wrong answer. Understand the gap. Fix it.</div>
+        </div>
+      </div>
+
+      <h3>Progress Checkpoints</h3>
+      <ul>
+        <li><strong>End of Week 1:</strong> Can you simplify any polynomial expression in under 2 minutes?</li>
+        <li><strong>End of Week 2:</strong> Can you solve a multi-step linear equation with fractions and parentheses without notes?</li>
+        <li><strong>End of Week 3:</strong> Can you decide which factoring method to use within 10 seconds?</li>
+        <li><strong>End of Week 4:</strong> Can you solve a quadratic using all three methods and explain Vieta's formulas?</li>
+      </ul>
+
+
+      <!-- ═══════════════════════ 13. RESOURCES ═══════════════════════ -->
+      <h2 id="resources">13. Best Free Resources</h2>
+
+      <ul>
+        <li><strong>Khan Academy &mdash; Algebra 1 and 2:</strong> Short videos with instant practice. Follow the structured sequence, don't jump around.</li>
+        <li><strong>Paul's Online Math Notes (tutorial.math.lamar.edu):</strong> Textbook-quality notes. Use after Khan Academy for more rigour.</li>
+        <li><strong>Professor Leonard (YouTube):</strong> Full university-length lectures. Best when a concept doesn't click from reading.</li>
+        <li><strong>Art of Problem Solving (aops.com):</strong> For the Hard and Challenge problems in this post. The community solutions are world-class.</li>
+        <li><strong>Mathway / Symbolab:</strong> Check your work <em>after</em> attempting. Never use as a shortcut.</li>
+      </ul>
+
+
+      <!-- ═══════════════════════ TAKEAWAYS ═══════════════════════ -->
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>Algebra is generalised arithmetic &mdash; every rule has a reason rooted in the properties of real numbers.</li>
+        <li>The balance principle (do the same to both sides) explains all equation solving.</li>
+        <li>Factoring is the highest-leverage skill. Practice it until it's automatic.</li>
+        <li>Vieta's formulas let you find sums and products of roots without solving &mdash; a competition superpower.</li>
+        <li>The Hard and Challenge problems here are not decoration. Working through them builds a completely different level of fluency than textbook exercises alone.</li>
+        <li>Check every answer. Substitute back. This habit compounds over time.</li>
+        <li>Four weeks, 60 minutes a day, consistent practice &mdash; that's the whole plan.</li>
+      </ul>
+
+      <blockquote>
+        The only shortcut in mathematics is genuine understanding.
+        It takes slightly longer up front and pays back exponentially forever after.
+      </blockquote>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

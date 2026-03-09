@@ -7,11 +7,90 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    .series-group {
+      margin: 2.5rem 0 0;
+    }
+    .series-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted, #6b7280);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .series-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border, #e5e7eb);
+    }
+    /* Hub card — full width, slightly elevated */
+    .post-card.hub-card {
+      border-left: 3px solid var(--accent, #2563eb);
+      background: #f0f6ff;
+    }
+    .post-card.hub-card:hover {
+      background: #e8f0fe;
+    }
+    /* Sub-posts inside a series — compact rows */
+    .sub-post-list {
+      display: grid;
+      gap: 0.5rem;
+      margin-top: 0.65rem;
+      padding-left: 0.75rem;
+      border-left: 2px solid var(--border, #e5e7eb);
+    }
+    .sub-post-card {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 0.6rem 0.9rem;
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 7px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .sub-post-card:hover {
+      border-color: var(--accent, #2563eb);
+      background: #f8faff;
+    }
+    .sub-post-num {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--accent, #2563eb);
+      min-width: 2.4rem;
+      flex-shrink: 0;
+    }
+    .sub-post-title {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text, #1a1a1a);
+      line-height: 1.45;
+      flex: 1;
+    }
+    .sub-post-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted, #9ca3af);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .divider {
+      height: 1px;
+      background: var(--border, #e5e7eb);
+      margin: 2rem 0;
+    }
+  </style>
 </head>
 <body>
 
   <nav>
-    <a href="index.html" class="nav-brand">⚡ sudhanshu</a>
+    <a href="index.html" class="nav-brand">&#9889; sudhanshu</a>
     <div class="nav-links">
       <a href="#writing">writing</a>
       <a href="#about">about</a>
@@ -24,11 +103,11 @@
     <!-- Hero -->
     <section class="hero">
       <div class="hero-text">
-        <h1>hey, I'm Sudhanshu <span class="wave">👋</span></h1>
-        <p class="tagline">ML Engineer · real-time video systems · multi-GPU clusters</p>
+        <h1>hey, I'm Sudhanshu <span class="wave">&#128075;</span></h1>
+        <p class="tagline">ML Engineer &middot; real-time video systems &middot; multi-GPU clusters</p>
         <p class="bio">
           I build the infrastructure that makes machines see the world at scale.
-          4+ years working on high-throughput, low-latency computer vision pipelines —
+          4+ years working on high-throughput, low-latency computer vision pipelines &mdash;
           from model training through TensorRT optimization, Triton serving, and
           Kubernetes deployment. Currently processing 100+ concurrent camera streams
           for traffic enforcement and surveillance at city scale.
@@ -51,46 +130,20 @@
 
       <div class="post-list">
 
+        <!-- ── Standalone posts ───────────────────────────── -->
+
         <a href="posts/local-llm-deployment-guide.html" class="post-card">
           <div class="post-meta">
             <span class="post-date">March 2026</span>
             <span class="post-tag">inference</span>
           </div>
-          <h3 class="post-title">Local LLM Deployment: Ollama vs vLLM vs llama.cpp — The Definitive Deep Dive</h3>
+          <h3 class="post-title">Local LLM Deployment: Ollama vs vLLM vs llama.cpp &mdash; The Definitive Deep Dive</h3>
           <p class="post-excerpt">
-            A complete engineering guide to running LLMs on your own hardware — PagedAttention internals,
+            A complete engineering guide to running LLMs on your own hardware &mdash; PagedAttention internals,
             quantization math (GPTQ / AWQ / GGUF), Flash Attention, speculative decoding, KV cache
             optimization, LoRA serving, and a full production stack from first install to Prometheus metrics.
           </p>
           <span class="read-time">75 min read</span>
-        </a>
-
-        <a href="posts/dsa-mastery-hub.html" class="post-card">
-          <div class="post-meta">
-            <span class="post-date">March 2026</span>
-            <span class="post-tag">dsa</span>
-          </div>
-          <h3 class="post-title">DSA Mastery Series — FAANG Interview Complete Guide (15 Posts)</h3>
-          <p class="post-excerpt">
-            A pattern-first journey through Data Structures &amp; Algorithms for cracking FAANG interviews.
-            From complexity analysis and core data structures to dynamic programming, graphs, and
-            the 14 patterns that cover 90% of interview problems. Hub with links to all 15 modules.
-          </p>
-          <span class="read-time">series hub</span>
-        </a>
-
-        <a href="posts/cuda-mastery-hub.html" class="post-card">
-          <div class="post-meta">
-            <span class="post-date">March 2026</span>
-            <span class="post-tag">cuda</span>
-          </div>
-          <h3 class="post-title">CUDA Mastery Series — Complete Learning Path (16 Posts)</h3>
-          <p class="post-excerpt">
-            A structured bottom-up journey through CUDA GPU programming — from C fundamentals
-            and CPU/GPU architecture to warp-level optimization, profiling with Nsight, and
-            NVIDIA interview preparation. Hub with links to all 16 modules.
-          </p>
-          <span class="read-time">series hub</span>
         </a>
 
         <a href="posts/tensorrt-optimization-guide.html" class="post-card">
@@ -101,7 +154,7 @@
           <h3 class="post-title">TensorRT in the Real World: Lessons from Optimizing 15+ Production Models</h3>
           <p class="post-excerpt">
             Everything I wish I knew before spending three months squeezing latency out of
-            detection models — precision calibration, layer fusion pitfalls, and when FP16
+            detection models &mdash; precision calibration, layer fusion pitfalls, and when FP16
             is lying to you.
           </p>
           <span class="read-time">12 min read</span>
@@ -135,6 +188,251 @@
           <span class="read-time">14 min read</span>
         </a>
 
+        <a href="posts/algebra-fundamentals-fast.html" class="post-card">
+          <div class="post-meta">
+            <span class="post-date">March 2026</span>
+            <span class="post-tag">math</span>
+          </div>
+          <h3 class="post-title">Algebra from Zero to Solid: Build Real Fundamentals Fast</h3>
+          <p class="post-excerpt">
+            Stop memorising tricks you don't understand. A ground-up walkthrough of every core
+            algebra topic &mdash; variables, linear equations, inequalities, systems, polynomials,
+            factoring, quadratics, and functions &mdash; with worked examples, common-mistake warnings,
+            and a 4-week study plan.
+          </p>
+          <span class="read-time">55 min read</span>
+        </a>
+
+        <!-- ── DSA Series ───────────────────────────────────── -->
+        <div class="divider"></div>
+
+        <div class="series-group">
+          <div class="series-label">DSA Series &mdash; 15 posts</div>
+
+          <a href="posts/dsa-mastery-hub.html" class="post-card hub-card">
+            <div class="post-meta">
+              <span class="post-date">March 2026</span>
+              <span class="post-tag">dsa</span>
+            </div>
+            <h3 class="post-title">DSA Mastery Series &mdash; FAANG Interview Complete Guide</h3>
+            <p class="post-excerpt">
+              A pattern-first journey through Data Structures &amp; Algorithms for cracking FAANG interviews.
+              The 14 patterns that cover 90% of problems, 200+ code examples, and an 8-week study plan.
+              Start here to navigate all 15 posts in order.
+            </p>
+            <span class="read-time">series hub</span>
+          </a>
+
+          <div class="sub-post-list">
+
+            <a href="posts/dsa-phase1-complexity.html" class="sub-post-card">
+              <span class="sub-post-num">1.1</span>
+              <span class="sub-post-title">Big-O &amp; Complexity Analysis: The Mental Model That Matters</span>
+              <span class="sub-post-meta">25 min</span>
+            </a>
+
+            <a href="posts/dsa-phase1-arrays-strings.html" class="sub-post-card">
+              <span class="sub-post-num">1.2</span>
+              <span class="sub-post-title">Arrays &amp; Strings: The Bread and Butter of FAANG</span>
+              <span class="sub-post-meta">30 min</span>
+            </a>
+
+            <a href="posts/dsa-phase2-linked-lists.html" class="sub-post-card">
+              <span class="sub-post-num">2.1</span>
+              <span class="sub-post-title">Linked Lists: Pointers, Cycles, and Interview Classics</span>
+              <span class="sub-post-meta">28 min</span>
+            </a>
+
+            <a href="posts/dsa-phase2-stacks-queues.html" class="sub-post-card">
+              <span class="sub-post-num">2.2</span>
+              <span class="sub-post-title">Stacks &amp; Queues: LIFO, FIFO, and Their Hidden Power</span>
+              <span class="sub-post-meta">25 min</span>
+            </a>
+
+            <a href="posts/dsa-phase2-hashmaps.html" class="sub-post-card">
+              <span class="sub-post-num">2.3</span>
+              <span class="sub-post-title">Hash Maps &amp; Sets: O(1) and When It Lies to You</span>
+              <span class="sub-post-meta">22 min</span>
+            </a>
+
+            <a href="posts/dsa-phase2-trees.html" class="sub-post-card">
+              <span class="sub-post-num">2.4</span>
+              <span class="sub-post-title">Trees &amp; Binary Search Trees: The Most Interview-Dense Data Structure</span>
+              <span class="sub-post-meta">35 min</span>
+            </a>
+
+            <a href="posts/dsa-phase2-heaps.html" class="sub-post-card">
+              <span class="sub-post-num">2.5</span>
+              <span class="sub-post-title">Heaps &amp; Priority Queues: Always Know Your Top-K</span>
+              <span class="sub-post-meta">25 min</span>
+            </a>
+
+            <a href="posts/dsa-phase3-two-pointers.html" class="sub-post-card">
+              <span class="sub-post-num">3.1</span>
+              <span class="sub-post-title">Two Pointers &amp; Sliding Window: One Pass to Rule Them All</span>
+              <span class="sub-post-meta">30 min</span>
+            </a>
+
+            <a href="posts/dsa-phase3-binary-search.html" class="sub-post-card">
+              <span class="sub-post-num">3.2</span>
+              <span class="sub-post-title">Binary Search: The Most Underestimated Technique in Interviews</span>
+              <span class="sub-post-meta">28 min</span>
+            </a>
+
+            <a href="posts/dsa-phase3-recursion-backtracking.html" class="sub-post-card">
+              <span class="sub-post-num">3.3</span>
+              <span class="sub-post-title">Recursion &amp; Backtracking: How to Think in Trees</span>
+              <span class="sub-post-meta">32 min</span>
+            </a>
+
+            <a href="posts/dsa-phase4-dp.html" class="sub-post-card">
+              <span class="sub-post-num">4.1</span>
+              <span class="sub-post-title">Dynamic Programming: From Memoization to Tabulation</span>
+              <span class="sub-post-meta">40 min</span>
+            </a>
+
+            <a href="posts/dsa-phase4-graphs.html" class="sub-post-card">
+              <span class="sub-post-num">4.2</span>
+              <span class="sub-post-title">Graphs: BFS, DFS, and Classic Interview Problems</span>
+              <span class="sub-post-meta">35 min</span>
+            </a>
+
+            <a href="posts/dsa-phase4-advanced-graphs.html" class="sub-post-card">
+              <span class="sub-post-num">4.3</span>
+              <span class="sub-post-title">Advanced Graphs: Dijkstra, Union-Find, and Topological Sort</span>
+              <span class="sub-post-meta">38 min</span>
+            </a>
+
+            <a href="posts/dsa-phase5-interview-prep.html" class="sub-post-card">
+              <span class="sub-post-num">5</span>
+              <span class="sub-post-title">FAANG Interview Playbook: Patterns, Mindset, and the 8-Week Plan</span>
+              <span class="sub-post-meta">45 min</span>
+            </a>
+
+          </div>
+        </div>
+
+        <!-- ── CUDA Series ─────────────────────────────────── -->
+        <div class="divider"></div>
+
+        <div class="series-group">
+          <div class="series-label">CUDA Series &mdash; 16 posts</div>
+
+          <a href="posts/cuda-mastery-hub.html" class="post-card hub-card">
+            <div class="post-meta">
+              <span class="post-date">March 2026</span>
+              <span class="post-tag">cuda</span>
+            </div>
+            <h3 class="post-title">CUDA Mastery Series &mdash; Complete Learning Path</h3>
+            <p class="post-excerpt">
+              A bottom-up journey through CUDA GPU programming &mdash; from C fundamentals and
+              CPU/GPU architecture to warp-level optimization, shared memory, streams, and NVIDIA
+              interview preparation. Start here to navigate all 16 posts in order.
+            </p>
+            <span class="read-time">series hub</span>
+          </a>
+
+          <div class="sub-post-list">
+
+            <a href="posts/cuda-phase1-c-fundamentals.html" class="sub-post-card">
+              <span class="sub-post-num">1.1</span>
+              <span class="sub-post-title">C/C++ Fundamentals Every CUDA Developer Must Know</span>
+              <span class="sub-post-meta">22 min</span>
+            </a>
+
+            <a href="posts/cuda-phase1-architecture.html" class="sub-post-card">
+              <span class="sub-post-num">1.2</span>
+              <span class="sub-post-title">CPU vs GPU Architecture: Why Parallelism Changes Everything</span>
+              <span class="sub-post-meta">20 min</span>
+            </a>
+
+            <a href="posts/cuda-phase2-programming-model.html" class="sub-post-card">
+              <span class="sub-post-num">2.1</span>
+              <span class="sub-post-title">The CUDA Programming Model: Threads, Blocks, and Grids</span>
+              <span class="sub-post-meta">22 min</span>
+            </a>
+
+            <a href="posts/cuda-phase2-vector-addition.html" class="sub-post-card">
+              <span class="sub-post-num">2.2</span>
+              <span class="sub-post-title">Your First CUDA Kernel: Vector Addition from Scratch</span>
+              <span class="sub-post-meta">25 min</span>
+            </a>
+
+            <a href="posts/cuda-phase2-error-handling.html" class="sub-post-card">
+              <span class="sub-post-num">2.3</span>
+              <span class="sub-post-title">Error Handling in CUDA: Never Ignore cudaSuccess</span>
+              <span class="sub-post-meta">15 min</span>
+            </a>
+
+            <a href="posts/cuda-phase3-memory-hierarchy.html" class="sub-post-card">
+              <span class="sub-post-num">3.1</span>
+              <span class="sub-post-title">GPU Memory Hierarchy: Registers, Shared, Global and More</span>
+              <span class="sub-post-meta">25 min</span>
+            </a>
+
+            <a href="posts/cuda-phase3-shared-memory.html" class="sub-post-card">
+              <span class="sub-post-num">3.2</span>
+              <span class="sub-post-title">Shared Memory and Bank Conflicts: The GPU's Secret Weapon</span>
+              <span class="sub-post-meta">28 min</span>
+            </a>
+
+            <a href="posts/cuda-phase3-coalescing.html" class="sub-post-card">
+              <span class="sub-post-num">3.3</span>
+              <span class="sub-post-title">Memory Coalescing: How Access Patterns Make or Break Performance</span>
+              <span class="sub-post-meta">20 min</span>
+            </a>
+
+            <a href="posts/cuda-phase3-unified-memory.html" class="sub-post-card">
+              <span class="sub-post-num">3.4</span>
+              <span class="sub-post-title">Unified Memory: When Convenience Beats Manual Transfers</span>
+              <span class="sub-post-meta">16 min</span>
+            </a>
+
+            <a href="posts/cuda-phase4-warps.html" class="sub-post-card">
+              <span class="sub-post-num">4.1</span>
+              <span class="sub-post-title">Warps, SIMT, and Warp Divergence: Thinking in Groups of 32</span>
+              <span class="sub-post-meta">22 min</span>
+            </a>
+
+            <a href="posts/cuda-phase4-reduction.html" class="sub-post-card">
+              <span class="sub-post-num">4.2</span>
+              <span class="sub-post-title">Parallel Reduction: The Classic Interview Problem, Solved 6 Ways</span>
+              <span class="sub-post-meta">30 min</span>
+            </a>
+
+            <a href="posts/cuda-phase4-streams.html" class="sub-post-card">
+              <span class="sub-post-num">4.3</span>
+              <span class="sub-post-title">CUDA Streams: Overlap Computation and Data Transfer</span>
+              <span class="sub-post-meta">20 min</span>
+            </a>
+
+            <a href="posts/cuda-phase4-atomics.html" class="sub-post-card">
+              <span class="sub-post-num">4.4</span>
+              <span class="sub-post-title">Atomic Operations: Thread-Safe Updates Without Locks</span>
+              <span class="sub-post-meta">18 min</span>
+            </a>
+
+            <a href="posts/cuda-phase4-dynamic-parallelism.html" class="sub-post-card">
+              <span class="sub-post-num">4.5</span>
+              <span class="sub-post-title">Dynamic Parallelism: Kernels Launching Kernels</span>
+              <span class="sub-post-meta">16 min</span>
+            </a>
+
+            <a href="posts/cuda-phase5-profiling.html" class="sub-post-card">
+              <span class="sub-post-num">5</span>
+              <span class="sub-post-title">Performance Optimization and Profiling: Turning Theory into Speed</span>
+              <span class="sub-post-meta">28 min</span>
+            </a>
+
+            <a href="posts/cuda-phase6-interview-prep.html" class="sub-post-card">
+              <span class="sub-post-num">6</span>
+              <span class="sub-post-title">NVIDIA Interview Prep: Questions, Coding Problems, and What to Study</span>
+              <span class="sub-post-meta">35 min</span>
+            </a>
+
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -144,7 +442,7 @@
       <div class="about-content">
         <p>
           I'm an ML Engineer focused on computer vision infrastructure. My work lives
-          at the intersection of research and production — taking models that work
+          at the intersection of research and production &mdash; taking models that work
           in notebooks and making them work reliably at scale, fast, under real
           operational constraints.
         </p>
@@ -173,7 +471,7 @@
   </main>
 
   <footer>
-    <p>built with ☕ by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
   </footer>
 
 </body>
