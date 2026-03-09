@@ -1,0 +1,3024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complete Math for Computer Scientists and ML Engineers — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    .math-box {
+      background: #f0f6ff;
+      border-left: 4px solid #2563eb;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      font-family: 'Lora', serif;
+      font-size: 1.05rem;
+      color: #1e3a5f;
+    }
+    .math-box .label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #2563eb;
+      margin-bottom: 0.4rem;
+    }
+    .insight-box {
+      background: #fefce8;
+      border-left: 4px solid #ca8a04;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+    }
+    .insight-box .label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #ca8a04;
+      margin-bottom: 0.4rem;
+    }
+    .mistake-box {
+      background: #fff1f2;
+      border-left: 4px solid #e11d48;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+    }
+    .mistake-box .label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #e11d48;
+      margin-bottom: 0.4rem;
+    }
+    .toc {
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2rem;
+    }
+    .toc-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+      margin-bottom: 0.75rem;
+    }
+    .toc ol { margin: 0; padding-left: 1.4rem; }
+    .toc li { margin: 0.35rem 0; font-size: 0.92rem; }
+    .toc a { color: #2563eb; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .toc ul { margin: 0.2rem 0 0.2rem 1rem; padding-left: 1rem; list-style: disc; }
+    .toc ul li { font-size: 0.85rem; }
+    .chapter-badge {
+      display: inline-block;
+      background: #2563eb;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+    table.ref-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.25rem 0;
+      font-size: 0.875rem;
+    }
+    table.ref-table th {
+      text-align: left;
+      padding: 0.55rem 0.75rem;
+      background: #f3f4f6;
+      font-weight: 600;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    table.ref-table td {
+      padding: 0.5rem 0.75rem;
+      border-top: 1px solid #e5e7eb;
+      vertical-align: top;
+      font-family: 'Lora', serif;
+    }
+    table.ref-table td:first-child {
+      font-family: 'Inter', monospace;
+      font-weight: 600;
+      color: #2563eb;
+      white-space: nowrap;
+    }
+    table.ref-table tr:hover td { background: #f8f9ff; }
+
+    /* ── Problem Set Styles ── */
+    .problem-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #6b7280;
+      margin: 2.5rem 0 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .problem-section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e5e7eb;
+    }
+    .problem {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+      margin: 0.9rem 0;
+      background: #fff;
+    }
+    .problem-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.65rem;
+      margin-bottom: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .prob-num {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #9ca3af;
+      min-width: 2rem;
+    }
+    .prob-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1a1a1a;
+      flex: 1;
+    }
+    .diff {
+      font-size: 0.67rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 0.15rem 0.55rem;
+      border-radius: 99px;
+      flex-shrink: 0;
+    }
+    .diff-easy   { background: #dcfce7; color: #15803d; }
+    .diff-medium { background: #fef9c3; color: #92400e; }
+    .diff-hard   { background: #fee2e2; color: #991b1b; }
+    .prob-type {
+      font-size: 0.67rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6366f1;
+      background: #eef2ff;
+      padding: 0.15rem 0.55rem;
+      border-radius: 99px;
+      flex-shrink: 0;
+    }
+    .problem p  { margin: 0.4rem 0; font-size: 0.92rem; }
+    .problem ol { padding-left: 1.3rem; font-size: 0.92rem; }
+    .problem ol li { margin: 0.25rem 0; }
+    .problem pre { margin: 0.75rem 0; font-size: 0.82rem; }
+    details.hint-block {
+      margin-top: 0.85rem;
+    }
+    details.hint-block summary {
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #2563eb;
+      user-select: none;
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    details.hint-block summary::-webkit-details-marker { display: none; }
+    details.hint-block summary::before {
+      content: '▶';
+      font-size: 0.6rem;
+      transition: transform 0.15s;
+    }
+    details.hint-block[open] summary::before { transform: rotate(90deg); }
+    details.hint-block .hint-body {
+      margin-top: 0.6rem;
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+    }
+    details.hint-block.hint .hint-body {
+      background: #fefce8;
+      border-left: 3px solid #ca8a04;
+    }
+    details.hint-block.solution .hint-body {
+      background: #f0fdf4;
+      border-left: 3px solid #16a34a;
+    }
+    details.hint-block.solution summary { color: #15803d; }
+    .hint-body pre { margin: 0.5rem 0; font-size: 0.8rem; }
+    .hint-body p  { margin: 0.3rem 0; }
+    .hint-body ol { padding-left: 1.2rem; }
+    .hint-body ol li { margin: 0.2rem 0; }
+    .prob-tag-coding::before { content: '💻 '; }
+    .prob-tag-proof::before  { content: '✍️ '; }
+    .prob-tag-calc::before   { content: '🧮 '; }
+    .prob-tag-concept::before{ content: '💡 '; }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#9889; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">math</span>
+        <span class="read-time">&middot; 90 min read</span>
+      </div>
+      <h1>Complete Math for Computer Scientists and ML Engineers</h1>
+      <p class="post-description">
+        Everything from linear algebra and calculus to probability, optimization, and information
+        theory &mdash; explained from first principles with worked examples and the exact
+        intuitions that make ML papers readable without a maths degree.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        Most ML courses assume you already know the math. Most math textbooks don't care about
+        ML. This post is the bridge: every topic you actually need, explained the way an
+        engineer needs to understand it &mdash; with <em>why</em> it works, not just what the
+        formula says.
+      </p>
+
+      <p>
+        The six pillars of math for CS and ML are:
+      </p>
+
+      <ol>
+        <li><strong>Linear Algebra</strong> &mdash; the language of data and transformations</li>
+        <li><strong>Calculus</strong> &mdash; how things change; the engine behind all training</li>
+        <li><strong>Probability &amp; Statistics</strong> &mdash; how to reason under uncertainty</li>
+        <li><strong>Optimization</strong> &mdash; how models learn</li>
+        <li><strong>Information Theory</strong> &mdash; how to measure knowledge and surprise</li>
+        <li><strong>Discrete Math &amp; Graph Theory</strong> &mdash; the backbone of algorithms and data structures</li>
+      </ol>
+
+      <!-- TOC -->
+      <div class="toc">
+        <div class="toc-title">Contents</div>
+        <ol>
+          <li><a href="#linalg">Linear Algebra</a>
+            <ul>
+              <li><a href="#vectors">Vectors</a></li>
+              <li><a href="#matrices">Matrices and Operations</a></li>
+              <li><a href="#eigen">Eigenvalues and Eigenvectors</a></li>
+              <li><a href="#svd">Singular Value Decomposition</a></li>
+              <li><a href="#pca">PCA from scratch</a></li>
+            </ul>
+          </li>
+          <li><a href="#calculus">Calculus</a>
+            <ul>
+              <li><a href="#derivatives">Derivatives and the Chain Rule</a></li>
+              <li><a href="#partial">Partial Derivatives and Gradients</a></li>
+              <li><a href="#jacobian">Jacobians and Hessians</a></li>
+              <li><a href="#integrals">Integrals (what ML actually needs)</a></li>
+            </ul>
+          </li>
+          <li><a href="#prob">Probability &amp; Statistics</a>
+            <ul>
+              <li><a href="#prob-basics">Fundamentals and Axioms</a></li>
+              <li><a href="#distributions">Key Distributions</a></li>
+              <li><a href="#bayes">Bayes&rsquo; Theorem</a></li>
+              <li><a href="#mle">MLE and MAP</a></li>
+              <li><a href="#expectation">Expectation, Variance, Covariance</a></li>
+            </ul>
+          </li>
+          <li><a href="#optim">Optimization</a>
+            <ul>
+              <li><a href="#convexity">Convexity</a></li>
+              <li><a href="#gd">Gradient Descent and Its Variants</a></li>
+              <li><a href="#lagrange">Constrained Optimization</a></li>
+            </ul>
+          </li>
+          <li><a href="#infotheory">Information Theory</a>
+            <ul>
+              <li><a href="#entropy">Entropy</a></li>
+              <li><a href="#kl">KL Divergence and Cross-Entropy</a></li>
+            </ul>
+          </li>
+          <li><a href="#discrete">Discrete Math &amp; Graph Theory</a>
+            <ul>
+              <li><a href="#logic">Logic and Proofs</a></li>
+              <li><a href="#sets">Sets and Relations</a></li>
+              <li><a href="#combinatorics">Combinatorics</a></li>
+              <li><a href="#graphs">Graph Theory</a></li>
+            </ul>
+          </li>
+          <li><a href="#cheatsheet">Master Cheat Sheet</a></li>
+          <li><a href="#problems">Practice Problems (26 problems)</a>
+            <ul>
+              <li><a href="#problems">Ch.1 Linear Algebra — 6 problems</a></li>
+              <li><a href="#problems">Ch.2 Calculus — 5 problems</a></li>
+              <li><a href="#problems">Ch.3 Probability — 5 problems</a></li>
+              <li><a href="#problems">Ch.4 Optimization — 3 problems</a></li>
+              <li><a href="#problems">Ch.5 Information Theory — 3 problems</a></li>
+              <li><a href="#problems">Ch.6 Discrete Math — 3 problems</a></li>
+              <li><a href="#problems">Integration Problems — 3 hard problems</a></li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+
+
+      <!-- ═══════════════════════════════════════════════════════════
+           1. LINEAR ALGEBRA
+      ═══════════════════════════════════════════════════════════ -->
+      <span class="chapter-badge">Chapter 1</span>
+      <h2 id="linalg">Linear Algebra</h2>
+
+      <p>
+        Linear algebra is not about solving systems of equations. That's a consequence.
+        Linear algebra is about <strong>understanding transformations</strong>: how do you
+        stretch, rotate, reflect, and project data? Every neural network layer, every
+        dimensionality reduction technique, every kernel method is a transformation
+        expressed in linear algebra.
+      </p>
+
+
+      <!-- ── 1.1 Vectors ── -->
+      <h3 id="vectors">Vectors</h3>
+
+      <p>
+        A vector is an ordered list of numbers. In ML, a data point is a vector.
+        The weights of a neural network layer are a vector. A word embedding is a vector.
+      </p>
+
+      <div class="math-box">
+        <div class="label">Definition</div>
+        <strong>Vector in &Ropf;&sup3;:</strong><br/>
+        <strong>v</strong> = [v&sub1;, v&sub2;, v&sub3;]&nbsp;&nbsp; or equivalently a column:
+        v&sub1;, v&sub2;, v&sub3; stacked vertically.<br/><br/>
+        <strong>Dot product:</strong> <strong>a</strong> &middot; <strong>b</strong> = &sum; a&sub;i&sub; b&sub;i&sub; = |<strong>a</strong>| |<strong>b</strong>| cos(&theta;)<br/><br/>
+        <strong>L2 norm (Euclidean length):</strong> |<strong>v</strong>| = &radic;(v&sub1;&sup2; + v&sub2;&sup2; + &hellip; + v&sub;n&sub;&sup2;)<br/><br/>
+        <strong>L1 norm (Manhattan):</strong> |<strong>v</strong>|&sub1;&sub; = |v&sub1;| + |v&sub2;| + &hellip; + |v&sub;n&sub;|
+      </div>
+
+      <p>
+        The dot product is the most important operation in all of ML. Here is why:
+        it measures <strong>how aligned two vectors are</strong>. When
+        <strong>a</strong> &middot; <strong>b</strong> = 0, they are perpendicular
+        (orthogonal) &mdash; completely unrelated. When it equals |<strong>a</strong>||<strong>b</strong>|,
+        they point in the same direction. Every attention score, every cosine similarity,
+        every linear classifier decision boundary uses this.
+      </p>
+
+      <pre><code>  import numpy as np
+
+  a = np.array([1, 2, 3])
+  b = np.array([4, 5, 6])
+
+  # Dot product — three equivalent ways
+  dot = np.dot(a, b)          # 32
+  dot = a @ b                 # 32  (preferred in modern numpy)
+  dot = np.sum(a * b)         # 32
+
+  # Norms
+  l2 = np.linalg.norm(a)      # sqrt(1+4+9) = 3.742
+  l1 = np.linalg.norm(a, 1)   # 1+2+3 = 6
+
+  # Cosine similarity — direction only, ignores magnitude
+  cos_sim = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+  # 0.9746 — very aligned</code></pre>
+
+      <div class="insight-box">
+        <div class="label">Why cosine similarity matters in ML</div>
+        In word embeddings (Word2Vec, GloVe), "king" and "queen" have vectors pointing in
+        similar directions even if their magnitudes differ. Cosine similarity captures
+        semantic similarity regardless of frequency. Same logic applies to sentence
+        embeddings, image feature vectors, and retrieval systems.
+      </div>
+
+      <p>
+        <strong>Linear combinations and span.</strong> If you take two vectors
+        <strong>v</strong>&sub1; and <strong>v</strong>&sub2; and form
+        a&sub1;<strong>v</strong>&sub1; + a&sub2;<strong>v</strong>&sub2; for all possible
+        scalars a&sub1;, a&sub2;, the set of all results is the <em>span</em> of those
+        vectors. The span is the entire space you can reach. If <strong>v</strong>&sub1;
+        and <strong>v</strong>&sub2; are parallel, the span is just a line &mdash; you're
+        stuck in one dimension no matter how you combine them.
+        Linear independence means no vector in the set is a combination of the others.
+      </p>
+
+
+      <!-- ── 1.2 Matrices ── -->
+      <h3 id="matrices">Matrices and Operations</h3>
+
+      <p>
+        A matrix is a 2D array of numbers. But think of it as a
+        <strong>function that transforms vectors</strong>. Multiplying a matrix
+        <strong>A</strong> by a vector <strong>x</strong> produces a new vector in
+        a (possibly) different space. This is exactly what a neural network layer does:
+        <strong>y</strong> = <strong>W</strong><strong>x</strong> + <strong>b</strong>.
+      </p>
+
+      <div class="math-box">
+        <div class="label">Key Matrix Operations</div>
+        <strong>Matrix multiplication (A is m&times;k, B is k&times;n, result is m&times;n):</strong><br/>
+        (AB)&sub;ij&sub; = &sum;&sub;r&sub; A&sub;ir&sub; B&sub;rj&sub;<br/><br/>
+        <strong>Transpose:</strong> (A&sup;T)&sub;ij&sub; = A&sub;ji&sub;<br/><br/>
+        <strong>Inverse (square A only):</strong> A&sup;-1 exists iff det(A) &ne; 0<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;AA&sup;-1 = A&sup;-1A = I<br/><br/>
+        <strong>Trace:</strong> tr(A) = &sum;&sub;i&sub; A&sub;ii&sub; (sum of diagonal)<br/><br/>
+        <strong>Determinant (2&times;2):</strong> det([[a,b],[c,d]]) = ad &minus; bc
+      </div>
+
+      <pre><code>  import numpy as np
+
+  A = np.array([[1, 2], [3, 4]])
+  B = np.array([[5, 6], [7, 8]])
+
+  # Matrix multiply
+  C = A @ B           # [[19,22],[43,50]]
+
+  # Transpose
+  At = A.T            # [[1,3],[2,4]]
+
+  # Inverse
+  Ainv = np.linalg.inv(A)       # [[-2, 1],[1.5,-0.5]]
+  check = A @ Ainv              # [[1,0],[0,1]] — identity
+
+  # Determinant
+  d = np.linalg.det(A)          # -2.0
+
+  # Trace
+  t = np.trace(A)               # 5 (1+4)</code></pre>
+
+      <div class="mistake-box">
+        <div class="label">Common Mistake</div>
+        Matrix multiplication is NOT commutative: <strong>AB &ne; BA</strong> in general.
+        This is why the order of layers matters in neural networks, and why you have to be
+        careful about which side you multiply a Jacobian or gradient on.
+      </div>
+
+      <p>
+        <strong>Special matrices you must know:</strong>
+      </p>
+
+      <table class="ref-table">
+        <thead>
+          <tr><th>Matrix Type</th><th>Property</th><th>ML relevance</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Identity <strong>I</strong></td><td>I<strong>x</strong> = <strong>x</strong></td><td>Residual connections, initialization</td></tr>
+          <tr><td>Diagonal</td><td>Only main diagonal nonzero</td><td>Scaling, fast inversion</td></tr>
+          <tr><td>Symmetric</td><td>A = A&sup;T</td><td>Covariance matrices, kernel matrices, Hessians</td></tr>
+          <tr><td>Orthogonal</td><td>A&sup;T A = I, det = &plusmn;1</td><td>Rotations, QR decomposition, weight init</td></tr>
+          <tr><td>Positive Definite</td><td><strong>x</strong>&sup;T A<strong>x</strong> &gt; 0 for all <strong>x</strong>&ne;0</td><td>Covariance matrices, convex loss surfaces</td></tr>
+          <tr><td>Sparse</td><td>Mostly zeros</td><td>Adjacency matrices, word co-occurrence</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        <strong>The rank of a matrix</strong> is the number of linearly independent rows
+        (or columns). A matrix with rank less than its dimension is <em>rank-deficient</em>
+        and not invertible. In practice: if your feature matrix is rank-deficient, your
+        regression has infinitely many solutions. Regularization (L2/ridge) fixes this
+        by making the matrix positive definite.
+      </p>
+
+
+      <!-- ── 1.3 Eigenvalues ── -->
+      <h3 id="eigen">Eigenvalues and Eigenvectors</h3>
+
+      <p>
+        Most vectors change direction when you multiply them by a matrix. Eigenvectors are
+        special: they only get scaled. The scaling factor is the eigenvalue.
+      </p>
+
+      <div class="math-box">
+        <div class="label">Definition</div>
+        <strong>A</strong><strong>v</strong> = &lambda;<strong>v</strong><br/><br/>
+        where <strong>v</strong> is the eigenvector and &lambda; is the eigenvalue.<br/><br/>
+        Solving: det(<strong>A</strong> &minus; &lambda;<strong>I</strong>) = 0 gives the
+        characteristic polynomial. Its roots are the eigenvalues.
+      </div>
+
+      <pre><code>  import numpy as np
+
+  A = np.array([[3, 1],
+                [0, 2]])
+
+  eigenvalues, eigenvectors = np.linalg.eig(A)
+  # eigenvalues: [3., 2.]
+  # eigenvectors (columns): [[ 1., -0.707], [0., 0.707]]
+
+  # Verify: A @ v = lambda * v
+  v = eigenvectors[:, 0]   # first eigenvector
+  lam = eigenvalues[0]     # first eigenvalue = 3.0
+  print(np.allclose(A @ v, lam * v))  # True</code></pre>
+
+      <p>
+        <strong>Why eigenvalues matter in ML:</strong>
+      </p>
+      <ul>
+        <li><strong>PCA:</strong> eigenvectors of the covariance matrix are the principal components; eigenvalues are the variances along each component.</li>
+        <li><strong>Stability of training:</strong> the largest eigenvalue of the Hessian (the "sharpness") controls how large a learning rate you can use without diverging.</li>
+        <li><strong>Graph neural networks:</strong> the Laplacian's eigenvalues (spectral gap) control information propagation speed.</li>
+        <li><strong>Markov chains:</strong> the stationary distribution corresponds to the eigenvector with eigenvalue 1.</li>
+      </ul>
+
+      <div class="insight-box">
+        <div class="label">Spectral decomposition</div>
+        A symmetric matrix can be written as <strong>A</strong> = <strong>Q</strong>&Lambda;<strong>Q</strong>&sup;T,
+        where <strong>Q</strong> is orthogonal (columns are eigenvectors) and &Lambda; is diagonal
+        (eigenvalues on diagonal). This is the eigendecomposition. It says: any symmetric
+        transformation is just a rotation, axis-aligned scaling, then rotate back.
+        This view unlocks PCA, spectral clustering, and kernel methods.
+      </div>
+
+
+      <!-- ── 1.4 SVD ── -->
+      <h3 id="svd">Singular Value Decomposition (SVD)</h3>
+
+      <p>
+        Eigendecomposition only works for square symmetric matrices. SVD works for
+        <em>any</em> matrix &mdash; even rectangular ones (m&times;n, m&ne;n).
+        This makes it the most powerful matrix factorization in all of applied mathematics.
+      </p>
+
+      <div class="math-box">
+        <div class="label">SVD Factorization</div>
+        <strong>A</strong> = <strong>U</strong> &Sigma; <strong>V</strong>&sup;T<br/><br/>
+        &bull; <strong>U</strong> (m&times;m): orthogonal, columns are left singular vectors<br/>
+        &bull; &Sigma; (m&times;n): diagonal, non-negative singular values &sigma;&sub;1&sub; &ge; &sigma;&sub;2&sub; &ge; &hellip; &ge; 0<br/>
+        &bull; <strong>V</strong> (n&times;n): orthogonal, columns are right singular vectors
+      </div>
+
+      <pre><code>  import numpy as np
+
+  # A is 4x3 — ratings matrix (4 users, 3 movies)
+  A = np.array([[5, 3, 0],
+                [4, 0, 4],
+                [1, 1, 0],
+                [1, 0, 5]])
+
+  U, sigma, Vt = np.linalg.svd(A, full_matrices=False)
+  # sigma: [8.07, 4.23, 1.16]  ← singular values
+
+  # Reconstruct A exactly
+  Sigma = np.diag(sigma)
+  A_reconstructed = U @ Sigma @ Vt
+
+  # Low-rank approximation: keep only top k=2 singular values
+  k = 2
+  A_approx = U[:, :k] @ np.diag(sigma[:k]) @ Vt[:k, :]
+  # Captures ~97% of the "energy" (sum of squared singular values)</code></pre>
+
+      <p>
+        <strong>Low-rank approximation is fundamental.</strong> By keeping only the top-k
+        singular values, you compress the matrix while retaining the most important structure.
+        This is the mathematical foundation of:
+      </p>
+      <ul>
+        <li><strong>Recommender systems</strong> (collaborative filtering via matrix factorization)</li>
+        <li><strong>Image compression</strong> (JPEG-like compression)</li>
+        <li><strong>LoRA</strong> (Low-Rank Adaptation for LLMs: approximate weight updates as UV&sup;T with small rank k)</li>
+        <li><strong>Latent Semantic Analysis</strong> in NLP</li>
+      </ul>
+
+      <div class="insight-box">
+        <div class="label">SVD vs Eigendecomposition</div>
+        Eigendecomposition: <strong>A</strong> = <strong>Q</strong>&Lambda;<strong>Q</strong>&sup;-1 (requires square A)<br/>
+        SVD: <strong>A</strong> = <strong>U</strong>&Sigma;<strong>V</strong>&sup;T (works for any A)<br/><br/>
+        For symmetric positive semidefinite A (like covariance matrices):
+        SVD = eigendecomposition, and U = V = Q, &sigma;&sub;i&sub; = &lambda;&sub;i&sub;.
+        So PCA via SVD or via eigenvectors of the covariance matrix gives the same answer.
+      </div>
+
+
+      <!-- ── 1.5 PCA ── -->
+      <h3 id="pca">PCA from Scratch</h3>
+
+      <p>
+        Principal Component Analysis finds the directions of maximum variance in your data.
+        It's dimensionality reduction that preserves as much information as possible.
+      </p>
+
+      <pre><code>  import numpy as np
+
+  # Step 1: Center the data (subtract mean per feature)
+  X = np.array([[2,3],[3,4],[4,5],[5,6],[6,7]], dtype=float)
+  X_mean = X.mean(axis=0)         # [4., 5.]
+  X_centered = X - X_mean
+
+  # Step 2: Compute covariance matrix
+  # Shape (n_features, n_features) = (2, 2)
+  C = (X_centered.T @ X_centered) / (len(X) - 1)
+  # [[2.5, 2.5],
+  #  [2.5, 2.5]]
+
+  # Step 3: Eigendecomposition of covariance matrix
+  eigenvalues, eigenvectors = np.linalg.eigh(C)  # eigh for symmetric
+  # Sort by decreasing eigenvalue
+  idx = np.argsort(eigenvalues)[::-1]
+  eigenvalues  = eigenvalues[idx]
+  eigenvectors = eigenvectors[:, idx]
+
+  # Step 4: Project onto top-k principal components
+  k = 1
+  W = eigenvectors[:, :k]         # (2, 1) projection matrix
+  X_pca = X_centered @ W          # (5, 1) projected data
+
+  # Explained variance ratio
+  explained = eigenvalues / eigenvalues.sum()
+  print(explained)  # [1.0, 0.0] — all variance in PC1 (data is perfectly linear)</code></pre>
+
+      <div class="insight-box">
+        <div class="label">When to use PCA</div>
+        Use PCA when: features are highly correlated, you need to visualize high-dimensional
+        data (reduce to 2D/3D), or you want to remove noise (low-variance directions are often
+        noise). Don't use PCA when: you need interpretable features, features are already
+        low-dimensional, or you're using tree-based models (they handle correlations fine).
+      </div>
+
+
+      <!-- ═══════════════════════════════════════════════════════════
+           2. CALCULUS
+      ═══════════════════════════════════════════════════════════ -->
+      <span class="chapter-badge">Chapter 2</span>
+      <h2 id="calculus">Calculus</h2>
+
+      <p>
+        Calculus is how you answer: "if I change this one thing slightly, how much does
+        the output change?" That question is backpropagation. Every training algorithm
+        in ML uses calculus &mdash; specifically, differentiation.
+      </p>
+
+
+      <!-- ── 2.1 Derivatives ── -->
+      <h3 id="derivatives">Derivatives and the Chain Rule</h3>
+
+      <div class="math-box">
+        <div class="label">Definition</div>
+        The derivative f'(x) = df/dx is the slope of f at x. Formally:<br/><br/>
+        f'(x) = lim<sub>h&rarr;0</sub> [f(x+h) &minus; f(x)] / h<br/><br/>
+        <strong>Key rules:</strong><br/>
+        Power: d/dx [x&sup;n] = nx&sup;(n-1)<br/>
+        Product: d/dx [fg] = f'g + fg'<br/>
+        Quotient: d/dx [f/g] = (f'g &minus; fg') / g&sup2;<br/>
+        Chain rule: d/dx [f(g(x))] = f'(g(x)) &middot; g'(x)
+      </div>
+
+      <p>
+        <strong>The chain rule is backpropagation.</strong> A neural network is a composition
+        of functions: loss = L(softmax(W&sub;2&sub; &sigma;(W&sub;1&sub; x))). To find
+        dL/dW&sub;1&sub;, you apply the chain rule repeatedly from output to input.
+        Every "autograd" framework (PyTorch, JAX) automates this.
+      </p>
+
+      <pre><code>  # Common derivatives that appear in ML constantly
+  import numpy as np
+
+  # Sigmoid and its derivative
+  def sigmoid(x): return 1 / (1 + np.exp(-x))
+  def sigmoid_prime(x): s = sigmoid(x); return s * (1 - s)
+  # Note: sigmoid'(x) = sigmoid(x)(1 - sigmoid(x))
+  # This is WHY sigmoid gradients vanish near 0 and 1
+
+  # ReLU and its derivative
+  def relu(x): return np.maximum(0, x)
+  def relu_prime(x): return (x > 0).astype(float)
+  # Subgradient at 0 is typically set to 0 or 0.5
+
+  # Softmax (for a vector x)
+  def softmax(x):
+      e = np.exp(x - x.max())   # subtract max for numerical stability
+      return e / e.sum()
+  # Jacobian of softmax: diag(s) - s @ s.T  where s = softmax(x)
+
+  # Cross-entropy loss
+  def cross_entropy(y_pred, y_true):
+      return -np.sum(y_true * np.log(y_pred + 1e-9))
+  # Gradient of cross-entropy + softmax combined: (y_pred - y_true)
+  # This is one of the most beautiful results in ML math</code></pre>
+
+      <table class="ref-table">
+        <thead>
+          <tr><th>Function</th><th>Derivative</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>x&sup;n</td><td>nx&sup;(n&minus;1)</td><td>Power rule</td></tr>
+          <tr><td>e&sup;x</td><td>e&sup;x</td><td>Only function equal to its own derivative</td></tr>
+          <tr><td>ln(x)</td><td>1/x</td><td>Appears in log-likelihood</td></tr>
+          <tr><td>sin(x)</td><td>cos(x)</td><td></td></tr>
+          <tr><td>cos(x)</td><td>&minus;sin(x)</td><td></td></tr>
+          <tr><td>&sigma;(x)</td><td>&sigma;(x)(1&minus;&sigma;(x))</td><td>Sigmoid; vanishes near 0,1</td></tr>
+          <tr><td>tanh(x)</td><td>1 &minus; tanh&sup2;(x)</td><td>Better than sigmoid for hidden layers</td></tr>
+          <tr><td>max(0,x)</td><td>0 if x&lt;0, 1 if x&gt;0</td><td>ReLU; no vanishing gradient</td></tr>
+        </tbody>
+      </table>
+
+
+      <!-- ── 2.2 Partial Derivatives and Gradients ── -->
+      <h3 id="partial">Partial Derivatives and Gradients</h3>
+
+      <p>
+        When a function takes multiple inputs, the <em>partial derivative</em> &part;f/&part;x&sub;i&sub;
+        measures how f changes when x&sub;i&sub; changes and all other inputs are held fixed.
+        The <strong>gradient</strong> collects all partial derivatives into a vector.
+      </p>
+
+      <div class="math-box">
+        <div class="label">Gradient</div>
+        For f: &Ropf;&sup;n &rarr; &Ropf;:<br/><br/>
+        &nabla;f(<strong>x</strong>) = [&part;f/&part;x&sub;1&sub;, &part;f/&part;x&sub;2&sub;, &hellip;, &part;f/&part;x&sub;n&sub;]<br/><br/>
+        The gradient always points in the direction of steepest ascent.
+        The negative gradient &minus;&nabla;f points downhill.
+      </div>
+
+      <pre><code>  # Example: f(x, y) = x^2 + 2xy + y^2
+  # grad f = [2x + 2y,  2x + 2y]
+
+  # Numerical gradient (finite differences) — useful for checking
+  def numerical_grad(f, x, eps=1e-5):
+      grad = np.zeros_like(x)
+      for i in range(len(x)):
+          x_plus  = x.copy(); x_plus[i]  += eps
+          x_minus = x.copy(); x_minus[i] -= eps
+          grad[i] = (f(x_plus) - f(x_minus)) / (2 * eps)
+      return grad
+
+  # PyTorch autograd — the real thing
+  import torch
+  x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+  y = (x ** 2).sum()   # f = x1^2 + x2^2 + x3^2
+  y.backward()
+  print(x.grad)         # tensor([2., 4., 6.])  — grad = 2x</code></pre>
+
+      <div class="insight-box">
+        <div class="label">Gradient check — always do this when implementing backprop</div>
+        Before trusting your hand-written gradient: compare it to the numerical gradient.
+        If they match to ~6 decimal places, your implementation is correct.
+        PyTorch's <code>torch.autograd.gradcheck</code> automates this.
+      </div>
+
+
+      <!-- ── 2.3 Jacobian and Hessian ── -->
+      <h3 id="jacobian">Jacobians and Hessians</h3>
+
+      <p>
+        When a function maps vectors to vectors (f: &Ropf;&sup;n &rarr; &Ropf;&sup;m),
+        the generalization of the gradient is the <strong>Jacobian</strong>.
+      </p>
+
+      <div class="math-box">
+        <div class="label">Jacobian and Hessian</div>
+        <strong>Jacobian</strong> J of f: &Ropf;&sup;n &rarr; &Ropf;&sup;m:<br/>
+        J&sub;ij&sub; = &part;f&sub;i&sub;/&part;x&sub;j&sub; &nbsp; &nbsp;(m&times;n matrix)<br/><br/>
+        <strong>Hessian</strong> H of f: &Ropf;&sup;n &rarr; &Ropf; (scalar):<br/>
+        H&sub;ij&sub; = &part;&sup2;f/(&part;x&sub;i&sub; &part;x&sub;j&sub;) &nbsp; &nbsp;(n&times;n symmetric matrix)<br/><br/>
+        The Hessian encodes curvature: how the gradient itself is changing.
+      </div>
+
+      <p>
+        <strong>Hessians in ML:</strong>
+      </p>
+      <ul>
+        <li>If H is positive definite at a critical point (&nabla;f = 0), it's a local minimum.</li>
+        <li>The largest eigenvalue of H is the <em>sharpness</em>. Learning rates must be smaller than 2/&lambda;<sub>max</sub> or gradient descent diverges.</li>
+        <li>Second-order optimizers (Newton's method, L-BFGS) use the Hessian (or an approximation) to take better steps. Too expensive for large models; hence Adam approximates it diagonally.</li>
+      </ul>
+
+
+      <!-- ── 2.4 Integrals ── -->
+      <h3 id="integrals">Integrals (What ML Actually Needs)</h3>
+
+      <p>
+        You will rarely compute integrals by hand in ML. But you need to understand them
+        to read probability theory, information theory, and variational methods.
+      </p>
+
+      <div class="math-box">
+        <div class="label">Key Integral Concepts</div>
+        <strong>Definite integral:</strong> area under f from a to b:<br/>
+        &int;<sub>a</sub><sup>b</sup> f(x) dx<br/><br/>
+        <strong>Fundamental theorem:</strong> if F'(x) = f(x), then &int;<sub>a</sub><sup>b</sup> f(x)dx = F(b) &minus; F(a)<br/><br/>
+        <strong>Gaussian integral (memorise this):</strong><br/>
+        &int;<sub>&minus;&infin;</sub><sup>+&infin;</sup> e<sup>&minus;x&sup2;</sup> dx = &radic;&pi;<br/><br/>
+        <strong>Probability density normalisation:</strong><br/>
+        &int;<sub>&minus;&infin;</sub><sup>+&infin;</sup> p(x) dx = 1 &nbsp; (all probability sums to 1)
+      </div>
+
+      <p>
+        In ML, integrals appear in: computing expectations E[f(X)] = &int; f(x)p(x)dx,
+        marginalizing over latent variables in VAEs and Bayesian models, and computing
+        the partition function Z = &int; exp(&minus;E(x)) dx in energy-based models
+        (this one is usually intractable &mdash; which is why MCMC and variational
+        inference exist).
+      </p>
+
+
+      <!-- ═══════════════════════════════════════════════════════════
+           3. PROBABILITY & STATISTICS
+      ═══════════════════════════════════════════════════════════ -->
+      <span class="chapter-badge">Chapter 3</span>
+      <h2 id="prob">Probability &amp; Statistics</h2>
+
+      <p>
+        Machine learning is fundamentally about learning probability distributions from data.
+        Every loss function is a statement about probability. Every regularizer encodes a
+        prior belief. You cannot truly understand what a model is doing without this.
+      </p>
+
+
+      <!-- ── 3.1 Fundamentals ── -->
+      <h3 id="prob-basics">Fundamentals and Axioms</h3>
+
+      <div class="math-box">
+        <div class="label">Kolmogorov Axioms</div>
+        1. P(A) &ge; 0 for any event A<br/>
+        2. P(sample space) = 1<br/>
+        3. P(A &cup; B) = P(A) + P(B) if A and B are mutually exclusive<br/><br/>
+        <strong>Joint probability:</strong> P(A &cap; B) = P(A|B) P(B) = P(B|A) P(A)<br/><br/>
+        <strong>Marginalisation:</strong> P(A) = &sum;<sub>b</sub> P(A, B=b)<br/><br/>
+        <strong>Independence:</strong> A &perp; B &hArr; P(A,B) = P(A)P(B)
+      </div>
+
+      <p>
+        <strong>Conditional probability</strong> P(A|B) is the probability of A given
+        that B has occurred. It "updates" your belief. Concretely:
+        P(A|B) = P(A,B) / P(B). This is the foundation of Bayes' theorem.
+      </p>
+
+      <div class="mistake-box">
+        <div class="label">The base-rate fallacy — critical for ML practitioners</div>
+        A disease test is 99% accurate. 1% of the population has the disease. You test
+        positive. What's the probability you're sick?<br/><br/>
+        Most people say 99%. The answer is ~50%.<br/><br/>
+        P(sick|positive) = P(positive|sick)P(sick) / P(positive)<br/>
+        = (0.99 &times; 0.01) / (0.99&times;0.01 + 0.01&times;0.99) = 0.5<br/><br/>
+        This matters enormously in fraud detection, medical diagnosis, and any
+        classification problem with severe class imbalance. A 99% accurate model
+        on a 1% positive-class dataset is mostly just predicting negative.
+      </div>
+
+
+      <!-- ── 3.2 Distributions ── -->
+      <h3 id="distributions">Key Distributions</h3>
+
+      <table class="ref-table">
+        <thead>
+          <tr><th>Distribution</th><th>PMF / PDF</th><th>Mean</th><th>Variance</th><th>ML use</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Bernoulli(p)</td>
+            <td>P(x) = p&sup;x(1&minus;p)&sup;(1&minus;x)</td>
+            <td>p</td><td>p(1&minus;p)</td>
+            <td>Binary classification output</td>
+          </tr>
+          <tr>
+            <td>Binomial(n,p)</td>
+            <td>C(n,k) p&sup;k(1&minus;p)&sup;(n&minus;k)</td>
+            <td>np</td><td>np(1&minus;p)</td>
+            <td>Count of successes</td>
+          </tr>
+          <tr>
+            <td>Categorical(p&sub;1&sub;,&hellip;)</td>
+            <td>P(x=k) = p&sub;k&sub;</td>
+            <td>&mdash;</td><td>&mdash;</td>
+            <td>Multiclass output (softmax)</td>
+          </tr>
+          <tr>
+            <td>Poisson(&lambda;)</td>
+            <td>e<sup>&minus;&lambda;</sup>&lambda;<sup>k</sup>/k!</td>
+            <td>&lambda;</td><td>&lambda;</td>
+            <td>Count data, event rates</td>
+          </tr>
+          <tr>
+            <td>Gaussian(&mu;,&sigma;&sup2;)</td>
+            <td>(1/&radic;(2&pi;&sigma;&sup2;)) exp(&minus;(x&minus;&mu;)&sup2;/2&sigma;&sup2;)</td>
+            <td>&mu;</td><td>&sigma;&sup2;</td>
+            <td>MSE loss, weight init, VAE latent</td>
+          </tr>
+          <tr>
+            <td>Uniform(a,b)</td>
+            <td>1/(b&minus;a)</td>
+            <td>(a+b)/2</td><td>(b&minus;a)&sup2;/12</td>
+            <td>Random initialisation</td>
+          </tr>
+          <tr>
+            <td>Beta(&alpha;,&beta;)</td>
+            <td>x<sup>&alpha;&minus;1</sup>(1&minus;x)<sup>&beta;&minus;1</sup>/B(&alpha;,&beta;)</td>
+            <td>&alpha;/(&alpha;+&beta;)</td><td>&mdash;</td>
+            <td>Prior for probabilities</td>
+          </tr>
+          <tr>
+            <td>Dirichlet(&alpha;)</td>
+            <td>Multivariate Beta</td>
+            <td>&alpha;<sub>k</sub>/&sum;&alpha;</td><td>&mdash;</td>
+            <td>Prior for categorical distributions (LDA)</td>
+          </tr>
+          <tr>
+            <td>Exponential(&lambda;)</td>
+            <td>&lambda;e<sup>&minus;&lambda;x</sup></td>
+            <td>1/&lambda;</td><td>1/&lambda;&sup2;</td>
+            <td>Time between events, L1 regulariser prior</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <pre><code>  import numpy as np
+  from scipy import stats
+
+  # Gaussian — the workhorse
+  mu, sigma = 0, 1
+  rv = stats.norm(mu, sigma)
+  print(rv.pdf(0))     # 0.3989 — peak probability density
+  print(rv.cdf(1.96))  # 0.975  — 97.5% of data is below 1.96 std
+
+  # Sampling
+  samples = rv.rvs(size=1000)
+
+  # Multivariate Gaussian — covariance structure
+  mean = np.array([0, 0])
+  cov  = np.array([[1, 0.8],    # correlated (rho = 0.8)
+                   [0.8, 1]])
+  samples_2d = np.random.multivariate_normal(mean, cov, size=500)</code></pre>
+
+      <p>
+        <strong>The Central Limit Theorem (CLT)</strong>: If you take the mean of n
+        independent samples from <em>any</em> distribution with finite variance,
+        that sample mean is approximately Gaussian for large n. This is why the Gaussian
+        appears everywhere: averages of losses, averages of gradients in minibatch SGD,
+        measurement errors. It's not magic &mdash; it's the CLT.
+      </p>
+
+
+      <!-- ── 3.3 Bayes ── -->
+      <h3 id="bayes">Bayes&rsquo; Theorem</h3>
+
+      <div class="math-box">
+        <div class="label">Bayes&rsquo; Theorem</div>
+        P(hypothesis | data) = P(data | hypothesis) &times; P(hypothesis) / P(data)<br/><br/>
+        In ML language:<br/>
+        <strong>posterior = likelihood &times; prior / evidence</strong><br/><br/>
+        P(&theta; | X) = P(X | &theta;) &times; P(&theta;) / P(X)
+      </div>
+
+      <p>
+        Every element of this equation has a name and a meaning:
+      </p>
+      <ul>
+        <li><strong>Prior P(&theta;)</strong>: your belief about parameters before seeing data. L2 regularization = Gaussian prior. L1 regularization = Laplace prior.</li>
+        <li><strong>Likelihood P(X|&theta;)</strong>: probability of observing the data given parameters. This is what you maximise in MLE.</li>
+        <li><strong>Posterior P(&theta;|X)</strong>: updated belief after seeing data. This is what you maximise in MAP.</li>
+        <li><strong>Evidence P(X)</strong>: probability of the data under all parameter settings. A normalising constant &mdash; usually intractable, which is why variational inference exists.</li>
+      </ul>
+
+      <div class="insight-box">
+        <div class="label">Bayesian vs frequentist view of ML</div>
+        <strong>Frequentist MLE:</strong> parameters are fixed unknowns; data is random.
+        Find the parameter that makes the observed data most likely.<br/><br/>
+        <strong>Bayesian MAP:</strong> parameters are random variables with a prior.
+        Find the most probable parameters given the data (incorporates regularization naturally).<br/><br/>
+        <strong>Full Bayesian:</strong> don't find one best parameter &mdash; maintain a
+        distribution over all parameters and average predictions over it. Intractable for
+        large models; approximated by Bayesian neural networks, MC Dropout.
+      </div>
+
+
+      <!-- ── 3.4 MLE and MAP ── -->
+      <h3 id="mle">MLE and MAP</h3>
+
+      <p>
+        <strong>Maximum Likelihood Estimation (MLE):</strong> find &theta; that maximizes
+        P(data|&theta;). In practice, maximize the log-likelihood (same result, more numerically
+        stable, turns products into sums).
+      </p>
+
+      <pre><code>  # MLE for Gaussian: given N samples x_1,...,x_N
+  # Likelihood: prod_i (1/sqrt(2pi sigma^2)) exp(-(x_i - mu)^2 / 2sigma^2)
+  # Log-likelihood: -N/2 log(2pi sigma^2) - sum_i (x_i - mu)^2 / 2sigma^2
+  # MLE solution: mu_hat = mean(x), sigma^2_hat = var(x) (biased)
+
+  import numpy as np
+  data = np.array([2.1, 3.5, 1.8, 4.2, 2.9])
+  mu_mle    = data.mean()          # 2.9
+  var_mle   = data.var()           # biased (divide by N)
+  var_unbiased = data.var(ddof=1)  # unbiased (divide by N-1)
+
+  # MLE for logistic regression:
+  # Maximise sum_i [y_i log(sigma(w^T x_i)) + (1-y_i) log(1 - sigma(w^T x_i))]
+  # = minimise binary cross-entropy loss
+  # → MLE IS cross-entropy minimisation for classification</code></pre>
+
+      <p>
+        <strong>Maximum A Posteriori (MAP):</strong> find &theta; that maximizes
+        P(&theta;|data) &prop; P(data|&theta;) P(&theta;). This adds the log-prior
+        to the log-likelihood.
+      </p>
+
+      <pre><code>  # MAP with Gaussian prior on weights:
+  # P(w) = N(0, 1/lambda * I)
+  # log P(w) = -lambda/2 * ||w||^2 + const
+  #
+  # MAP objective = log-likelihood + log-prior
+  #              = -cross_entropy - lambda/2 * ||w||^2
+  # = maximise -(cross_entropy + lambda/2 * ||w||^2)
+  # = minimise cross_entropy + lambda/2 * ||w||^2
+  #                             ↑ THIS IS L2 REGULARIZATION
+  #
+  # L1 regularization = Laplace prior P(w) ∝ exp(-lambda |w|)</code></pre>
+
+      <div class="math-box">
+        <div class="label">The Regularization–Prior Connection</div>
+        L2 regularization &equiv; Gaussian prior on weights<br/>
+        L1 regularization &equiv; Laplace prior on weights<br/>
+        Dropout &approx; approximate Bayesian inference<br/><br/>
+        Every regularizer is implicitly a prior. When you choose a regularizer,
+        you are choosing what you believe about the weights before seeing data.
+      </div>
+
+
+      <!-- ── 3.5 Expectation, Variance, Covariance ── -->
+      <h3 id="expectation">Expectation, Variance, Covariance</h3>
+
+      <div class="math-box">
+        <div class="label">Core Statistics</div>
+        <strong>Expectation:</strong> E[X] = &sum;<sub>x</sub> x P(X=x) (discrete) or &int; x p(x) dx (continuous)<br/><br/>
+        <strong>Linearity of expectation (always true, even for dependent variables):</strong><br/>
+        E[aX + bY] = aE[X] + bE[Y]<br/><br/>
+        <strong>Variance:</strong> Var(X) = E[(X &minus; E[X])&sup2;] = E[X&sup2;] &minus; E[X]&sup2;<br/><br/>
+        <strong>Standard deviation:</strong> &sigma; = &radic;Var(X)<br/><br/>
+        <strong>Covariance:</strong> Cov(X,Y) = E[(X&minus;&mu;<sub>X</sub>)(Y&minus;&mu;<sub>Y</sub>)]<br/><br/>
+        <strong>Correlation:</strong> &rho;(X,Y) = Cov(X,Y) / (&sigma;<sub>X</sub> &sigma;<sub>Y</sub>) &isin; [&minus;1, 1]
+      </div>
+
+      <pre><code>  import numpy as np
+
+  X = np.array([1, 2, 3, 4, 5], dtype=float)
+  Y = np.array([2, 4, 5, 4, 5], dtype=float)
+
+  # Expectation
+  EX = X.mean()               # 3.0
+
+  # Variance and std
+  var_X = X.var()             # 2.0 (biased)
+  std_X = X.std()             # 1.414
+
+  # Covariance matrix
+  cov_matrix = np.cov(X, Y)   # [[2.5, 1.5],
+                               #  [1.5, 1.7]]
+
+  # Correlation coefficient
+  corr = np.corrcoef(X, Y)    # [[1.0, 0.73],
+                               #  [0.73, 1.0]]
+
+  # Interpretation: rho=0.73 means moderate positive linear relationship</code></pre>
+
+      <p>
+        <strong>Why the covariance matrix matters in ML:</strong> it appears in PCA
+        (find principal directions), Gaussian distributions (shape of the bell curve),
+        Gaussian processes (prior over functions), and batch normalization (normalising
+        activations). A diagonal covariance means features are uncorrelated.
+      </p>
+
+
+      <!-- ═══════════════════════════════════════════════════════════
+           4. OPTIMIZATION
+      ═══════════════════════════════════════════════════════════ -->
+      <span class="chapter-badge">Chapter 4</span>
+      <h2 id="optim">Optimization</h2>
+
+      <p>
+        Training a neural network is an optimization problem: minimize the loss function
+        over the space of all possible weights. The geometry of this loss surface
+        &mdash; how flat it is, where the valleys are, whether there are saddle points
+        &mdash; determines how hard training is.
+      </p>
+
+
+      <!-- ── 4.1 Convexity ── -->
+      <h3 id="convexity">Convexity</h3>
+
+      <div class="math-box">
+        <div class="label">Convex Function</div>
+        f is convex if for all x, y and t &isin; [0,1]:<br/>
+        f(tx + (1&minus;t)y) &le; t f(x) + (1&minus;t) f(y)<br/><br/>
+        Geometrically: the line segment between any two points on the graph lies above or
+        on the graph. "Bowl shape."<br/><br/>
+        <strong>For differentiable f: convex &hArr; f(y) &ge; f(x) + &nabla;f(x)&sup;T(y&minus;x)</strong><br/>
+        (the function lies above all its tangent hyperplanes)<br/><br/>
+        <strong>For twice-differentiable f: convex &hArr; H(x) is positive semidefinite</strong>
+      </div>
+
+      <p>
+        Convexity matters because: if f is convex, any local minimum is a global minimum.
+        Gradient descent is guaranteed to converge to the global optimum. Unfortunately,
+        neural network loss surfaces are almost never convex. But in practice, local
+        minima found by SGD tend to generalise well &mdash; this is an active research area.
+      </p>
+
+      <p>
+        <strong>Convex functions in ML you must know:</strong>
+      </p>
+      <ul>
+        <li>MSE loss: convex in weights for linear regression</li>
+        <li>Logistic regression loss: convex</li>
+        <li>SVM loss (hinge): convex</li>
+        <li>Neural network loss: non-convex (multiple local minima, saddle points)</li>
+        <li>Regularizers (L1, L2): convex, adding them preserves convexity of convex losses</li>
+      </ul>
+
+
+      <!-- ── 4.2 Gradient Descent ── -->
+      <h3 id="gd">Gradient Descent and Its Variants</h3>
+
+      <div class="math-box">
+        <div class="label">Gradient Descent Update</div>
+        &theta;<sub>t+1</sub> = &theta;<sub>t</sub> &minus; &eta; &nabla;<sub>&theta;</sub> L(&theta;<sub>t</sub>)<br/><br/>
+        &eta; = learning rate (step size). Too large: diverge. Too small: slow.
+      </div>
+
+      <pre><code>  import numpy as np
+
+  # Vanilla gradient descent — full batch
+  def gd(grad_fn, theta, lr=0.01, n_steps=1000):
+      for _ in range(n_steps):
+          theta = theta - lr * grad_fn(theta)
+      return theta
+
+  # Stochastic gradient descent — one sample at a time
+  # grad_fn(theta, xi) uses sample xi
+  # Very noisy but fast per step; noise helps escape sharp minima
+
+  # Mini-batch SGD — the default in deep learning
+  # Use B samples (typically 32-512) to estimate gradient
+  # Trades off noise vs speed
+
+  # Momentum — accumulates gradient history
+  # v_{t+1} = beta * v_t + grad    (beta typically 0.9)
+  # theta_{t+1} = theta_t - lr * v_{t+1}
+  # Accelerates in consistent directions, dampens oscillations
+
+  # Adam — the default optimizer for transformers
+  # m_t = beta1 * m_{t-1} + (1-beta1) * g_t      (1st moment, beta1=0.9)
+  # v_t = beta2 * v_{t-1} + (1-beta2) * g_t^2    (2nd moment, beta2=0.999)
+  # m_hat = m_t / (1-beta1^t)   (bias correction)
+  # v_hat = v_t / (1-beta2^t)
+  # theta_{t+1} = theta_t - lr * m_hat / (sqrt(v_hat) + eps)
+  #
+  # Intuition: each parameter gets its own adaptive learning rate.
+  # Parameters with large recent gradients → smaller effective lr
+  # Parameters with small recent gradients → larger effective lr</code></pre>
+
+      <table class="ref-table">
+        <thead>
+          <tr><th>Optimizer</th><th>Adaptive LR?</th><th>Memory</th><th>Best for</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>SGD</td><td>No</td><td>O(1)</td><td>CV models with tuned LR/momentum; often better final accuracy</td></tr>
+          <tr><td>SGD+Momentum</td><td>No</td><td>O(params)</td><td>ResNets, ConvNets with cosine schedule</td></tr>
+          <tr><td>RMSprop</td><td>Yes</td><td>O(params)</td><td>RNNs (Hinton's recommendation)</td></tr>
+          <tr><td>Adam</td><td>Yes</td><td>2&times;O(params)</td><td>Transformers, NLP, default choice</td></tr>
+          <tr><td>AdamW</td><td>Yes</td><td>2&times;O(params)</td><td>Adam + decoupled weight decay; current standard for LLMs</td></tr>
+          <tr><td>L-BFGS</td><td>Quasi-Newton</td><td>O(m&times;params)</td><td>Small models, full-batch settings</td></tr>
+        </tbody>
+      </table>
+
+      <div class="insight-box">
+        <div class="label">Learning rate schedules matter as much as the optimizer</div>
+        <strong>Warmup + cosine decay:</strong> standard for transformers. Linear warmup
+        prevents early instability (gradients are wild at random initialization), then
+        cosine decay slowly anneals the learning rate to allow fine-grained convergence.<br/><br/>
+        <strong>Cyclical LR (1cycle):</strong> popular for fast convergence in CV.<br/><br/>
+        A model trained with the right schedule and SGD will often outperform a carelessly
+        tuned Adam run. The optimizer is not magic.
+      </div>
+
+
+      <!-- ── 4.3 Constrained Optimization ── -->
+      <h3 id="lagrange">Constrained Optimization and Lagrange Multipliers</h3>
+
+      <p>
+        Sometimes you want to minimize f(x) subject to a constraint g(x) = 0.
+        Lagrange multipliers convert a constrained problem into an unconstrained one.
+      </p>
+
+      <div class="math-box">
+        <div class="label">Lagrangian Method</div>
+        Minimize f(<strong>x</strong>) subject to g(<strong>x</strong>) = 0<br/><br/>
+        Form the Lagrangian: L(<strong>x</strong>, &lambda;) = f(<strong>x</strong>) + &lambda; g(<strong>x</strong>)<br/><br/>
+        Solution satisfies: &nabla;<sub>x</sub>L = 0 and &nabla;<sub>&lambda;</sub>L = 0<br/><br/>
+        &rArr; &nabla;f(<strong>x</strong>) = &minus;&lambda; &nabla;g(<strong>x</strong>)<br/>
+        The gradient of the objective is parallel to the gradient of the constraint.
+      </div>
+
+      <p>
+        <strong>ML applications:</strong> deriving the SVM primal/dual formulation,
+        proving that the maximum entropy distribution with known mean is Gaussian,
+        training with equality constraints (e.g., orthogonality constraints in
+        orthogonal RNNs), and understanding the KKT conditions in convex optimisation.
+      </p>
+
+      <pre><code>  # Example: maximize entropy H(p) = -sum p_i log p_i
+  # subject to sum p_i = 1 (probabilities must sum to 1)
+  #
+  # Lagrangian: L = -sum p_i log p_i + lambda (sum p_i - 1)
+  # dL/dp_i = 0: -(log p_i + 1) + lambda = 0
+  # => p_i = exp(lambda - 1) = constant for all i
+  # => uniform distribution maximises entropy!
+  #
+  # With additional constraint E[x] = mu:
+  # => Gaussian distribution maximises entropy!
+  # This is WHY Gaussians appear so often as "least informative" priors.</code></pre>
+
+
+      <!-- ═══════════════════════════════════════════════════════════
+           5. INFORMATION THEORY
+      ═══════════════════════════════════════════════════════════ -->
+      <span class="chapter-badge">Chapter 5</span>
+      <h2 id="infotheory">Information Theory</h2>
+
+      <p>
+        Information theory asks: how much information is in a message? How different are
+        two probability distributions? These questions directly produce the loss functions
+        used in every classification, generative model, and language model.
+      </p>
+
+
+      <!-- ── 5.1 Entropy ── -->
+      <h3 id="entropy">Entropy</h3>
+
+      <div class="math-box">
+        <div class="label">Shannon Entropy</div>
+        H(X) = &minus; &sum;<sub>x</sub> P(x) log<sub>2</sub> P(x)<br/><br/>
+        Using natural log (nats instead of bits):<br/>
+        H(X) = &minus; &sum;<sub>x</sub> P(x) ln P(x)<br/><br/>
+        &bull; H(X) &ge; 0 always<br/>
+        &bull; H(X) = 0 when outcome is certain (P(x) = 1 for some x)<br/>
+        &bull; H(X) is maximum when distribution is uniform<br/>
+        &bull; For n outcomes: H<sub>max</sub> = log<sub>2</sub>(n) bits
+      </div>
+
+      <pre><code>  import numpy as np
+
+  def entropy(p):
+      """Shannon entropy in nats. p is a probability vector."""
+      p = np.array(p)
+      p = p[p > 0]       # 0 log 0 = 0 by convention
+      return -np.sum(p * np.log(p))
+
+  # Certain outcome: H = 0
+  print(entropy([1.0, 0.0]))        # 0.0
+
+  # Uniform over 2: maximum uncertainty = log(2) ≈ 0.693 nats = 1 bit
+  print(entropy([0.5, 0.5]))        # 0.693
+
+  # Uniform over 4: log(4) = 2 bits
+  print(entropy([0.25]*4))          # 1.386
+
+  # Slightly skewed
+  print(entropy([0.7, 0.2, 0.1]))   # 0.802 — less than log(3)=1.099</code></pre>
+
+      <p>
+        <strong>Conditional entropy</strong> H(Y|X) measures uncertainty in Y after
+        observing X. <strong>Mutual information</strong> I(X;Y) = H(X) &minus; H(X|Y)
+        measures how much knowing X reduces uncertainty about Y. Zero if independent,
+        equals H(X) if Y fully determines X. Mutual information is symmetric and
+        is the basis of information-theoretic feature selection.
+      </p>
+
+
+      <!-- ── 5.2 KL Divergence and Cross-Entropy ── -->
+      <h3 id="kl">KL Divergence and Cross-Entropy</h3>
+
+      <div class="math-box">
+        <div class="label">KL Divergence (Relative Entropy)</div>
+        D<sub>KL</sub>(P &Vert; Q) = &sum;<sub>x</sub> P(x) ln [P(x) / Q(x)]<br/><br/>
+        &bull; D<sub>KL</sub> &ge; 0 always (Gibbs inequality)<br/>
+        &bull; D<sub>KL</sub>(P&Vert;Q) = 0 &hArr; P = Q<br/>
+        &bull; D<sub>KL</sub> is NOT symmetric: D<sub>KL</sub>(P&Vert;Q) &ne; D<sub>KL</sub>(Q&Vert;P)<br/>
+        &bull; Measures "how much information is lost when Q is used to approximate P"
+      </div>
+
+      <div class="math-box">
+        <div class="label">Cross-Entropy (the ML Loss)</div>
+        H(P, Q) = &minus; &sum;<sub>x</sub> P(x) ln Q(x)<br/><br/>
+        Relationship: H(P, Q) = H(P) + D<sub>KL</sub>(P &Vert; Q)<br/><br/>
+        When P is the true distribution (fixed), H(P) is a constant.<br/>
+        Minimising H(P,Q) &hArr; minimising D<sub>KL</sub>(P&Vert;Q) &hArr; making Q &rarr; P.<br/><br/>
+        <strong>This is why cross-entropy is the loss for classification.</strong>
+      </div>
+
+      <pre><code>  import numpy as np
+
+  def kl_divergence(p, q):
+      """KL(P||Q) in nats."""
+      p, q = np.array(p), np.array(q)
+      mask = p > 0
+      return np.sum(p[mask] * np.log(p[mask] / q[mask]))
+
+  def cross_entropy(p, q):
+      """H(P,Q) = -sum P log Q."""
+      p, q = np.array(p), np.array(q)
+      mask = p > 0
+      return -np.sum(p[mask] * np.log(q[mask]))
+
+  # True labels (one-hot): class 0
+  p_true = [1.0, 0.0, 0.0]
+  # Model predictions (softmax output)
+  q_good = [0.9, 0.05, 0.05]   # confident and correct
+  q_bad  = [0.1, 0.8, 0.1]    # confident and WRONG
+
+  print(cross_entropy(p_true, q_good))  # 0.105 — low loss
+  print(cross_entropy(p_true, q_bad))   # 2.303 — high loss
+
+  # KL between two Gaussians (analytic formula)
+  # KL(N(mu1,sig1^2) || N(mu2,sig2^2))
+  # = log(sig2/sig1) + (sig1^2 + (mu1-mu2)^2)/(2*sig2^2) - 1/2
+  # This appears directly in the VAE loss (ELBO)</code></pre>
+
+      <div class="insight-box">
+        <div class="label">Forward vs Reverse KL — a crucial distinction</div>
+        <strong>D<sub>KL</sub>(P&Vert;Q)</strong> (forward KL, "moment matching"):
+        minimising this makes Q cover all modes of P. Q tends to be spread out.
+        Used in variational inference when Q approximates P = posterior.<br/><br/>
+        <strong>D<sub>KL</sub>(Q&Vert;P)</strong> (reverse KL, "mode-seeking"):
+        minimising this makes Q concentrate on the highest probability region of P,
+        ignoring other modes. Used in RLHF and some generative models.<br/><br/>
+        This asymmetry explains why VAEs (forward KL) produce blurry samples
+        while mode-seeking models can be sharper but miss diversity.
+      </div>
+
+
+      <!-- ═══════════════════════════════════════════════════════════
+           6. DISCRETE MATH & GRAPH THEORY
+      ═══════════════════════════════════════════════════════════ -->
+      <span class="chapter-badge">Chapter 6</span>
+      <h2 id="discrete">Discrete Math &amp; Graph Theory</h2>
+
+      <p>
+        Discrete mathematics is the foundation of algorithms, data structures, and
+        program correctness. Graph theory is essential for understanding neural network
+        architectures (GNNs), dependency parsing, and any problem involving relationships.
+      </p>
+
+
+      <!-- ── 6.1 Logic ── -->
+      <h3 id="logic">Logic and Proofs</h3>
+
+      <div class="math-box">
+        <div class="label">Propositional Logic</div>
+        <strong>Connectives:</strong> AND (&and;), OR (&or;), NOT (&not;), IMPLIES (&rArr;), IFF (&hArr;)<br/><br/>
+        <strong>Key equivalences:</strong><br/>
+        De Morgan: &not;(P &and; Q) &equiv; &not;P &or; &not;Q<br/>
+        Contrapositive: (P &rArr; Q) &equiv; (&not;Q &rArr; &not;P)<br/>
+        Double negation: &not;&not;P &equiv; P<br/><br/>
+        <strong>Common proof techniques:</strong><br/>
+        Direct proof: assume P, derive Q<br/>
+        Proof by contradiction: assume &not;Q, derive contradiction<br/>
+        Proof by induction: base case + inductive step
+      </div>
+
+      <pre><code>  # Mathematical induction example:
+  # Claim: sum from i=1 to n of i = n(n+1)/2
+  #
+  # Base case n=1: LHS = 1, RHS = 1(2)/2 = 1. ✓
+  # Inductive step: assume true for n=k.
+  #   LHS for k+1 = k(k+1)/2 + (k+1)
+  #               = (k+1)(k/2 + 1)
+  #               = (k+1)(k+2)/2  = RHS for k+1. ✓
+  #
+  # CS applications of induction:
+  # - Proving recursive algorithm correctness
+  # - Amortized analysis of data structures
+  # - Proving loop invariants</code></pre>
+
+
+      <!-- ── 6.2 Sets ── -->
+      <h3 id="sets">Sets, Functions, and Relations</h3>
+
+      <table class="ref-table">
+        <thead>
+          <tr><th>Operation</th><th>Notation</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Union</td><td>A &cup; B</td><td>Elements in A or B or both</td></tr>
+          <tr><td>Intersection</td><td>A &cap; B</td><td>Elements in both A and B</td></tr>
+          <tr><td>Difference</td><td>A &setminus; B</td><td>Elements in A but not B</td></tr>
+          <tr><td>Complement</td><td>A&sup;c</td><td>Elements not in A (within universe U)</td></tr>
+          <tr><td>Subset</td><td>A &sube; B</td><td>Every element of A is in B</td></tr>
+          <tr><td>Power set</td><td>2&sup;A</td><td>Set of all subsets; |2&sup;A| = 2&sup;|A|</td></tr>
+          <tr><td>Cartesian product</td><td>A &times; B</td><td>All ordered pairs (a,b), a&isin;A, b&isin;B</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        <strong>Functions:</strong> A function f: A &rarr; B maps each element of A to
+        exactly one element of B. Injective (one-to-one): f(x) = f(y) &rArr; x = y.
+        Surjective (onto): every b &isin; B has a preimage. Bijective: both.
+        A bijection has an inverse. This matters in normalizing flows: you need bijective
+        functions to change variables in probability distributions.
+      </p>
+
+      <p>
+        <strong>Equivalence relations</strong> are reflexive, symmetric, and transitive.
+        They partition a set into equivalence classes. Important in:
+        graph connectivity (same connected component = equivalence class),
+        Union-Find, and type theory.
+      </p>
+
+
+      <!-- ── 6.3 Combinatorics ── -->
+      <h3 id="combinatorics">Combinatorics</h3>
+
+      <div class="math-box">
+        <div class="label">Counting Fundamentals</div>
+        <strong>Multiplication principle:</strong> if step 1 has m choices and step 2 has n choices, total = mn<br/><br/>
+        <strong>Permutations</strong> (order matters, no repetition):<br/>
+        P(n,k) = n!/(n&minus;k)! &nbsp; (choose k from n in order)<br/><br/>
+        <strong>Combinations</strong> (order doesn't matter):<br/>
+        C(n,k) = n!/[k!(n&minus;k)!] = "n choose k"<br/><br/>
+        <strong>With repetition:</strong> n&sup;k arrangements of k items from n<br/><br/>
+        <strong>Multinomial:</strong> n!/(k&sub;1&sub;! k&sub;2&sub;! &hellip; k&sub;r&sub;!) ways to arrange n items in r groups
+      </div>
+
+      <pre><code>  from math import comb, perm, factorial
+
+  # How many ways to choose 3 items from 10? (order doesn't matter)
+  print(comb(10, 3))     # 120
+
+  # How many 3-letter arrangements from 10 distinct letters? (order matters)
+  print(perm(10, 3))     # 720
+
+  # Probability of a random permutation being sorted
+  n = 5
+  prob_sorted = 1 / factorial(n)   # 1/120
+
+  # Birthday problem: P(at least 2 people share birthday in group of k)
+  def birthday_prob(k, n=365):
+      p_no_match = 1.0
+      for i in range(k):
+          p_no_match *= (n - i) / n
+      return 1 - p_no_match
+
+  print(birthday_prob(23))  # 0.507 — 50% chance with just 23 people!</code></pre>
+
+      <p>
+        Combinatorics in ML: counting the number of possible architectures (NAS),
+        analyzing the VC dimension of hypothesis classes, computing the number of
+        training samples needed (sample complexity), and understanding the multinomial
+        distribution for language modelling.
+      </p>
+
+
+      <!-- ── 6.4 Graph Theory ── -->
+      <h3 id="graphs">Graph Theory</h3>
+
+      <div class="math-box">
+        <div class="label">Graph Definitions</div>
+        G = (V, E) where V = vertices (nodes) and E &sube; V&times;V = edges<br/><br/>
+        <strong>Undirected:</strong> edges have no direction; (u,v) = (v,u)<br/>
+        <strong>Directed (digraph):</strong> edges have direction (u,v) &ne; (v,u)<br/>
+        <strong>Weighted:</strong> each edge (u,v) has weight w(u,v)<br/><br/>
+        <strong>Degree:</strong> deg(v) = number of edges incident to v<br/>
+        <strong>Path:</strong> sequence of adjacent vertices<br/>
+        <strong>Cycle:</strong> path that starts and ends at same vertex<br/>
+        <strong>Tree:</strong> connected acyclic undirected graph; n vertices, n&minus;1 edges<br/>
+        <strong>DAG:</strong> directed acyclic graph — computation graphs, dependency chains
+      </div>
+
+      <pre><code>  # Graph representations
+  # 1. Adjacency Matrix — O(V^2) space, O(1) edge lookup
+  import numpy as np
+  A = np.array([[0,1,1,0],
+                [1,0,0,1],
+                [1,0,0,1],
+                [0,1,1,0]])   # Symmetric = undirected graph
+
+  # 2. Adjacency List — O(V+E) space, efficient for sparse graphs
+  graph = {
+      0: [1, 2],
+      1: [0, 3],
+      2: [0, 3],
+      3: [1, 2]
+  }
+
+  # Graph Laplacian — key for spectral graph theory and GNNs
+  D = np.diag(A.sum(axis=1))   # Degree matrix
+  L = D - A                    # Laplacian
+  # Properties: L is positive semidefinite, smallest eigenvalue = 0
+  # Number of zero eigenvalues = number of connected components
+  # Spectral gap (2nd eigenvalue) measures how well-connected the graph is</code></pre>
+
+      <table class="ref-table">
+        <thead>
+          <tr><th>Algorithm</th><th>Time</th><th>Use case</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>BFS</td><td>O(V+E)</td><td>Shortest path (unweighted), level-order traversal</td></tr>
+          <tr><td>DFS</td><td>O(V+E)</td><td>Cycle detection, topological sort, connected components</td></tr>
+          <tr><td>Dijkstra</td><td>O((V+E)log V)</td><td>Shortest path, non-negative weights</td></tr>
+          <tr><td>Bellman-Ford</td><td>O(VE)</td><td>Shortest path with negative weights</td></tr>
+          <tr><td>Floyd-Warshall</td><td>O(V&sup3;)</td><td>All-pairs shortest path</td></tr>
+          <tr><td>Kruskal / Prim</td><td>O(E log E)</td><td>Minimum spanning tree</td></tr>
+          <tr><td>Topological Sort</td><td>O(V+E)</td><td>Task scheduling, dependency order</td></tr>
+          <tr><td>Union-Find</td><td>~O(1) amortized</td><td>Dynamic connectivity, Kruskal's MST</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        <strong>Graph Neural Networks (GNNs)</strong> generalise neural networks to
+        graph-structured data. The core operation is message passing: each node aggregates
+        information from its neighbours. The graph Laplacian and adjacency matrix appear
+        explicitly in the computation. Social networks, molecular property prediction,
+        recommendation systems, and knowledge graphs all use GNNs.
+      </p>
+
+      <div class="insight-box">
+        <div class="label">The computation graph is a DAG</div>
+        Every neural network forward pass is a DAG. Backpropagation is just
+        reverse-mode automatic differentiation on this DAG: traverse edges in reverse
+        topological order, accumulate gradients using the chain rule.
+        PyTorch's autograd builds this DAG dynamically as you run the forward pass.
+        This is why you can have dynamic computation graphs (variable-length sequences,
+        conditional branches) and still compute exact gradients.
+      </div>
+
+
+      <!-- ═══════════════════════════════════════════════════════════
+           CHEAT SHEET
+      ═══════════════════════════════════════════════════════════ -->
+      <span class="chapter-badge">Reference</span>
+      <h2 id="cheatsheet">Master Cheat Sheet</h2>
+
+      <pre><code>  ── LINEAR ALGEBRA ──────────────────────────────────────────────────────────
+  Dot product:        a·b = sum(a_i b_i) = |a||b|cos(θ)
+  Matrix multiply:    (AB)_ij = sum_r A_ir B_rj    [shapes: (m,k)@(k,n)=(m,n)]
+  Transpose:          (AB)^T = B^T A^T
+  Inverse:            (AB)^-1 = B^-1 A^-1
+  Eigendecomposition: A = Q Λ Q^T         (symmetric A)
+  SVD:                A = U Σ V^T          (any A)
+  PCA steps:          center → covariance → eigenvectors → project
+  Rank:               dim of column space = dim of row space
+  Positive definite:  x^T A x > 0 for all x≠0 ↔ all eigenvalues > 0
+
+  ── CALCULUS ────────────────────────────────────────────────────────────────
+  Chain rule:         d/dx f(g(x)) = f'(g(x)) · g'(x)
+  Gradient:           ∇f = [∂f/∂x1, ..., ∂f/∂xn]  (points uphill)
+  Jacobian:           J_ij = ∂f_i/∂x_j             (m×n matrix)
+  Hessian:            H_ij = ∂²f/∂x_i∂x_j          (n×n symmetric)
+  Local min:          ∇f = 0 and H positive definite
+  Saddle point:       ∇f = 0 and H indefinite
+  Key derivatives:
+    d/dx sigmoid(x) = sigmoid(x)(1-sigmoid(x))
+    d/dx ReLU(x)    = 0 if x<0, 1 if x>0
+    d/dx log(x)     = 1/x
+    d/dx exp(x)     = exp(x)
+
+  ── PROBABILITY ─────────────────────────────────────────────────────────────
+  Joint:              P(A,B) = P(A|B)P(B)
+  Bayes:              P(θ|X) = P(X|θ)P(θ) / P(X)
+  Total probability:  P(A) = sum_b P(A|B=b)P(B=b)
+  Expectation:        E[X] = sum_x x P(x)  or  ∫ x p(x) dx
+  Variance:           Var(X) = E[X²] - E[X]²
+  Covariance:         Cov(X,Y) = E[(X-μX)(Y-μY)]
+  Gaussian:           p(x) = (1/√2πσ²) exp(-(x-μ)²/2σ²)
+  MLE:                argmax_θ  sum_i log p(x_i | θ)
+  MAP:                argmax_θ  sum_i log p(x_i | θ) + log p(θ)
+  L2 reg ≡ Gaussian prior,  L1 reg ≡ Laplace prior
+
+  ── OPTIMIZATION ────────────────────────────────────────────────────────────
+  GD update:          θ ← θ - η ∇L(θ)
+  Adam update:        m ← β1 m + (1-β1) g
+                      v ← β2 v + (1-β2) g²
+                      θ ← θ - η m̂/√(v̂+ε)
+  Convex:             f(tx+(1-t)y) ≤ tf(x)+(1-t)f(y)
+  Lagrangian:         L(x,λ) = f(x) + λ g(x)   [for g(x)=0 constraint]
+  Learning rate rule: η < 2/λ_max(Hessian)  to avoid divergence
+
+  ── INFORMATION THEORY ──────────────────────────────────────────────────────
+  Entropy:            H(X) = -sum_x P(x) log P(x)
+  Cross-entropy:      H(P,Q) = -sum_x P(x) log Q(x)
+  KL divergence:      KL(P||Q) = sum_x P(x) log(P(x)/Q(x))
+  Relationship:       H(P,Q) = H(P) + KL(P||Q)
+  Min cross-entropy ↔ Min KL ↔ Make Q approximate P
+  Mutual info:        I(X;Y) = H(X) - H(X|Y) = KL(P(X,Y)||P(X)P(Y))
+
+  ── KEY ML CONNECTIONS ──────────────────────────────────────────────────────
+  MSE loss      = MLE under Gaussian noise assumption
+  Cross-entropy = MLE under Bernoulli/Categorical assumption
+  L2 reg        = MAP with Gaussian prior
+  L1 reg        = MAP with Laplace prior
+  PCA           = SVD of centered data matrix
+  Backprop      = chain rule on computation DAG
+  Attention     = scaled dot product → softmax → weighted sum
+  Softmax(x)_k  = exp(x_k) / sum_j exp(x_j)   [temperature: /τ]</code></pre>
+
+
+      <!-- ═══════════════════════════════════════════════════════════
+           PRACTICE PROBLEMS
+      ═══════════════════════════════════════════════════════════ -->
+      <span class="chapter-badge">Practice</span>
+      <h2 id="problems">Problems to Solve</h2>
+
+      <p>
+        Work through every problem before expanding the solution. That struggle &mdash;
+        the minutes where you're stuck &mdash; is where the understanding actually forms.
+        Each problem has a <strong>Hint</strong> you can open first if stuck,
+        and a <strong>Full Solution</strong> to verify your answer.
+      </p>
+
+      <p>
+        Difficulty: <span class="diff diff-easy">Easy</span> means recall and
+        direct application. <span class="diff diff-medium">Medium</span> means
+        combining two ideas. <span class="diff diff-hard">Hard</span> means
+        derivation, proof, or implementation from scratch.
+      </p>
+
+
+      <!-- ──────────────── CHAPTER 1: LINEAR ALGEBRA ──────────────── -->
+      <div class="problem-section-title">Chapter 1 &mdash; Linear Algebra</div>
+
+      <!-- P1 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">1.1</span>
+          <span class="prob-title">Dot Product, Norm, and Angle</span>
+          <span class="diff diff-easy">Easy</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>Let <strong>a</strong> = [3, 4] and <strong>b</strong> = [1, &minus;2].</p>
+        <ol>
+          <li>Compute <strong>a</strong> &middot; <strong>b</strong>.</li>
+          <li>Compute |<strong>a</strong>| and |<strong>b</strong>|.</li>
+          <li>Find the angle &theta; between them (in degrees).</li>
+          <li>Are they orthogonal? If not, what vector added to <strong>b</strong> makes it orthogonal to <strong>a</strong>?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>cos(&theta;) = (<strong>a</strong>&middot;<strong>b</strong>) / (|<strong>a</strong>||<strong>b</strong>|). For orthogonality, dot product = 0.</p>
+            <p>To find a vector orthogonal to <strong>a</strong> = [3,4], any [x, y] satisfying 3x + 4y = 0 works. E.g. [-4, 3].</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> <strong>a</strong>&middot;<strong>b</strong> = 3&times;1 + 4&times;(&minus;2) = 3 &minus; 8 = &minus;5</p>
+            <p><strong>2.</strong> |<strong>a</strong>| = &radic;(9+16) = 5, &nbsp; |<strong>b</strong>| = &radic;(1+4) = &radic;5 &asymp; 2.236</p>
+            <p><strong>3.</strong> cos&theta; = &minus;5 / (5 &times; &radic;5) = &minus;1/&radic;5 &asymp; &minus;0.4472 &rArr; &theta; &asymp; 116.6&deg;</p>
+            <p><strong>4.</strong> Not orthogonal (dot &ne; 0). To make <strong>b</strong> orthogonal to <strong>a</strong>, use the orthogonal complement of <strong>a</strong>: any scalar multiple of [&minus;4, 3] is orthogonal to [3, 4] since 3(&minus;4)+4(3) = 0.</p>
+            <pre>import numpy as np
+a = np.array([3, 4]); b = np.array([1, -2])
+print(np.dot(a, b))                          # -5
+print(np.degrees(np.arccos(np.dot(a,b) / (np.linalg.norm(a)*np.linalg.norm(b)))))  # 116.57</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P2 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">1.2</span>
+          <span class="prob-title">Matrix Invertibility and Rank</span>
+          <span class="diff diff-easy">Easy</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>For each matrix below: (a) compute the determinant, (b) state whether it is invertible, (c) find the inverse if it exists.</p>
+        <pre><code>  A = [[2, 3],      B = [[4, 2],      C = [[1, 2, 3],
+       [1, 4]]           [2, 1]]           [4, 5, 6],
+                                           [7, 8, 9]]</code></pre>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>det([[a,b],[c,d]]) = ad &minus; bc. Inverse of 2&times;2: (1/det) [[d,&minus;b],[&minus;c,a]].</p>
+            <p>For C: check if any row is a linear combination of the others before computing.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>A:</strong> det = 2&times;4 &minus; 3&times;1 = 5 &ne; 0 &rarr; invertible.<br/>A&sup;-1 = (1/5)[[4,&minus;3],[&minus;1,2]] = [[0.8,&minus;0.6],[&minus;0.2,0.4]]</p>
+            <p><strong>B:</strong> det = 4&times;1 &minus; 2&times;2 = 0 &rarr; singular, not invertible. Row 1 = 2&times;Row 2.</p>
+            <p><strong>C:</strong> Row 3 = 2&times;Row 2 &minus; Row 1, so rows are linearly dependent &rarr; rank 2 &lt; 3 &rarr; not invertible. det(C) = 0.</p>
+            <pre>import numpy as np
+A = np.array([[2,3],[1,4]])
+print(np.linalg.det(A))     # 5.0
+print(np.linalg.inv(A))     # [[0.8,-0.6],[-0.2,0.4]]</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P3 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">1.3</span>
+          <span class="prob-title">Eigenvalues by Hand</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>Find all eigenvalues and eigenvectors of:</p>
+        <pre><code>  A = [[4, 1],
+       [2, 3]]</code></pre>
+        <ol>
+          <li>Set up and solve the characteristic equation det(A &minus; &lambda;I) = 0.</li>
+          <li>For each eigenvalue, solve (A &minus; &lambda;I)<strong>v</strong> = <strong>0</strong>.</li>
+          <li>Verify: A<strong>v</strong> = &lambda;<strong>v</strong> for each pair.</li>
+          <li>What does it mean geometrically that <strong>v</strong> is only scaled, not rotated, by A?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>det(A&minus;&lambda;I) = (4&minus;&lambda;)(3&minus;&lambda;) &minus; 1&times;2. Expand and solve the quadratic.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>Characteristic polynomial:</strong></p>
+            <p>det([[4&minus;&lambda;, 1],[2, 3&minus;&lambda;]]) = (4&minus;&lambda;)(3&minus;&lambda;) &minus; 2 = &lambda;&sup2; &minus; 7&lambda; + 10 = (&lambda;&minus;5)(&lambda;&minus;2) = 0</p>
+            <p>&rArr; &lambda;&sub;1&sub; = 5, &lambda;&sub;2&sub; = 2</p>
+            <p><strong>Eigenvector for &lambda;=5:</strong> (A&minus;5I)<strong>v</strong>=0 &rArr; [[-1,1],[2,-2]]<strong>v</strong>=0 &rArr; v&sub;1&sub;=v&sub;2&sub; &rArr; <strong>v</strong>&sub;1&sub;=[1,1]</p>
+            <p><strong>Eigenvector for &lambda;=2:</strong> (A&minus;2I)<strong>v</strong>=0 &rArr; [[2,1],[2,1]]<strong>v</strong>=0 &rArr; 2v&sub;1&sub;+v&sub;2&sub;=0 &rArr; <strong>v</strong>&sub;2&sub;=[1,&minus;2]</p>
+            <p><strong>Geometric meaning:</strong> Along direction [1,1], A stretches by 5&times;. Along [1,&minus;2], A stretches by 2&times;. Any vector is a combination of these; after applying A, each component is scaled by its eigenvalue.</p>
+            <pre>import numpy as np
+A = np.array([[4,1],[2,3]])
+vals, vecs = np.linalg.eig(A)
+print(vals)          # [5., 2.]
+print(vecs)          # columns are eigenvectors
+# Verify
+for i in range(2):
+    v, lam = vecs[:,i], vals[i]
+    print(np.allclose(A @ v, lam * v))  # True, True</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P4 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">1.4</span>
+          <span class="prob-title">SVD and Low-Rank Approximation</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Coding</span>
+        </div>
+        <p>You have an image represented as a 100&times;100 grayscale matrix A (pixel values 0&ndash;255).</p>
+        <ol>
+          <li>Compute the SVD of A.</li>
+          <li>Plot the singular values. What shape does the curve have and what does it tell you?</li>
+          <li>Reconstruct A using only the top k=1, 5, 20 singular values. Compute the Frobenius norm of the error |A &minus; A_k|_F for each k.</li>
+          <li>What percentage of the total "energy" (sum of squared singular values) do the top 20 components capture?</li>
+          <li>This is exactly how LoRA works in LLMs. Explain the connection.</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>Use a real image: <code>from PIL import Image; import numpy as np</code>. Or generate a synthetic one with <code>np.random.randint(0,255,(100,100))</code>.</p>
+            <p>Low-rank reconstruction: A_k = U[:,:k] @ diag(sigma[:k]) @ Vt[:k,:]</p>
+            <p>Frobenius norm: np.linalg.norm(A - A_k, 'fro')</p>
+            <p>Energy: sigma[:k]**2 sum / sigma**2 sum</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import numpy as np
+import matplotlib.pyplot as plt
+
+# Simulate a structured image (real image has decaying singular values)
+np.random.seed(0)
+A = np.random.randint(0, 256, (100, 100)).astype(float)
+# Add structure so it compresses well:
+A += np.outer(np.arange(100), np.arange(100)) * 0.01
+
+U, sigma, Vt = np.linalg.svd(A, full_matrices=False)
+
+# 1. Singular values decay
+plt.semilogy(sigma)
+plt.title("Singular values (log scale)")
+# Shape: fast drop then long tail. Faster drop = more compressible.
+
+# 2. Low-rank reconstruction
+total_energy = (sigma**2).sum()
+for k in [1, 5, 20]:
+    A_k = U[:,:k] @ np.diag(sigma[:k]) @ Vt[:k,:]
+    err  = np.linalg.norm(A - A_k, 'fro')
+    pct  = (sigma[:k]**2).sum() / total_energy * 100
+    print(f"k={k:2d}: error={err:.1f}, energy captured={pct:.1f}%")
+
+# k=1:  error~large, ~30% energy
+# k=5:  error~medium, ~65% energy
+# k=20: error~small,  ~90%+ energy
+
+# 3. LoRA connection:
+# In LoRA, a weight matrix W (d x d) is frozen.
+# The weight update ΔW is constrained to rank r:
+# ΔW = B @ A   where B is (d x r) and A is (r x d).
+# This is exactly the top-r SVD approximation of ΔW.
+# Trainable params: 2*d*r instead of d^2 → massive compression.</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P5 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">1.5</span>
+          <span class="prob-title">PCA from Scratch — Implement and Interpret</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Coding</span>
+        </div>
+        <p>Use the Iris dataset (or any dataset with 4+ features).</p>
+        <ol>
+          <li>Implement PCA from scratch (no sklearn) using the covariance eigendecomposition approach.</li>
+          <li>Project to 2D and create a scatter plot coloured by class.</li>
+          <li>Compare to sklearn's PCA. Do the signs of the components match? Why might they differ?</li>
+          <li>How many components capture 95% of the variance? Print the explained variance ratio.</li>
+          <li>What does it mean if two data points are far apart in PCA space?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>Steps: center, covariance, eigh (for symmetric matrices), sort descending by eigenvalue, project.</p>
+            <p>Signs can differ because eigenvectors are defined up to a sign flip (&minus;<strong>v</strong> is also a valid eigenvector). sklearn applies a sign convention to make the result deterministic.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import numpy as np
+from sklearn.datasets import load_iris
+import matplotlib.pyplot as plt
+
+X, y = load_iris(return_X_y=True)
+
+# --- PCA from scratch ---
+X_c = X - X.mean(axis=0)                    # center
+C   = (X_c.T @ X_c) / (len(X) - 1)         # covariance (4x4)
+vals, vecs = np.linalg.eigh(C)              # eigh = symmetric
+idx  = np.argsort(vals)[::-1]               # sort descending
+vals, vecs = vals[idx], vecs[:, idx]
+
+explained = vals / vals.sum()
+print(np.cumsum(explained))                  # see when >= 0.95
+
+k = np.searchsorted(np.cumsum(explained), 0.95) + 1
+print(f"{k} components capture 95% variance")  # typically 2 for Iris
+
+X_2d = X_c @ vecs[:, :2]
+plt.scatter(X_2d[:,0], X_2d[:,1], c=y, cmap='Set1')
+plt.xlabel("PC1"); plt.ylabel("PC2")
+plt.title("PCA Iris — scratch")
+plt.show()
+
+# Far apart in PCA space → differ along high-variance directions
+# → likely different classes or truly different in original space</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P6 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">1.6</span>
+          <span class="prob-title">Covariance Matrices are Always Positive Semidefinite</span>
+          <span class="diff diff-hard">Hard</span>
+          <span class="prob-type">Proof</span>
+        </div>
+        <p>Let X be an n&times;d centered data matrix. Let C = (1/(n&minus;1)) X&sup;T X be the sample covariance.</p>
+        <ol>
+          <li>Prove that C is symmetric.</li>
+          <li>Prove that C is positive semidefinite (all eigenvalues &ge; 0).</li>
+          <li>Under what condition on X is C positive definite (all eigenvalues &gt; 0)?</li>
+          <li>Why does this matter? What breaks if C has zero eigenvalues in a regression or Gaussian model?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>For symmetry: (X&sup;TX)&sup;T = ?</p>
+            <p>For PSD: show <strong>v</strong>&sup;TC<strong>v</strong> &ge; 0 for all <strong>v</strong>. Write out <strong>v</strong>&sup;T X&sup;T X <strong>v</strong> and recognise it as a squared norm.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1. Symmetry:</strong> C&sup;T = ((1/(n&minus;1))X&sup;TX)&sup;T = (1/(n&minus;1))(X&sup;TX)&sup;T = (1/(n&minus;1))X&sup;T(X&sup;T)&sup;T = (1/(n&minus;1))X&sup;TX = C. &nbsp; &check;</p>
+            <p><strong>2. PSD:</strong> For any vector <strong>v</strong>:<br/>
+            <strong>v</strong>&sup;TC<strong>v</strong> = (1/(n&minus;1)) <strong>v</strong>&sup;T X&sup;TX <strong>v</strong> = (1/(n&minus;1)) |X<strong>v</strong>|&sup2; &ge; 0.<br/>
+            A squared norm is always non-negative. &nbsp; &check;</p>
+            <p><strong>3. Positive definite iff X has full column rank (rank d)</strong>: Then X<strong>v</strong> = 0 implies <strong>v</strong> = 0, so |X<strong>v</strong>|&sup2; = 0 only for <strong>v</strong> = 0.</p>
+            <p><strong>4. Zero eigenvalues mean:</strong> (a) In OLS regression, (X&sup;TX)&sup;-1 doesn't exist &rarr; infinitely many solutions. Ridge adds &lambda;I to make it (X&sup;TX + &lambda;I) which is always PD. (b) In a Gaussian: the covariance is degenerate &rarr; can't compute the PDF (det = 0). The distribution lies in a lower-dimensional subspace.</p>
+          </div>
+        </details>
+      </div>
+
+
+      <!-- ──────────────── CHAPTER 2: CALCULUS ──────────────── -->
+      <div class="problem-section-title">Chapter 2 &mdash; Calculus</div>
+
+      <!-- P7 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">2.1</span>
+          <span class="prob-title">Chain Rule by Hand</span>
+          <span class="diff diff-easy">Easy</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>Differentiate each function. Show all steps using the chain rule.</p>
+        <ol>
+          <li>f(x) = (3x&sup2; + 1)&sup5;</li>
+          <li>g(x) = ln(sigmoid(x)) &nbsp; where sigmoid(x) = 1/(1+e&sup;-x)</li>
+          <li>h(x) = e&sup;(-x&sup2;/2) &nbsp; (the Gaussian kernel)</li>
+          <li>k(x) = &radic;(x&sup2; + 1) &nbsp; (appears in L2 norm gradients)</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>Chain rule: d/dx f(g(x)) = f'(g(x)) &times; g'(x). Always identify the outer function and the inner function first.</p>
+            <p>For (b): d/dx ln(u) = u'/u. For sigmoid: &sigma;'(x) = &sigma;(x)(1&minus;&sigma;(x)).</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> Outer: u&sup5;, inner: u=3x&sup2;+1<br/>f'(x) = 5(3x&sup2;+1)&sup4; &times; 6x = 30x(3x&sup2;+1)&sup4;</p>
+            <p><strong>2.</strong> g(x) = ln(&sigma;(x))<br/>g'(x) = &sigma;'(x)/&sigma;(x) = (1&minus;&sigma;(x)) = sigmoid(&minus;x)<br/>This is the log-loss gradient component for positive labels!</p>
+            <p><strong>3.</strong> h(x) = e&sup;u, u=&minus;x&sup2;/2<br/>h'(x) = e&sup;(-x&sup2;/2) &times; (&minus;x) = &minus;x e&sup;(-x&sup2;/2)</p>
+            <p><strong>4.</strong> k(x) = &radic;(x&sup2;+1) = (x&sup2;+1)&sup;(1/2)<br/>k'(x) = (1/2)(x&sup2;+1)&sup;(-1/2) &times; 2x = x/&radic;(x&sup2;+1)</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P8 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">2.2</span>
+          <span class="prob-title">Gradient of MSE Loss</span>
+          <span class="diff diff-easy">Easy</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>Consider linear regression: &ycirc; = <strong>w</strong>&sup;T<strong>x</strong> + b, with MSE loss:</p>
+        <p>L = (1/n) &sum;&sub;i&sub; (&ycirc;&sub;i&sub; &minus; y&sub;i&sub;)&sup2;</p>
+        <ol>
+          <li>Compute &part;L/&part;w&sub;j&sub; for a single sample (n=1).</li>
+          <li>Compute &part;L/&part;b for a single sample.</li>
+          <li>Write the gradient descent update rule for <strong>w</strong> and b.</li>
+          <li>In matrix form for all n samples: L = (1/n)|X<strong>w</strong>&minus;<strong>y</strong>|&sup2;. Show &nabla;<sub><strong>w</strong></sub>L = (2/n)X&sup;T(X<strong>w</strong>&minus;<strong>y</strong>).</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>Use chain rule: &part;L/&part;w&sub;j&sub; = &part;L/&part;&ycirc; &times; &part;&ycirc;/&part;w&sub;j&sub;. Note: &part;&ycirc;/&part;w&sub;j&sub; = x&sub;j&sub;.</p>
+            <p>For matrix form: |X<strong>w</strong>&minus;<strong>y</strong>|&sup2; = (<strong>y</strong>&minus;X<strong>w</strong>)&sup;T(<strong>y</strong>&minus;X<strong>w</strong>). Expand and differentiate.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> &part;L/&part;w&sub;j&sub; = 2(&ycirc;&minus;y) &times; x&sub;j&sub; = 2(prediction error) &times; input feature</p>
+            <p><strong>2.</strong> &part;L/&part;b = 2(&ycirc;&minus;y) &times; 1 = 2(prediction error)</p>
+            <p><strong>3.</strong> Update: <strong>w</strong> &larr; <strong>w</strong> &minus; &eta; &times; 2(error)&times;<strong>x</strong>; &nbsp; b &larr; b &minus; &eta; &times; 2(error)</p>
+            <p><strong>4.</strong> L = (1/n)(X<strong>w</strong>&minus;<strong>y</strong>)&sup;T(X<strong>w</strong>&minus;<strong>y</strong>).<br/>
+            dL/d<strong>w</strong> = (1/n) &times; 2 X&sup;T(X<strong>w</strong>&minus;<strong>y</strong>) &nbsp; [standard matrix calculus: d/d<strong>w</strong>(A<strong>w</strong>)&sup;T(A<strong>w</strong>) = 2A&sup;TA<strong>w</strong>]<br/>Setting to zero: X&sup;TX<strong>w</strong> = X&sup;T<strong>y</strong> &rArr; <strong>w</strong>* = (X&sup;TX)&sup;-1 X&sup;T<strong>y</strong> &nbsp; (the OLS solution!)</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P9 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">2.3</span>
+          <span class="prob-title">Backpropagation Through a 2-Layer Network</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>Consider a tiny network: input x (scalar), hidden h = ReLU(w&sub;1&sub;x), output &ycirc; = w&sub;2&sub;h, loss L = (&ycirc;&minus;y)&sup2;.</p>
+        <p>Given: x=2, w&sub;1&sub;=&minus;0.5, w&sub;2&sub;=3, y=1.</p>
+        <ol>
+          <li>Forward pass: compute h, &ycirc;, and L.</li>
+          <li>Backward pass: compute &part;L/&part;w&sub;2&sub; and &part;L/&part;w&sub;1&sub; by hand, using the chain rule step-by-step.</li>
+          <li>What happens to &part;L/&part;w&sub;1&sub; because of the ReLU? What does this tell you about dead neurons?</li>
+          <li>Verify using PyTorch autograd.</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>ReLU(x) = max(0,x). If the pre-activation w&sub;1&sub;x is negative, ReLU outputs 0 and its derivative is 0 &rarr; gradient is killed.</p>
+            <p>Chain rule: &part;L/&part;w&sub;1&sub; = &part;L/&part;&ycirc; &times; &part;&ycirc;/&part;h &times; &part;h/&part;(w&sub;1&sub;x) &times; &part;(w&sub;1&sub;x)/&part;w&sub;1&sub;</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1. Forward pass:</strong><br/>
+            w&sub;1&sub;x = &minus;0.5 &times; 2 = &minus;1<br/>
+            h = ReLU(&minus;1) = 0<br/>
+            &ycirc; = w&sub;2&sub; &times; h = 3 &times; 0 = 0<br/>
+            L = (0 &minus; 1)&sup2; = 1</p>
+            <p><strong>2. Backward pass:</strong><br/>
+            &part;L/&part;&ycirc; = 2(&ycirc;&minus;y) = 2(0&minus;1) = &minus;2<br/>
+            &part;&ycirc;/&part;h = w&sub;2&sub; = 3<br/>
+            &part;h/&part;(w&sub;1&sub;x) = ReLU'(&minus;1) = 0 &nbsp; (because &minus;1 &lt; 0)<br/>
+            &part;L/&part;w&sub;2&sub; = &part;L/&part;&ycirc; &times; h = &minus;2 &times; 0 = 0<br/>
+            &part;L/&part;w&sub;1&sub; = &minus;2 &times; 3 &times; 0 &times; x = 0</p>
+            <p><strong>3. Dead neuron:</strong> When ReLU input is negative, gradient is exactly zero. The weight w&sub;1&sub; receives no update <em>ever</em> in this state. If it happens consistently across all samples, the neuron is permanently "dead" &mdash; it will never learn. This is why initialization and learning rates matter, and why LeakyReLU (small nonzero slope for x&lt;0) was invented.</p>
+            <pre>import torch
+x  = torch.tensor(2.0)
+w1 = torch.tensor(-0.5, requires_grad=True)
+w2 = torch.tensor(3.0,  requires_grad=True)
+y  = torch.tensor(1.0)
+
+h    = torch.relu(w1 * x)
+yhat = w2 * h
+L    = (yhat - y)**2
+L.backward()
+print(w1.grad, w2.grad)   # both 0.0 — dead neuron confirmed</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P10 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">2.4</span>
+          <span class="prob-title">Jacobian of Softmax</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>For a vector <strong>z</strong> = [z&sub;1&sub;, z&sub;2&sub;, z&sub;3&sub;], the softmax output is s&sub;i&sub; = e&sup;(z_i) / &sum;&sub;j&sub; e&sup;(z_j).</p>
+        <ol>
+          <li>Compute &part;s&sub;i&sub;/&part;z&sub;j&sub; for two cases: i=j and i&ne;j.</li>
+          <li>Write the full Jacobian J = &part;<strong>s</strong>/&part;<strong>z</strong> in matrix form. (Hint: it involves diag(s) and ss&sup;T.)</li>
+          <li>Show that the Jacobian of softmax combined with cross-entropy loss gives the clean gradient (s&minus;y).</li>
+          <li>Why does this clean gradient make training stable?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>Use quotient rule carefully. Let Z = &sum;&sub;k&sub; e&sup;(z_k). Then s&sub;i&sub; = e&sup;(z_i)/Z.</p>
+            <p>For i=j: &part;s&sub;i&sub;/&part;z&sub;i&sub; = (e&sup;(z_i)Z &minus; e&sup;(z_i)e&sup;(z_i))/Z&sup2; = s&sub;i&sub;(1&minus;s&sub;i&sub;)</p>
+            <p>For i&ne;j: &part;s&sub;i&sub;/&part;z&sub;j&sub; = (0&minus;e&sup;(z_i)e&sup;(z_j))/Z&sup2; = &minus;s&sub;i&sub;s&sub;j&sub;</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1 &amp; 2:</strong> J&sub;ij&sub; = s&sub;i&sub;(&delta;&sub;ij&sub; &minus; s&sub;j&sub;) where &delta;&sub;ij&sub;=1 if i=j, else 0.<br/>In matrix form: <strong>J</strong> = diag(<strong>s</strong>) &minus; <strong>ss</strong>&sup;T</p>
+            <p><strong>3.</strong> Cross-entropy loss with true label one-hot <strong>y</strong>:<br/>L = &minus;&sum;&sub;i&sub; y&sub;i&sub; log s&sub;i&sub;<br/>
+            &part;L/&part;z&sub;j&sub; = &sum;&sub;i&sub; (&part;L/&part;s&sub;i&sub;) &times; (&part;s&sub;i&sub;/&part;z&sub;j&sub;)<br/>
+            = &sum;&sub;i&sub; (&minus;y&sub;i&sub;/s&sub;i&sub;) &times; s&sub;i&sub;(&delta;&sub;ij&sub;&minus;s&sub;j&sub;)<br/>
+            = &sum;&sub;i&sub; &minus;y&sub;i&sub;(&delta;&sub;ij&sub;&minus;s&sub;j&sub;)<br/>
+            = &minus;y&sub;j&sub; + s&sub;j&sub;&sum;&sub;i&sub;y&sub;i&sub;<br/>
+            = &minus;y&sub;j&sub; + s&sub;j&sub; &nbsp; (since &sum;y=1)<br/>
+            = <strong>s</strong>&minus;<strong>y</strong></p>
+            <p><strong>4.</strong> The gradient (s&minus;y) is bounded between &minus;1 and 1 regardless of network depth or the magnitude of z. No explosion, no vanishing. This is why softmax+cross-entropy is the canonical choice for classification.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P11 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">2.5</span>
+          <span class="prob-title">Gradient Check — Catch a Bug</span>
+          <span class="diff diff-hard">Hard</span>
+          <span class="prob-type">Coding</span>
+        </div>
+        <p>The code below implements a neural network layer and its gradient. One of the gradient calculations has a bug.</p>
+        <pre><code>  def forward(W, x, y):
+      """Linear layer + MSE. W is (d_out, d_in), x is (d_in,), y is (d_out,)"""
+      z    = W @ x               # (d_out,)
+      loss = ((z - y)**2).sum()
+      return loss, z
+
+  def grad_W(W, x, y):
+      """Gradient of loss w.r.t. W"""
+      z     = W @ x
+      error = z - y              # (d_out,)
+      # BUG: one of these two is wrong
+      return 2 * np.outer(x, error)   # candidate A
+      # return 2 * np.outer(error, x) # candidate B</code></pre>
+        <ol>
+          <li>Write a gradient checker using finite differences to determine which is correct.</li>
+          <li>Explain why the incorrect one has the wrong shape or wrong values.</li>
+          <li>What is the correct formula, and how does it follow from the chain rule?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>Numerical gradient: perturb each element W[i,j] by &plusmn;eps, measure (L(W+eps) &minus; L(W&minus;eps)) / 2eps. Compare shape and values to the analytical gradient.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import numpy as np
+
+def forward(W, x, y):
+    z    = W @ x
+    loss = ((z - y)**2).sum()
+    return loss
+
+def numerical_grad(W, x, y, eps=1e-5):
+    G = np.zeros_like(W)
+    for i in range(W.shape[0]):
+        for j in range(W.shape[1]):
+            W[i,j] += eps; lp = forward(W, x, y); W[i,j] -= eps
+            W[i,j] -= eps; lm = forward(W, x, y); W[i,j] += eps
+            G[i,j] = (lp - lm) / (2*eps)
+    return G
+
+np.random.seed(42)
+W = np.random.randn(3, 4)
+x = np.random.randn(4)
+y = np.random.randn(3)
+
+G_num = numerical_grad(W, x, y)
+
+z     = W @ x
+error = z - y
+GA = 2 * np.outer(x, error)      # shape (4,3) — WRONG shape
+GB = 2 * np.outer(error, x)      # shape (3,4) — correct shape
+
+print(np.allclose(G_num, GB))    # True — B is correct
+print(np.allclose(G_num, GA.T))  # also True — A is transposed B
+
+# Derivation: L = sum_i (z_i - y_i)^2
+# dL/dW_ij = 2(z_i - y_i) * x_j = 2 * error_i * x_j
+# So dL/dW = 2 * outer(error, x)  →  shape (d_out, d_in) = W.shape ✓</pre>
+          </div>
+        </details>
+      </div>
+
+
+      <!-- ──────────────── CHAPTER 3: PROBABILITY ──────────────── -->
+      <div class="problem-section-title">Chapter 3 &mdash; Probability &amp; Statistics</div>
+
+      <!-- P12 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">3.1</span>
+          <span class="prob-title">Bayes&rsquo; Theorem — Spam Filter</span>
+          <span class="diff diff-easy">Easy</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>An email spam filter uses the word "free". Known statistics:</p>
+        <ul>
+          <li>40% of all emails are spam: P(spam) = 0.4</li>
+          <li>P("free" | spam) = 0.9 &nbsp; (90% of spam contains "free")</li>
+          <li>P("free" | not spam) = 0.1</li>
+        </ul>
+        <ol>
+          <li>Compute P("free"). (Total probability theorem)</li>
+          <li>Compute P(spam | "free") using Bayes' theorem.</li>
+          <li>If the email contains both "free" AND "win", and these are conditionally independent given class, compute P(spam | "free", "win") where P("win"|spam)=0.7, P("win"|ham)=0.05.</li>
+          <li>This is Na&iuml;ve Bayes. Why is the "na&iuml;ve" assumption problematic in practice?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>P(A) = P(A|B)P(B) + P(A|&not;B)P(&not;B). Then P(B|A) = P(A|B)P(B)/P(A).</p>
+            <p>For two independent features: P("free","win"|spam) = P("free"|spam) &times; P("win"|spam).</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> P("free") = 0.9&times;0.4 + 0.1&times;0.6 = 0.36 + 0.06 = 0.42</p>
+            <p><strong>2.</strong> P(spam|"free") = (0.9&times;0.4)/0.42 = 0.36/0.42 &asymp; 0.857</p>
+            <p><strong>3.</strong> Numerator (spam): 0.9&times;0.7&times;0.4 = 0.252<br/>
+            Numerator (ham): 0.1&times;0.05&times;0.6 = 0.003<br/>
+            P(spam|both) = 0.252/(0.252+0.003) = 0.252/0.255 &asymp; 0.988</p>
+            <p><strong>4.</strong> "Free" and "win" often co-occur in spam together — they're correlated, not independent. Na&iuml;ve Bayes double-counts correlated evidence, making probabilities too extreme (too close to 0 or 1). Despite this, it works surprisingly well in practice for text classification.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P13 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">3.2</span>
+          <span class="prob-title">MLE for the Exponential Distribution</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Derivation</span>
+        </div>
+        <p>You observe server response times (seconds): x&sub;1&sub;=0.5, x&sub;2&sub;=1.2, x&sub;3&sub;=0.3, x&sub;4&sub;=2.1, x&sub;5&sub;=0.8. You model these as i.i.d. Exponential(&lambda;): p(x|&lambda;) = &lambda;e&sup;(&minus;&lambda;x).</p>
+        <ol>
+          <li>Write the log-likelihood log L(&lambda;; x&sub;1&sub;,&hellip;,x&sub;n&sub;).</li>
+          <li>Find &lambda;&circ;<sub>MLE</sub> by taking the derivative and setting to zero.</li>
+          <li>Compute &lambda;&circ;<sub>MLE</sub> for the observations above.</li>
+          <li>What is the MLE estimate for the mean response time E[X] = 1/&lambda;?</li>
+          <li>Does the MLE estimate make intuitive sense?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>log L = &sum;[log &lambda; &minus; &lambda;x&sub;i&sub;] = n log &lambda; &minus; &lambda;&sum;x&sub;i&sub;. Differentiate w.r.t. &lambda; and set to 0.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> log L = &sum;&sub;i&sub; (log &lambda; &minus; &lambda;x&sub;i&sub;) = n log &lambda; &minus; &lambda; &sum;x&sub;i&sub;</p>
+            <p><strong>2.</strong> d/d&lambda; log L = n/&lambda; &minus; &sum;x&sub;i&sub; = 0<br/>
+            &rArr; &lambda;&circ; = n / &sum;x&sub;i&sub; = 1/x&#772;</p>
+            <p><strong>3.</strong> &sum;x = 0.5+1.2+0.3+2.1+0.8 = 4.9, n=5<br/>
+            &lambda;&circ; = 5/4.9 &asymp; 1.02 per second</p>
+            <p><strong>4.</strong> E&#770;[X] = 1/&lambda;&circ; = x&#772; = 4.9/5 = 0.98 seconds<br/>The MLE for the mean is just the sample mean. Beautiful.</p>
+            <p><strong>5.</strong> Yes: the sample mean x&#772;&asymp;0.98s is our best estimate of the true mean, and &lambda;&circ; is its reciprocal. This is exactly the intuitive estimator.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P14 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">3.3</span>
+          <span class="prob-title">L2 Regularization = Gaussian Prior: Derive It</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Derivation</span>
+        </div>
+        <p>Show rigorously that minimizing cross-entropy + L2 regularization is equivalent to MAP estimation with a Gaussian prior on weights.</p>
+        <ol>
+          <li>Write the MAP objective: argmax&sub;&theta;&sub; [log P(data|&theta;) + log P(&theta;)].</li>
+          <li>Assume P(&theta;) = &prod;&sub;j&sub; N(&theta;&sub;j&sub;; 0, 1/&lambda;) (zero-mean Gaussian with precision &lambda;). Write log P(&theta;).</li>
+          <li>Show that maximizing MAP = minimizing cross-entropy + &lambda;/2 &times; |&theta;|&sup2;.</li>
+          <li>What prior corresponds to L1 regularization? Write its PDF.</li>
+          <li>Why does L1 lead to sparsity but L2 doesn't? Answer geometrically.</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>log N(x; 0, &sigma;&sup2;) = &minus;x&sup2;/(2&sigma;&sup2;) + const. With &sigma;&sup2; = 1/&lambda;: log P(&theta;) = &minus;&lambda;/2 &sum;&theta;&sub;j&sub;&sup2; + const.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> argmax&sub;&theta;&sub; log P(&theta;|data) = argmax [log P(data|&theta;) + log P(&theta;)]</p>
+            <p><strong>2.</strong> log P(&theta;) = &sum;&sub;j&sub; log N(&theta;&sub;j&sub;;0,1/&lambda;) = &sum;&sub;j&sub; [&minus;&lambda;/2 &theta;&sub;j&sub;&sup2; + const] = &minus;&lambda;/2 |&theta;|&sup2; + const</p>
+            <p><strong>3.</strong> MAP = max [log P(data|&theta;) &minus; &lambda;/2 |&theta;|&sup2;]<br/>= min [&minus;log P(data|&theta;) + &lambda;/2 |&theta;|&sup2;]<br/>= min [cross-entropy + &lambda;/2 |&theta;|&sup2;] &nbsp; &check;</p>
+            <p><strong>4.</strong> L1 corresponds to Laplace prior: P(&theta;&sub;j&sub;) = (&lambda;/2)exp(&minus;&lambda;|&theta;&sub;j&sub;|). log P = &minus;&lambda;&sum;|&theta;&sub;j&sub;| + const.</p>
+            <p><strong>5.</strong> Geometric: the L2 ball is a smooth sphere &rarr; the optimum can land anywhere on the surface, rarely at zero. The L1 ball is a diamond (hypercube) with corners on the axes &rarr; the optimum is pulled toward corners where many coordinates are exactly zero. Sparsity comes from the corners of the L1 geometry.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P15 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">3.4</span>
+          <span class="prob-title">Expectation and Variance of a Transformed Variable</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>Let X ~ N(&mu;, &sigma;&sup2;). Define Y = aX + b.</p>
+        <ol>
+          <li>Compute E[Y] using linearity of expectation.</li>
+          <li>Compute Var(Y).</li>
+          <li>What distribution does Y follow?</li>
+          <li>Now let Z = X&sup2;. Find E[Z] and Var(Z). (Hint: use the identity Var(X) = E[X&sup2;] &minus; E[X]&sup2;.)</li>
+          <li>Z follows a scaled non-central chi-squared distribution. For &mu;=0 and &sigma;=1: what is E[Z] and Var[Z]?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>E[aX+b] = aE[X]+b. Var(aX+b) = a&sup2;Var(X) (constants inside variance get squared; additive constants vanish).</p>
+            <p>E[X&sup2;] = Var(X) + E[X]&sup2; = &sigma;&sup2; + &mu;&sup2;.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> E[Y] = aE[X]+b = a&mu;+b</p>
+            <p><strong>2.</strong> Var(Y) = a&sup2;Var(X) = a&sup2;&sigma;&sup2;</p>
+            <p><strong>3.</strong> Y ~ N(a&mu;+b, a&sup2;&sigma;&sup2;). Linear transforms of Gaussians are Gaussian.</p>
+            <p><strong>4.</strong> E[Z] = E[X&sup2;] = Var(X)+E[X]&sup2; = &sigma;&sup2;+&mu;&sup2;<br/>
+            Var(Z) = E[X&sup4;] &minus; E[X&sup2;]&sup2;. For Gaussian: E[X&sup4;] = 3&sigma;&sup4;+6&sigma;&sup2;&mu;&sup2;+&mu;&sup4; (fourth moment).<br/>
+            Var(Z) = 2&sigma;&sup4;+4&sigma;&sup2;&mu;&sup2;</p>
+            <p><strong>5.</strong> For &mu;=0,&sigma;=1 (standard normal): Z = X&sup2; ~ chi-squared(1).<br/>E[Z]=1, Var[Z]=2. These are the standard chi-squared moments.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P16 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">3.5</span>
+          <span class="prob-title">Monte Carlo Estimation of &pi;</span>
+          <span class="diff diff-easy">Easy</span>
+          <span class="prob-type">Coding</span>
+        </div>
+        <p>Use Monte Carlo simulation to estimate &pi;. A circle of radius 1 is inscribed in a 2&times;2 square. The ratio of their areas is &pi;/4.</p>
+        <ol>
+          <li>Sample n=10000 points uniformly in the square [&minus;1,1]&times;[&minus;1,1].</li>
+          <li>Estimate &pi; as 4 &times; (fraction inside the circle).</li>
+          <li>Plot the estimate vs n (from 100 to 100000). What rate does the error decay at?</li>
+          <li>The error decays as O(1/&radic;n). Explain why from the CLT.</li>
+        </ol>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(0)
+ns = [100, 500, 1000, 5000, 10000, 50000, 100000]
+estimates = []
+
+for n in ns:
+    pts = np.random.uniform(-1, 1, (n, 2))
+    inside = (pts**2).sum(axis=1) <= 1.0
+    pi_est = 4 * inside.mean()
+    estimates.append(pi_est)
+    print(f"n={n:7d}: π̂={pi_est:.4f}, error={abs(pi_est-np.pi):.4f}")
+
+plt.semilogx(ns, estimates, marker='o', label='Estimated π')
+plt.axhline(np.pi, color='r', linestyle='--', label='True π')
+plt.xlabel("n samples"); plt.ylabel("π estimate")
+plt.title("Monte Carlo estimation of π")
+plt.legend(); plt.show()
+
+# CLT explanation:
+# Each point is a Bernoulli(p=π/4) trial.
+# Sample mean has std = sqrt(p(1-p)/n) → std(π_est) = 4*sqrt(p(1-p)/n) ~ O(1/√n)
+# To get one more decimal place of accuracy, need 100x more samples.</pre>
+          </div>
+        </details>
+      </div>
+
+
+      <!-- ──────────────── CHAPTER 4: OPTIMIZATION ──────────────── -->
+      <div class="problem-section-title">Chapter 4 &mdash; Optimization</div>
+
+      <!-- P17 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">4.1</span>
+          <span class="prob-title">Gradient Descent by Hand</span>
+          <span class="diff diff-easy">Easy</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>Minimize f(x, y) = x&sup2; + 4y&sup2; starting from (x&sub;0&sub;, y&sub;0&sub;) = (3, 2), using learning rate &eta; = 0.1.</p>
+        <ol>
+          <li>Compute &nabla;f at (3, 2).</li>
+          <li>Perform 3 steps of gradient descent by hand. Track (x, y) and f(x,y) at each step.</li>
+          <li>Where does gradient descent converge? Is this the global minimum?</li>
+          <li>Notice that y decreases faster than x. Why? What does this tell you about the geometry of f?</li>
+          <li>How would momentum help here? Sketch the trajectory conceptually.</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>&nabla;f = [&part;f/&part;x, &part;f/&part;y] = [2x, 8y]. Update: (x,y) &larr; (x,y) &minus; &eta;[2x, 8y].</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> &nabla;f(3,2) = [2&times;3, 8&times;2] = [6, 16]</p>
+            <p><strong>Step 1:</strong> x=3&minus;0.1&times;6=2.4, y=2&minus;0.1&times;16=0.4, f=5.76+0.64=6.4</p>
+            <p><strong>Step 2:</strong> &nabla;f=[4.8, 3.2], x=2.4&minus;0.48=1.92, y=0.4&minus;0.32=0.08, f&asymp;3.69+0.026=3.71</p>
+            <p><strong>Step 3:</strong> x=1.92&minus;0.384=1.536, y=0.08&minus;0.064=0.016, f&asymp;2.36+0.001=2.36</p>
+            <p><strong>Converges to (0,0)</strong> — the global minimum (f is convex).</p>
+            <p><strong>Why y faster:</strong> Gradient in y-direction is 8y (coefficient 4 in f becomes 8 in gradient), while x-direction is 2x (coefficient 1 becomes 2). The curvature is 4&times; higher in y &rarr; bigger steps, faster convergence.</p>
+            <p><strong>Momentum:</strong> Damps oscillations — in y, gradient alternates direction (if step too large), momentum accumulates the persistent x-direction movement, leading to a faster straighter path.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P18 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">4.2</span>
+          <span class="prob-title">Implement Adam from Scratch</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Coding</span>
+        </div>
+        <p>Implement Adam optimizer from scratch in NumPy. Minimize f(x) = x&sup2; + 10sin(x) (non-convex, multiple local minima).</p>
+        <ol>
+          <li>Implement Adam with default hyperparameters: &beta;&sub;1&sub;=0.9, &beta;&sub;2&sub;=0.999, &epsilon;=1e&minus;8, lr=0.01.</li>
+          <li>Run for 1000 steps from x=5. Plot the trajectory of x and f(x) over time.</li>
+          <li>Compare with vanilla gradient descent (same lr). Which finds a better minimum?</li>
+          <li>Change the starting point to x=&minus;5. Does Adam find the same minimum? What does this say about local minima?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>Adam update: m=&beta;1*m+(1-&beta;1)*g; v=&beta;2*v+(1-&beta;2)*g**2; m_hat=m/(1-&beta;1**t); v_hat=v/(1-&beta;2**t); x -= lr*m_hat/(sqrt(v_hat)+eps).</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import numpy as np
+import matplotlib.pyplot as plt
+
+def f(x):     return x**2 + 10*np.sin(x)
+def grad_f(x): return 2*x  + 10*np.cos(x)
+
+# --- Adam ---
+def adam(x0, lr=0.01, b1=0.9, b2=0.999, eps=1e-8, steps=1000):
+    x = x0; m = 0; v = 0
+    history = [x]
+    for t in range(1, steps+1):
+        g     = grad_f(x)
+        m     = b1*m + (1-b1)*g
+        v     = b2*v + (1-b2)*g**2
+        m_hat = m / (1 - b1**t)
+        v_hat = v / (1 - b2**t)
+        x    -= lr * m_hat / (np.sqrt(v_hat) + eps)
+        history.append(x)
+    return x, history
+
+# --- Vanilla GD ---
+def gd(x0, lr=0.01, steps=1000):
+    x = x0; history = [x]
+    for _ in range(steps):
+        x -= lr * grad_f(x)
+        history.append(x)
+    return x, history
+
+for x0 in [5, -5]:
+    xa, ha = adam(float(x0))
+    xg, hg = gd(float(x0))
+    print(f"x0={x0}: Adam→x={xa:.3f},f={f(xa):.3f} | GD→x={xg:.3f},f={f(xg):.3f}")
+
+# Adam adapts step size → often reaches lower values faster
+# Different x0 → different local minima (function is non-convex)
+# The global minimum is near x ≈ -1.3 (where f ≈ -8.8)</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P19 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">4.3</span>
+          <span class="prob-title">Maximum Entropy Distribution</span>
+          <span class="diff diff-hard">Hard</span>
+          <span class="prob-type">Derivation</span>
+        </div>
+        <p>Use Lagrange multipliers to find the continuous probability distribution with maximum entropy subject to a fixed mean &mu; and variance &sigma;&sup2;.</p>
+        <ol>
+          <li>Write the entropy functional H[p] = &minus;&int; p(x) ln p(x) dx.</li>
+          <li>Write the three constraints as equalities: normalization, mean, variance.</li>
+          <li>Form the Lagrangian L[p] = H[p] &minus; &lambda;&sub;0&sub;(&int;p&minus;1) &minus; &lambda;&sub;1&sub;(&int;xp&minus;&mu;) &minus; &lambda;&sub;2&sub;(&int;(x&minus;&mu;)&sup2;p&minus;&sigma;&sup2;).</li>
+          <li>Differentiate with respect to p(x) and set to zero. What form does p(x) have?</li>
+          <li>Show that the result is exactly the Gaussian distribution.</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>&delta;L/&delta;p(x) = &minus;ln p(x) &minus; 1 &minus; &lambda;&sub;0&sub; &minus; &lambda;&sub;1&sub;x &minus; &lambda;&sub;2&sub;(x&minus;&mu;)&sup2; = 0.<br/>
+            This means ln p(x) = &minus;1 &minus; &lambda;&sub;0&sub; &minus; &lambda;&sub;1&sub;x &minus; &lambda;&sub;2&sub;(x&minus;&mu;)&sup2;, so p(x) = C exp(&minus;&lambda;&sub;2&sub;(x&minus;&mu;)&sup2; + linear terms). The linear terms get absorbed into a shift of &mu; if you complete the square.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>Variational derivative:</strong><br/>
+            Setting &delta;L/&delta;p = 0:<br/>
+            &minus;ln p(x) &minus; 1 &minus; &lambda;&sub;0&sub; &minus; &lambda;&sub;1&sub;x &minus; &lambda;&sub;2&sub;(x&minus;&mu;)&sup2; = 0<br/>
+            &rArr; p(x) = exp(&minus;1 &minus; &lambda;&sub;0&sub;) &middot; exp(&minus;&lambda;&sub;1&sub;x &minus; &lambda;&sub;2&sub;(x&minus;&mu;)&sup2;)</p>
+            <p>The &minus;&lambda;&sub;1&sub;x term combines with &minus;&lambda;&sub;2&sub;(x&minus;&mu;)&sup2; by completing the square, and since we have the constraint that the mean is &mu;, &lambda;&sub;1&sub; must be zero (the exponential must be symmetric around &mu;).</p>
+            <p>So: p(x) &prop; exp(&minus;&lambda;&sub;2&sub;(x&minus;&mu;)&sup2;)<br/>
+            Applying the normalization constraint: &lambda;&sub;2&sub; = 1/(2&sigma;&sup2;)<br/>
+            &rArr; p(x) = (1/&radic;(2&pi;&sigma;&sup2;)) exp(&minus;(x&minus;&mu;)&sup2;/(2&sigma;&sup2;))</p>
+            <p><strong>Conclusion:</strong> The Gaussian is the maximum entropy distribution for fixed mean and variance. This is the deepest reason it appears in so many places: it makes the fewest additional assumptions beyond mean and variance.</p>
+          </div>
+        </details>
+      </div>
+
+
+      <!-- ──────────────── CHAPTER 5: INFORMATION THEORY ──────────────── -->
+      <div class="problem-section-title">Chapter 5 &mdash; Information Theory</div>
+
+      <!-- P20 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">5.1</span>
+          <span class="prob-title">Entropy of a Biased Coin</span>
+          <span class="diff diff-easy">Easy</span>
+          <span class="prob-type">Calculation</span>
+        </div>
+        <p>A coin shows heads with probability p.</p>
+        <ol>
+          <li>Write H(p) = &minus;p log&sub;2&sub;(p) &minus; (1&minus;p) log&sub;2&sub;(1&minus;p). Evaluate at p=0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0.</li>
+          <li>Plot H(p) for p &isin; [0,1]. What shape is it? Where is the maximum?</li>
+          <li>A fair coin has H=1 bit. A coin with p=0.9 has H&asymp;0.47 bits. Interpret both values.</li>
+          <li>Decision trees split on features that maximize <em>information gain</em> = H(parent) &minus; &sum;H(children). Connect this to entropy reduction.</li>
+        </ol>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import numpy as np
+import matplotlib.pyplot as plt
+
+def H(p):
+    if p == 0 or p == 1: return 0
+    return -p*np.log2(p) - (1-p)*np.log2(1-p)
+
+ps = np.linspace(0.001, 0.999, 500)
+hs = [H(p) for p in ps]
+
+plt.plot(ps, hs)
+plt.xlabel("p (P(Heads))")
+plt.ylabel("Entropy (bits)")
+plt.title("Entropy of a biased coin")
+plt.axvline(0.5, color='r', linestyle='--', label='max at p=0.5')
+plt.show()
+
+# Values:
+for p in [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]:
+    print(f"p={p:.1f}: H={H(p):.3f} bits")
+# Symmetric, max=1 at p=0.5, =0 at p=0 and p=1
+
+# Interpretation:
+# H=1: a fair coin carries maximum uncertainty — 1 full bit of information per flip.
+# H=0.47: a p=0.9 coin is mostly predictable. You need less than half a bit on average
+#   to encode the outcome, because "heads" is very likely anyway.
+# Information gain = how much entropy is removed by the split = how "pure" the split is.</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P21 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">5.2</span>
+          <span class="prob-title">KL Divergence and Cross-Entropy in a Classifier</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Calculation + Coding</span>
+        </div>
+        <p>A 3-class classifier outputs softmax probabilities. True label is class 0 (one-hot).</p>
+        <pre><code>  y_true = [1.0, 0.0, 0.0]
+  y_pred_good = [0.8, 0.1, 0.1]
+  y_pred_bad  = [0.1, 0.7, 0.2]
+  y_pred_uniform = [0.333, 0.333, 0.334]</code></pre>
+        <ol>
+          <li>Compute cross-entropy H(y_true, y_pred) for all three predictions.</li>
+          <li>Compute KL(y_true || y_pred) for all three. Verify H(P,Q) = H(P) + KL(P||Q).</li>
+          <li>H(y_true) = 0 because the true label is deterministic. What does this say about the relationship between cross-entropy and KL here?</li>
+          <li>What is the minimum possible cross-entropy loss for this problem? When is it achieved?</li>
+        </ol>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import numpy as np
+
+def cross_entropy(p, q):
+    p, q = np.array(p), np.array(q)
+    return -np.sum(p[p>0] * np.log(q[p>0]))
+
+def kl(p, q):
+    p, q = np.array(p), np.array(q)
+    mask = p > 0
+    return np.sum(p[mask] * np.log(p[mask]/q[mask]))
+
+y_true = [1.0, 0.0, 0.0]
+preds  = {'good': [0.8,0.1,0.1], 'bad': [0.1,0.7,0.2], 'uniform': [1/3,1/3,1/3]}
+
+for name, q in preds.items():
+    ce = cross_entropy(y_true, q)
+    kl_ = kl(y_true, q)
+    print(f"{name:8s}: CE={ce:.3f}, KL={kl_:.3f}, CE=KL? {np.isclose(ce, kl_)}")
+
+# H(y_true) = -1*log(1) = 0 (deterministic distribution)
+# So H(P,Q) = H(P) + KL(P||Q) = 0 + KL = KL
+# Cross-entropy IS KL divergence when the true distribution is deterministic.
+# Min possible CE: achieved when q=p, i.e. q=[1,0,0] → CE = -log(1) = 0
+# In practice: log(q[0]) with q[0]→1 → CE→0</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P22 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">5.3</span>
+          <span class="prob-title">KL Divergence Between Two Gaussians</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Derivation</span>
+        </div>
+        <p>This appears directly in the VAE (Variational Autoencoder) loss function.</p>
+        <ol>
+          <li>Derive the analytic formula for KL(N(&mu;,&sigma;&sup2;) &Vert; N(0,1)).</li>
+          <li>Show it equals: (1/2)(&sigma;&sup2; + &mu;&sup2; &minus; 1 &minus; log &sigma;&sup2;).</li>
+          <li>Verify this formula numerically for (&mu;=1, &sigma;=2) using Monte Carlo sampling.</li>
+          <li>When &mu;=0 and &sigma;=1, what is the KL divergence? Why does the VAE try to minimize this?</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>KL(P||Q) = E<sub>P</sub>[log P(x) &minus; log Q(x)]. Write out the log PDFs of the two Gaussians and compute the expectation term by term using E[X]=&mu;, E[X&sup2;]=&sigma;&sup2;+&mu;&sup2;.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>Derivation:</strong><br/>
+            log P(x) = &minus;(x&minus;&mu;)&sup2;/(2&sigma;&sup2;) &minus; (1/2)log(2&pi;&sigma;&sup2;)<br/>
+            log Q(x) = &minus;x&sup2;/2 &minus; (1/2)log(2&pi;)<br/><br/>
+            KL = E<sub>P</sub>[log P &minus; log Q]<br/>
+            = E<sub>P</sub>[ &minus;(x&minus;&mu;)&sup2;/(2&sigma;&sup2;) + x&sup2;/2 &minus; (1/2)log(&sigma;&sup2;) ]<br/>
+            = &minus;1/2 + E<sub>P</sub>[x&sup2;]/2 &minus; (1/2)log(&sigma;&sup2;) &nbsp; [since E[(x&minus;&mu;)&sup2;/&sigma;&sup2;]=1]<br/>
+            = &minus;1/2 + (&sigma;&sup2;+&mu;&sup2;)/2 &minus; (1/2)log&sigma;&sup2;<br/>
+            = (1/2)(&sigma;&sup2; + &mu;&sup2; &minus; 1 &minus; log&sigma;&sup2;) &nbsp; &check;</p>
+            <pre>import numpy as np
+
+mu, sigma = 1.0, 2.0
+# Analytic
+kl_analytic = 0.5*(sigma**2 + mu**2 - 1 - np.log(sigma**2))
+print(f"Analytic KL: {kl_analytic:.4f}")   # 2.1931
+
+# Monte Carlo
+x = np.random.normal(mu, sigma, 1_000_000)
+log_p = -0.5*((x-mu)/sigma)**2 - np.log(sigma*np.sqrt(2*np.pi))
+log_q = -0.5*x**2 - np.log(np.sqrt(2*np.pi))
+kl_mc = (log_p - log_q).mean()
+print(f"MC KL:       {kl_mc:.4f}")   # ≈ 2.1931
+
+# When mu=0, sigma=1: KL = 0.5*(1+0-1-0) = 0
+# VAE minimizes KL(q(z|x) || N(0,1)) to keep the encoder's distribution
+# close to the standard normal prior → makes the latent space smooth and
+# allows sampling at inference time.</pre>
+          </div>
+        </details>
+      </div>
+
+
+      <!-- ──────────────── CHAPTER 6: DISCRETE MATH ──────────────── -->
+      <div class="problem-section-title">Chapter 6 &mdash; Discrete Math &amp; Graph Theory</div>
+
+      <!-- P23 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">6.1</span>
+          <span class="prob-title">Proof by Induction</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Proof</span>
+        </div>
+        <p>Prove each claim by induction:</p>
+        <ol>
+          <li>&sum;&sub;i=1&sub;&sup;n i&sup2; = n(n+1)(2n+1)/6</li>
+          <li>A binary tree with n internal nodes has exactly n+1 leaf nodes.</li>
+          <li>The number of subsets of an n-element set is 2&sup;n.</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>For each: (1) verify base case n=1, (2) assume true for n=k, (3) show true for n=k+1 by adding the (k+1)-th term.</p>
+            <p>For the binary tree: define "internal node" as a node with exactly 2 children. Show that adding any internal node (replacing a leaf with an internal node + 2 new leaves) increases internal count by 1 and leaf count by 1.</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> Base: n=1: 1&sup2;=1=1&times;2&times;3/6=1. &check;<br/>
+            Inductive step: assume &sum;&sub;i=1&sub;&sup;k i&sup2; = k(k+1)(2k+1)/6.<br/>
+            &sum;&sub;i=1&sub;&sup;(k+1) i&sup2; = k(k+1)(2k+1)/6 + (k+1)&sup2;<br/>
+            = (k+1)[k(2k+1)/6 + (k+1)]<br/>
+            = (k+1)(2k&sup2;+k+6k+6)/6<br/>
+            = (k+1)(2k&sup2;+7k+6)/6<br/>
+            = (k+1)(k+2)(2k+3)/6 &nbsp; &check;</p>
+            <p><strong>2.</strong> Base: single internal node &rarr; 2 leaves, 1+1=2. &check;<br/>
+            Step: tree with k internals &rarr; k+1 leaves. Add an internal node by replacing any leaf with an internal node + 2 new leaves: internal count k+1, leaves = (k+1)-1+2 = k+2 = (k+1)+1. &check;</p>
+            <p><strong>3.</strong> Base: n=0: one subset (empty set), 2&sup;0=1. &check;<br/>
+            Step: adding element x<sub>n+1</sub> to an n-set: every subset of the (n+1)-set either contains x<sub>n+1</sub> or not. So |subsets of (n+1)-set| = 2&times;2&sup;n = 2&sup;(n+1). &check;</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- P24 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">6.2</span>
+          <span class="prob-title">Graph Traversal and Shortest Path</span>
+          <span class="diff diff-medium">Medium</span>
+          <span class="prob-type">Coding</span>
+        </div>
+        <p>Implement BFS and Dijkstra&rsquo;s algorithm from scratch. Use this weighted graph:</p>
+        <pre><code>  edges = [(A,B,1), (A,C,4), (B,C,2), (B,D,5), (C,D,1), (D,E,3)]
+  # A→B (weight 1), A→C (weight 4), B→C (weight 2), etc.</code></pre>
+        <ol>
+          <li>Find all shortest paths (by hop count) from A using BFS.</li>
+          <li>Find the shortest weighted path from A to E using Dijkstra&rsquo;s.</li>
+          <li>Trace Dijkstra&rsquo;s step-by-step: which node gets finalized at each step?</li>
+          <li>Why does Dijkstra fail with negative edge weights? Give a concrete counterexample.</li>
+        </ol>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import heapq
+from collections import defaultdict, deque
+
+# Graph
+edges_raw = [('A','B',1),('A','C',4),('B','C',2),('B','D',5),('C','D',1),('D','E',3)]
+graph = defaultdict(list)
+for u,v,w in edges_raw:
+    graph[u].append((v,w))
+    graph[v].append((u,w))
+
+# --- BFS (unweighted shortest paths by hop count) ---
+def bfs(start):
+    dist = {start: 0}; q = deque([start])
+    while q:
+        u = q.popleft()
+        for v,_ in graph[u]:
+            if v not in dist:
+                dist[v] = dist[u]+1; q.append(v)
+    return dist
+
+print("BFS from A:", bfs('A'))
+# {'A':0, 'B':1, 'C':2, 'D':2, 'E':3}  (hop counts, not weights)
+
+# --- Dijkstra (weighted shortest paths) ---
+def dijkstra(start):
+    dist = defaultdict(lambda: float('inf')); dist[start]=0
+    pq = [(0, start)]; prev = {start: None}
+    while pq:
+        d, u = heapq.heappop(pq)
+        if d > dist[u]: continue
+        for v, w in graph[u]:
+            if dist[u]+w < dist[v]:
+                dist[v] = dist[u]+w; prev[v] = u
+                heapq.heappush(pq, (dist[v], v))
+    return dict(dist), prev
+
+dist, prev = dijkstra('A')
+print("Dijkstra from A:", dist)
+# {'A':0, 'B':1, 'C':3, 'D':4, 'E':7}
+# Shortest A→E path: A→B→C→D→E, cost = 1+2+1+3 = 7
+
+# Trace: finalize A(0)→B(1)→C(3)→D(4)→E(7)
+
+# Negative weights counterexample:
+# A→B weight=3, A→C weight=4, C→B weight=-2
+# BFS/Dijkstra finalizes B at dist=3
+# But true shortest is A→C→B = 4+(-2) = 2 < 3  ← Dijkstra misses it
+# because B was finalized before C was processed</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P25 -->
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">6.3</span>
+          <span class="prob-title">Implement Union-Find with Path Compression</span>
+          <span class="diff diff-hard">Hard</span>
+          <span class="prob-type">Coding</span>
+        </div>
+        <p>Union-Find (Disjoint Set Union) is the data structure behind Kruskal&rsquo;s MST, network connectivity, and dynamic graph algorithms.</p>
+        <ol>
+          <li>Implement Union-Find with union-by-rank and path compression.</li>
+          <li>Use it to find the Minimum Spanning Tree of the graph from 6.2 using Kruskal&rsquo;s algorithm.</li>
+          <li>What is the amortized time complexity per operation with both optimizations? (Answer: near-O(1), formally O(&alpha;(n)) where &alpha; is the inverse Ackermann function.)</li>
+          <li>How does Union-Find relate to finding connected components in a GNN? (Bonus: how does message passing achieve the same?)</li>
+        </ol>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>class UnionFind:
+    def __init__(self, nodes):
+        self.parent = {n: n for n in nodes}
+        self.rank   = {n: 0  for n in nodes}
+
+    def find(self, x):
+        # Path compression: make every node point directly to root
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+
+    def union(self, x, y):
+        rx, ry = self.find(x), self.find(y)
+        if rx == ry: return False   # already same component
+        # Union by rank: attach smaller tree under larger
+        if   self.rank[rx] < self.rank[ry]: rx, ry = ry, rx
+        self.parent[ry] = rx
+        if self.rank[rx] == self.rank[ry]: self.rank[rx] += 1
+        return True
+
+# Kruskal's MST
+edges_raw = [('A','B',1),('A','C',4),('B','C',2),('B','D',5),('C','D',1),('D','E',3)]
+nodes     = {'A','B','C','D','E'}
+uf  = UnionFind(nodes)
+mst = []
+for u, v, w in sorted(edges_raw, key=lambda e: e[2]):   # sort by weight
+    if uf.union(u, v):
+        mst.append((u, v, w))
+        if len(mst) == len(nodes)-1: break
+
+print("MST edges:", mst)
+print("MST total weight:", sum(w for _,_,w in mst))
+# MST: A-B(1), C-D(1), B-C(2), D-E(3) → total = 7
+
+# GNN connection: message passing after k rounds detects if two nodes
+# are within k hops of each other — approximating connectivity.
+# Full connectivity detection requires as many rounds as the graph diameter.
+# Union-Find detects it in O(α(n)) per query — much faster.</pre>
+          </div>
+        </details>
+      </div>
+
+      <!-- P26 — Cross-chapter integration -->
+      <div class="problem-section-title">Integration Problems &mdash; Combining Multiple Topics</div>
+
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">7.1</span>
+          <span class="prob-title">Derive the Gaussian MLE and Connect to MSE Loss</span>
+          <span class="diff diff-hard">Hard</span>
+          <span class="prob-type">Derivation</span>
+        </div>
+        <p>Assume observed data y&sub;i&sub; = <strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub; + &epsilon;&sub;i&sub;, where &epsilon;&sub;i&sub; ~ N(0, &sigma;&sup2;) i.i.d. noise.</p>
+        <ol>
+          <li>Write P(y&sub;i&sub; | <strong>x</strong>&sub;i&sub;, <strong>w</strong>) as a Gaussian density.</li>
+          <li>Write the log-likelihood log L(<strong>w</strong>) = &sum;&sub;i&sub; log P(y&sub;i&sub;|<strong>x</strong>&sub;i&sub;,<strong>w</strong>).</li>
+          <li>Show that maximizing log L(<strong>w</strong>) is equivalent to minimizing the MSE loss.</li>
+          <li>What assumption about the noise does MSE loss encode? What if the noise is Laplace instead?</li>
+          <li>How does this change the loss function and which real-world scenarios call for it?</li>
+        </ol>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1.</strong> P(y&sub;i&sub;|<strong>x</strong>&sub;i&sub;,<strong>w</strong>) = (1/&radic;(2&pi;&sigma;&sup2;)) exp(&minus;(y&sub;i&sub;&minus;<strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub;)&sup2; / (2&sigma;&sup2;))</p>
+            <p><strong>2.</strong> log L = &sum;&sub;i&sub;[&minus;(1/2)log(2&pi;&sigma;&sup2;) &minus; (y&sub;i&sub;&minus;<strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub;)&sup2;/(2&sigma;&sup2;)]</p>
+            <p><strong>3.</strong> Maximizing log L &hArr; minimizing &sum;&sub;i&sub;(y&sub;i&sub;&minus;<strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub;)&sup2; = n &times; MSE &nbsp; &check;</p>
+            <p><strong>4.</strong> MSE encodes <em>Gaussian noise</em> assumption. If noise is Laplace: P(&epsilon;) &prop; exp(&minus;|&epsilon;|/b) &rArr; log-likelihood has &minus;&sum;|y&sub;i&sub;&minus;<strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub;|/b term &rArr; <em>maximizing = minimizing MAE (Mean Absolute Error)</em>.</p>
+            <p><strong>5.</strong> MAE is more robust to outliers because the Laplace distribution has heavier tails than Gaussian — it doesn't penalize large errors as severely. Use MAE when: predicting house prices (heavy tails), financial returns, any domain where outliers are common and real, not errors to ignore.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">7.2</span>
+          <span class="prob-title">Attention Is Dot-Product Geometry + Softmax</span>
+          <span class="diff diff-hard">Hard</span>
+          <span class="prob-type">Derivation + Coding</span>
+        </div>
+        <p>The scaled dot-product attention computes: Attention(Q,K,V) = softmax(QK&sup;T/&radic;d)<strong>V</strong>.</p>
+        <ol>
+          <li>Implement self-attention from scratch for a sequence of 3 tokens with d=4 dimensions.</li>
+          <li>Show that QK&sup;T is a matrix of dot products (similarities). Why is it divided by &radic;d?</li>
+          <li>After softmax, each row of the attention matrix sums to 1. Interpret each row as a probability distribution. What is it a distribution over?</li>
+          <li>Show that if Q=K=V=X (self-attention, identity projections), the output is a <em>weighted average</em> of the input tokens, where the weights come from pairwise similarity.</li>
+          <li>How does temperature &tau; in softmax(QK&sup;T/&tau;) change the attention pattern? What does &tau;&rarr;0 give?</li>
+        </ol>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <pre>import numpy as np
+
+def softmax(x, axis=-1):
+    e = np.exp(x - x.max(axis=axis, keepdims=True))
+    return e / e.sum(axis=axis, keepdims=True)
+
+def attention(Q, K, V, temperature=None):
+    d = Q.shape[-1]
+    tau = temperature if temperature else np.sqrt(d)
+    scores = Q @ K.T / tau        # (seq_len, seq_len) — similarity matrix
+    weights = softmax(scores)      # (seq_len, seq_len) — attention weights
+    output  = weights @ V          # (seq_len, d) — weighted sum of values
+    return output, weights
+
+# 3 tokens, d=4
+np.random.seed(42)
+X = np.random.randn(3, 4)         # (seq_len=3, d=4)
+out, W = attention(X, X, X)       # self-attention: Q=K=V=X
+
+print("Attention weights (each row sums to 1):")
+print(np.round(W, 3))
+print("Row sums:", W.sum(axis=1))   # [1.0, 1.0, 1.0]
+
+# Why /sqrt(d):
+# The dot product Q_i · K_j ≈ sum of d products of ~N(0,1) values.
+# Var(Q_i·K_j) = d (variance grows with d).
+# Dividing by sqrt(d) normalizes back to Var≈1, keeping softmax from
+# saturating into near-one-hot distributions (which would kill gradients).
+
+# Temperature effect:
+_, W_high_T = attention(X, X, X, temperature=10.0)  # soft, near-uniform
+_, W_low_T  = attention(X, X, X, temperature=0.1)   # sharp, near-one-hot
+print("\nHigh τ (soft):", np.round(W_high_T[0], 3))
+print("Low  τ (sharp):", np.round(W_low_T[0],  3))
+# τ→0: argmax attention (attend to most similar token only)
+# τ→∞: uniform attention (attend equally to all tokens)</pre>
+          </div>
+        </details>
+      </div>
+
+      <div class="problem">
+        <div class="problem-header">
+          <span class="prob-num">7.3</span>
+          <span class="prob-title">The Full VAE Loss from First Principles</span>
+          <span class="diff diff-hard">Hard</span>
+          <span class="prob-type">Derivation</span>
+        </div>
+        <p>A Variational Autoencoder maximizes the ELBO (Evidence Lower BOund).</p>
+        <ol>
+          <li>Start from log P(x) = log &int; P(x|z)P(z) dz. Introduce an approximate posterior q(z|x) and derive: log P(x) &ge; E<sub>q</sub>[log P(x|z)] &minus; KL(q(z|x) || P(z)). This is the ELBO.</li>
+          <li>Name both terms and explain what they each minimize.</li>
+          <li>Assume q(z|x) = N(&mu;&sub;&phi;&sub;, &sigma;&sub;&phi;&sub;&sup2;) and P(z) = N(0,I). Use your result from Problem 5.3 to write the analytic KL term.</li>
+          <li>The reparameterization trick: z = &mu;&sub;&phi;&sub; + &sigma;&sub;&phi;&sub; &odot; &epsilon;, &epsilon; ~ N(0,I). Why is this needed for backpropagation?</li>
+          <li>Implement the VAE loss (ELBO) in PyTorch for a single batch.</li>
+        </ol>
+        <details class="hint-block hint">
+          <summary>Hint</summary>
+          <div class="hint-body">
+            <p>For the derivation: use Jensen's inequality — for concave f, f(E[X]) &ge; E[f(X)]. log is concave.</p>
+            <p>log P(x) = log E<sub>q</sub>[P(x,z)/q(z|x)] &ge; E<sub>q</sub>[log P(x,z)/q(z|x)] = E<sub>q</sub>[log P(x|z)] &minus; KL(q||P(z))</p>
+          </div>
+        </details>
+        <details class="hint-block solution">
+          <summary>Full Solution</summary>
+          <div class="hint-body">
+            <p><strong>1. Derivation:</strong><br/>
+            log P(x) = log &int; P(x,z) dz = log &int; q(z|x) [P(x,z)/q(z|x)] dz<br/>
+            = log E<sub>q</sub>[P(x,z)/q(z|x)]<br/>
+            &ge; E<sub>q</sub>[log(P(x,z)/q(z|x))] &nbsp; (Jensen, log is concave)<br/>
+            = E<sub>q</sub>[log P(x|z) + log P(z) &minus; log q(z|x)]<br/>
+            = E<sub>q</sub>[log P(x|z)] &minus; KL(q(z|x) || P(z)) &nbsp; = ELBO &check;</p>
+            <p><strong>2.</strong> Term 1 E<sub>q</sub>[log P(x|z)] = <em>reconstruction loss</em>: how well the decoder reconstructs x from z. For images with MSE decoder: &minus;||x&minus;x&#770;||&sup2;.<br/>
+            Term 2 &minus;KL(q||P(z)) = <em>regularization</em>: keeps the encoder's posterior close to the standard normal prior. Enables smooth interpolation in latent space and random sampling.</p>
+            <p><strong>3.</strong> KL(N(&mu;,&sigma;&sup2;)||N(0,1)) = (1/2)(&sigma;&sup2;+&mu;&sup2;&minus;1&minus;log&sigma;&sup2;) &nbsp; (per dimension; sum over all dims).</p>
+            <p><strong>4.</strong> Sampling z ~ q(z|x) is non-differentiable &rarr; gradients can't flow to &mu;&sub;&phi;&sub;, &sigma;&sub;&phi;&sub;. Reparameterize: z = &mu;+&sigma;&odot;&epsilon;, &epsilon;~N(0,I). Now randomness is in &epsilon; (not a parameter), so &part;z/&part;&mu; = 1 and &part;z/&part;&sigma; = &epsilon; &rarr; gradients flow.</p>
+            <pre>import torch
+import torch.nn.functional as F
+
+def vae_loss(x, x_recon, mu, log_var):
+    """
+    x:       (B, D) original input
+    x_recon: (B, D) decoder output
+    mu:      (B, Z) encoder mean
+    log_var: (B, Z) encoder log-variance
+    """
+    # Reconstruction loss (Gaussian decoder = MSE)
+    recon = F.mse_loss(x_recon, x, reduction='sum')
+
+    # KL divergence: sum over latent dims, average over batch
+    # KL = -0.5 * sum(1 + log_var - mu^2 - exp(log_var))
+    kl = -0.5 * torch.sum(1 + log_var - mu**2 - log_var.exp())
+
+    return recon + kl   # maximize ELBO = minimize this</pre>
+          </div>
+        </details>
+      </div>
+
+      <h2>Takeaways</h2>
+
+      <ul>
+        <li>Linear algebra is the language of data: every data point is a vector, every transformation is a matrix, every dimension reduction is a projection.</li>
+        <li>The dot product and SVD are the two most important operations in applied ML. Master them completely.</li>
+        <li>Calculus gives you backpropagation. The chain rule is not a formula &mdash; it is the entire mechanism of learning.</li>
+        <li>Every loss function is a log-likelihood. Every regularizer is a log-prior. MLE and MAP are the two regimes; most training lives in MAP territory without realising it.</li>
+        <li>Cross-entropy minimization is KL divergence minimization. You are making the model distribution approximate the data distribution. This is the entire point.</li>
+        <li>Convexity guarantees global optima but neural networks don't have it. The empirical fact that SGD finds good solutions anyway remains one of the deepest open questions in ML theory.</li>
+        <li>Graph theory is not just for GNNs &mdash; your computation graph is a DAG, your model's dependency structure is a graph, and your data is often relational.</li>
+        <li>The math is not separate from the engineering. Every hyperparameter you tune, every architecture you choose, every loss function you pick is a mathematical decision. Understanding the math makes you a better engineer.</li>
+      </ul>
+
+      <blockquote>
+        The unreasonable effectiveness of mathematics in the natural sciences &mdash;
+        and in machine learning &mdash; is not a coincidence. It is because the patterns
+        in data are, at their core, geometric and probabilistic. The math is not
+        describing the model. It is the model.
+      </blockquote>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>
