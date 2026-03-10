@@ -266,7 +266,13 @@
       background: #e5e7eb;
     }
     .anim-canvas-wrap { display: flex; justify-content: center; }
-    .anim-canvas-wrap canvas { border-radius: 8px; max-width: 100%; }
+    .anim-canvas-wrap canvas {
+      border-radius: 8px;
+      max-width: 100%;
+      background: #fff;
+      display: block;
+      border: 1px solid #e5e7eb;
+    }
     .anim-controls {
       display: flex;
       align-items: center;
@@ -797,11 +803,8 @@
           if(ai<=45){ draw(ai++); requestAnimationFrame(intro); }
           else{ sl.value=45; if(angV) angV.textContent='45°'; }
         }
-        const obs=new IntersectionObserver(entries=>{
-          if(entries[0].isIntersecting){ intro(); obs.disconnect(); }
-        },{threshold:0.3});
-        obs.observe(cv);
         draw(0);
+        intro();
       })();
       </script>
 
@@ -960,10 +963,6 @@
           draw(selRow);
         };
 
-        const obs=new IntersectionObserver(e=>{
-          if(e[0].isIntersecting){ draw(0); obs.disconnect(); }
-        },{threshold:0.3});
-        obs.observe(cv);
         draw(0);
       })();
       </script>
@@ -1216,10 +1215,7 @@
           drawHist(d);
         };
 
-        const obs=new IntersectionObserver(e=>{
-          if(e[0].isIntersecting){ drawHist(2); obs.disconnect(); }
-        },{threshold:0.3});
-        obs.observe(cv);
+        drawHist(2);
       })();
       </script>
 
@@ -2183,10 +2179,6 @@
           drawScene(ballX);
         });
 
-        const obs=new IntersectionObserver(e=>{
-          if(e[0].isIntersecting){ drawScene(ballX); obs.disconnect(); }
-        },{threshold:0.3});
-        obs.observe(cv);
         drawScene(ballX);
       })();
       </script>
@@ -2857,10 +2849,6 @@
           showNext();
         };
 
-        const obs=new IntersectionObserver(e=>{
-          if(e[0].isIntersecting){ drawPanel(0); obs.disconnect(); }
-        },{threshold:0.3});
-        obs.observe(cv);
         drawPanel(0);
       })();
       </script>
