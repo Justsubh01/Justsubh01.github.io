@@ -2660,196 +2660,211 @@
       </p>
 
       <!-- ── ANIMATION: Space Warping ── -->
-      <div class="anim-box">
+      <div class="anim-box" id="sw-box">
         <div class="anim-title">Interactive · Neural Network as Space Warping (XOR Problem)</div>
         <div class="anim-canvas-wrap">
-          <canvas id="sw-canvas" width="560" height="260"></canvas>
+          <canvas id="sw-canvas" width="560" height="300"></canvas>
         </div>
         <div class="anim-controls">
-          <button class="anim-btn active" onclick="swShow(0,this)">Input Space</button>
-          <button class="anim-btn" onclick="swShow(1,this)">After Layer 1 (ReLU)</button>
-          <button class="anim-btn" onclick="swShow(2,this)">Hidden Space (separable!)</button>
-          <button class="anim-btn" id="sw-play-btn" style="background:#15803d" onclick="swAnimate()">▶ Animate</button>
+          <button class="anim-btn active" id="sw-btn-input" onclick="swGoTo(0,this)">Input Space</button>
+          <button class="anim-btn" id="sw-btn-hidden" onclick="swGoTo(1,this)">Hidden Space ✓</button>
+          <button class="anim-btn" style="background:#15803d" onclick="swPlay()">▶ Animate</button>
         </div>
-        <p class="anim-note">XOR: blue=(0,0)&amp;(1,1), red=(1,0)&amp;(0,1). Not linearly separable in input space. After two ReLU neurons, they separate perfectly. Watch the space <em>fold</em>.</p>
+        <p class="anim-note">
+          Blue = XOR class 0: (0,0) and (1,1). Red = XOR class 1: (1,0) and (0,1).
+          No straight line separates them in input space. Two ReLU neurons <em>fold</em> the space so they become separable. Click the buttons or hit Animate.
+        </p>
       </div>
       <script>
       (function(){
-        const cv=document.getElementById('sw-canvas');
-        const ctx=cv.getContext('2d');
-        const W=cv.width, H=cv.height;
-        let swPhase=0, swAnim=null;
+        const cv  = document.getElementById('sw-canvas');
+        const ctx = cv.getContext('2d');
+        const W = cv.width, H = cv.height;
 
-        // XOR points: class 0 = blue, class 1 = red
-        // Input space [0,1]^2
-        const pts=[
-          {x:0, y:0, cls:0, label:'(0,0)'},
-          {x:1, y:0, cls:1, label:'(1,0)'},
-          {x:0, y:1, cls:1, label:'(0,1)'},
-          {x:1, y:1, cls:0, label:'(1,1)'},
+        // ── Data ──────────────────────────────────────────────────
+        const pts = [
+          {x1:0, x2:0, cls:0, lbl:'(0,0)'},
+          {x1:1, x2:0, cls:1, lbl:'(1,0)'},
+          {x1:0, x2:1, cls:1, lbl:'(0,1)'},
+          {x1:1, x2:1, cls:0, lbl:'(1,1)'},
         ];
 
-        // Layer 1: 2 neurons
-        // n1 = ReLU(x + y - 0.5)
-        // n2 = ReLU(x + y - 1.5)
-        function h1(p){ return Math.max(0, p.x+p.y-0.5); }
-        function h2(p){ return Math.max(0, p.x+p.y-1.5); }
+        // ── Network ───────────────────────────────────────────────
+        // h1 = ReLU(x1+x2),     range [0,2]
+        // h2 = ReLU(x1+x2-1),   range [0,1]
+        // Output = h1 - 2*h2  →  class 1 if > 0.5
+        const n1 = p => Math.max(0, p.x1 + p.x2);
+        const n2 = p => Math.max(0, p.x1 + p.x2 - 1);
 
-        // Layer 2: final (n1 - 2*n2)
-        // Output = n1 - 2*n2 > 0.25 → class 1
-        function out(p){ return h1(p)-2*h2(p); }
+        // ── Layout ────────────────────────────────────────────────
+        const PL=65, PR=20, PT=45, PB=50;
+        const PW = W-PL-PR, PH = H-PT-PB;
 
-        function lerp(a,b,t){ return a+(b-a)*t; }
+        // nx,ny ∈ [0,1] → canvas pixel
+        function tc(nx, ny){ return { cx: PL+nx*PW, cy: PT+PH-ny*PH }; }
 
-        // Map points to canvas coordinates for each phase
-        // Phase 0: input (x,y) in [0,1]^2
-        // Phase 1: intermediate - interpolate toward (n1,n2) space
-        // Phase 2: hidden (h1, h2) in [0,1]^2 (n1 max 1.5, n2 max 0.5)
-        function ptCoords(p, phase){
-          const ix=(p.x*0.7+0.05), iy=(1-p.y)*0.7+0.1;
-          const n1=h1(p), n2=h2(p);
-          const hx=n1/1.5*0.7+0.05, hy=(1-n2/0.6)*0.7+0.1;
-          if(phase<=1){
-            const t=phase;
-            return { cx: lerp(ix,hx,t), cy: lerp(iy,hy,t) };
-          }
-          return { cx: hx, cy: hy };
+        // interpolated position for a data point at blend t∈[0,1]
+        function ptAt(p, t){
+          const ix=p.x1, iy=p.x2;
+          const hx=n1(p)/2, hy=n2(p);          // normalized hidden coords
+          return { nx: ix+(hx-ix)*t, ny: iy+(hy-iy)*t };
         }
 
-        function drawPanel(phase){
+        // ── Background mesh ───────────────────────────────────────
+        // 18×18 grid in input space, color by XOR class, animate to hidden
+        const GRID = 18;
+        const mesh = [];
+        for(let i=0;i<=GRID;i++) for(let j=0;j<=GRID;j++){
+          const ix=i/GRID, iy=j/GRID;
+          const cls = (Math.round(ix) !== Math.round(iy)) ? 1 : 0;
+          const hx=Math.max(0,ix+iy)/2, hy=Math.max(0,ix+iy-1);
+          mesh.push({ix,iy,hx,hy,cls});
+        }
+
+        // ── State ─────────────────────────────────────────────────
+        let t=0, rafId=null, tmId=null;
+
+        // ── Draw ─────────────────────────────────────────────────
+        function draw(t){
           ctx.clearRect(0,0,W,H);
-          const PW=W/2-20, PH=H-50;
-          const titles=['Input Space','Hidden Space (h₁, h₂)'];
 
-          // Draw two sub-panels
-          for(let panel=0;panel<2;panel++){
-            const ox=panel*(PW+40)+10;
-            const oy=10;
+          // ── Title ──
+          const title = t<0.02 ? 'Input Space  (x₁, x₂)'
+                      : t>0.98 ? 'Hidden Space  (h₁, h₂)'
+                               : 'ReLU neurons folding the space…';
+          const tcol  = t<0.02 ? '#e11d48' : t>0.98 ? '#15803d' : '#6b7280';
+          ctx.fillStyle=tcol; ctx.font='bold 13px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText(title, W/2, 26);
 
-            // panel background
-            ctx.fillStyle='#f8faff';
-            ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1;
-            const rnd=8;
-            ctx.beginPath();
-            ctx.roundRect(ox,oy,PW,PH,rnd);
-            ctx.fill(); ctx.stroke();
+          // ── Background mesh cells ──
+          const cell = PW/GRID;
+          mesh.forEach(m=>{
+            const nx = m.ix+(m.hx-m.ix)*t;
+            const ny = m.iy+(m.hy-m.iy)*t;
+            const {cx,cy} = tc(nx,ny);
+            ctx.fillStyle = m.cls===1
+              ? 'rgba(225,29,72,0.09)' : 'rgba(37,99,235,0.09)';
+            ctx.fillRect(cx-cell/2, cy-cell/2, cell+1, cell+1);
+          });
 
-            // panel title
-            ctx.fillStyle='#374151'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
-            ctx.fillText(titles[panel],ox+PW/2,oy+16);
+          // ── Axes ──
+          ctx.strokeStyle='#d1d5db'; ctx.lineWidth=1; ctx.setLineDash([]);
+          ctx.strokeRect(PL,PT,PW,PH);
 
-            // axis box
-            const ax=ox+30, ay=oy+28, aw=PW-50, ah=PH-55;
-            ctx.strokeStyle='#d1d5db'; ctx.lineWidth=1;
-            ctx.strokeRect(ax,ay,aw,ah);
+          // grid lines
+          ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=0.5;
+          [0.25,0.5,0.75].forEach(g=>{
+            ctx.beginPath(); ctx.moveTo(PL+g*PW,PT); ctx.lineTo(PL+g*PW,PT+PH); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(PL,PT+(1-g)*PH); ctx.lineTo(PL+PW,PT+(1-g)*PH); ctx.stroke();
+          });
 
-            // grid lines
-            ctx.strokeStyle='#f1f5f9'; ctx.lineWidth=0.5;
-            for(let g=0.25;g<1;g+=0.25){
-              ctx.beginPath(); ctx.moveTo(ax+g*aw,ay); ctx.lineTo(ax+g*aw,ay+ah); ctx.stroke();
-              ctx.beginPath(); ctx.moveTo(ax,ay+g*ah); ctx.lineTo(ax+aw,ay+g*ah); ctx.stroke();
-            }
+          // axis labels (fade between spaces)
+          ctx.fillStyle='#6b7280'; ctx.font='11px Inter,sans-serif'; ctx.textAlign='center';
+          const xl = t<0.5 ? 'x₁' : 'h₁ = ReLU(x₁+x₂)';
+          ctx.fillText(xl, PL+PW/2, PT+PH+22);
+          ctx.save(); ctx.translate(PL-36, PT+PH/2); ctx.rotate(-Math.PI/2);
+          ctx.fillText(t<0.5 ? 'x₂' : 'h₂ = ReLU(x₁+x₂−1)', 0, 0); ctx.restore();
 
-            // axis labels
-            ctx.fillStyle='#9ca3af'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
-            if(panel===0){
-              ctx.fillText('x₁',ax+aw,ay+ah+14);
-              ctx.save(); ctx.translate(ax-16,ay+ah/2); ctx.rotate(-Math.PI/2);
-              ctx.fillText('x₂',0,0); ctx.restore();
-              // tick values
-              ['0','0.5','1'].forEach((v,i)=>{
-                const gx=ax+i*aw/2; ctx.fillText(v,gx,ay+ah+12);
-              });
-            } else {
-              ctx.fillText('h₁ = ReLU(x₁+x₂−0.5)',ax+aw/2,ay+ah+14);
-              ctx.save(); ctx.translate(ax-16,ay+ah/2); ctx.rotate(-Math.PI/2);
-              ctx.fillText('h₂',0,0); ctx.restore();
-            }
+          // tick labels
+          ctx.fillStyle='#9ca3af'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+          ['0','','1'].forEach((v,i)=>{
+            if(!v) return;
+            ctx.fillText(v, PL+i*PW/2, PT+PH+12);
+            ctx.fillText(v, PL-12, PT+PH-i*PH/2+4);
+          });
 
-            // draw separator line in hidden space
-            if(panel===1){
-              // Decision boundary: n1 - 2*n2 = 0.25
-              // n1 axis is horizontal (0 to 1.5 → normalized 0 to 1 in canvas)
-              // n2 = (n1 - 0.25) / 2
-              // At n1=0: n2=-0.125 (below 0 axis)
-              // At n1=0.8: n2=0.275
-              const x1c=ax+0*aw, y1c=ay+ah+0.125/0.6*ah;
-              const x2c=ax+0.85/1.5*aw, y2c=ay+(1-(0.85-0.25)/(2*0.6))*ah;
-              ctx.strokeStyle='rgba(37,99,235,0.4)'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-              ctx.beginPath(); ctx.moveTo(x1c,y1c); ctx.lineTo(x2c,y2c); ctx.stroke();
-              ctx.setLineDash([]);
-              ctx.fillStyle='#2563eb'; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='left';
-              ctx.fillText('decision boundary',x1c+4,y1c-4);
-            }
-
-            // Draw data points
-            pts.forEach(p=>{
-              let cx2, cy2;
-              if(panel===0){
-                cx2=ax+p.x*aw; cy2=ay+(1-p.y)*ah;
-              } else {
-                const n1=h1(p), n2=h2(p);
-                cx2=ax+n1/1.5*aw; cy2=ay+(1-n2/0.6)*ah;
-                cy2=Math.min(ay+ah+5, Math.max(ay-5, cy2));
-              }
-
-              // shadow
-              ctx.fillStyle='rgba(0,0,0,0.1)';
-              ctx.beginPath(); ctx.ellipse(cx2+2,cy2+10,8,3,0,0,Math.PI*2); ctx.fill();
-
-              // point
-              const col=p.cls===0?'#2563eb':'#e11d48';
-              const col2=p.cls===0?'#93c5fd':'#fca5a5';
-              const pg=ctx.createRadialGradient(cx2-2,cy2-2,2,cx2,cy2,10);
-              pg.addColorStop(0,col2); pg.addColorStop(1,col);
-              ctx.fillStyle=pg;
-              ctx.beginPath(); ctx.arc(cx2,cy2,10,0,Math.PI*2); ctx.fill();
-              ctx.strokeStyle='#fff'; ctx.lineWidth=2;
-              ctx.beginPath(); ctx.arc(cx2,cy2,10,0,Math.PI*2); ctx.stroke();
-
-              // label
-              ctx.fillStyle=col; ctx.font='bold 9.5px Inter,sans-serif'; ctx.textAlign='center';
-              ctx.fillText(p.label,cx2,cy2-14);
-            });
-
-            // linearly separable / not separable label
-            ctx.fillStyle=panel===0?'#e11d48':'#15803d';
-            ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
-            ctx.fillText(panel===0?'✗ NOT linearly separable':'✓ Linearly separable!',ox+PW/2,oy+PH-6);
+          // ── Decision boundary (fade in at t>0.6) ──
+          if(t>0.6){
+            const a = Math.min(1,(t-0.6)/0.4);
+            // boundary: h1 - 2*h2 = 0.5  →  normalized: nx - ny = 0.25
+            // At ny=0: nx=0.25   →  tc(0.25, 0)
+            // At nx=1: ny=0.75   →  tc(1.0, 0.75)
+            const b1=tc(0.25,0), b2=tc(1.0,0.75);
+            ctx.strokeStyle=`rgba(55,65,81,${0.6*a})`; ctx.lineWidth=2.5; ctx.setLineDash([8,5]);
+            ctx.beginPath(); ctx.moveTo(b1.cx,b1.cy); ctx.lineTo(b2.cx,b2.cy); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle=`rgba(37,99,235,${0.85*a})`; ctx.font='bold 10px Inter,sans-serif';
+            ctx.textAlign='left';
+            ctx.fillText('linear boundary ✓', b1.cx+8, b1.cy-8);
           }
 
-          // Phase highlight arrow
-          ctx.fillStyle='#6b7280'; ctx.font='bold 14px Inter,sans-serif'; ctx.textAlign='center';
-          ctx.fillText('→ ReLU transform →',W/2,H/2+5);
+          // ── Data points ──
+          pts.forEach(p=>{
+            const {nx,ny} = ptAt(p,t);
+            const {cx,cy} = tc(nx,ny);
+            const col  = p.cls===0 ? '#2563eb' : '#dc2626';
+            const col2 = p.cls===0 ? '#93c5fd' : '#fca5a5';
+
+            // shadow
+            ctx.fillStyle='rgba(0,0,0,0.08)';
+            ctx.beginPath(); ctx.ellipse(cx+2,cy+8,11,3,0,0,Math.PI*2); ctx.fill();
+
+            // ball
+            const g=ctx.createRadialGradient(cx-3,cy-3,2,cx,cy,12);
+            g.addColorStop(0,col2); g.addColorStop(1,col);
+            ctx.fillStyle=g;
+            ctx.beginPath(); ctx.arc(cx,cy,12,0,Math.PI*2); ctx.fill();
+            ctx.strokeStyle='#fff'; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.arc(cx,cy,12,0,Math.PI*2); ctx.stroke();
+
+            // label
+            ctx.fillStyle=col; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+            ctx.fillText(p.lbl, cx, cy-17);
+          });
+
+          // ── Status bar ──
+          ctx.fillStyle=tcol; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+          if(t<0.02)      ctx.fillText('✗ No straight line can separate blue from red here', W/2, H-14);
+          else if(t>0.98) ctx.fillText('✓ Now perfectly separable — ReLU folded the space!', W/2, H-14);
+          else            ctx.fillText('Watch the points move as the space folds…', W/2, H-14);
         }
 
-        window.swShow=function(ph, btn){
-          swPhase=ph;
-          cancelAnimationFrame(swAnim);
-          document.querySelectorAll('#sw-canvas').forEach(()=>{});
-          // Update button states
-          const btns=document.querySelectorAll('.anim-box .anim-btn:not(#sw-play-btn)');
-          btns.forEach(b=>b.classList.remove('active'));
-          if(btn) btn.classList.add('active');
-          drawPanel(ph>=1?1:0);
-        };
-
-        window.swAnimate=function(){
-          const seq=[0,1,2,1,0];
-          let i=0, delay=0;
-          const btns=document.querySelectorAll('.anim-box .anim-btn:not(#sw-play-btn)');
-          function showNext(){
-            if(i>=seq.length) return;
-            btns.forEach(b=>b.classList.remove('active'));
-            if(btns[Math.min(seq[i],2)]) btns[Math.min(seq[i],2)].classList.add('active');
-            drawPanel(seq[i]>=1?1:0);
-            i++;
-            swAnim=setTimeout(showNext, 1200);
+        // ── Smooth transition ─────────────────────────────────────
+        function animateTo(target, done){
+          cancelAnimationFrame(rafId);
+          const from=t, dur=900, t0=performance.now();
+          function step(now){
+            const p=Math.min(1,(now-t0)/dur);
+            const e=p<0.5 ? 2*p*p : 1-((-2*p+2)**2)/2;  // ease-in-out
+            t=from+(target-from)*e;
+            draw(t);
+            if(p<1) rafId=requestAnimationFrame(step);
+            else { t=target; if(done) done(); }
           }
-          showNext();
+          rafId=requestAnimationFrame(step);
+        }
+
+        // ── Public handlers ───────────────────────────────────────
+        window.swGoTo=function(target, btn){
+          clearTimeout(tmId);
+          const box=document.getElementById('sw-box');
+          box.querySelectorAll('.anim-btn').forEach(b=>b.classList.remove('active'));
+          if(btn) btn.classList.add('active');
+          animateTo(target);
         };
 
-        drawPanel(0);
+        window.swPlay=function(){
+          clearTimeout(tmId); cancelAnimationFrame(rafId);
+          // sequence: input → hidden → pause → input → hidden
+          animateTo(1, ()=>{
+            document.getElementById('sw-btn-hidden').classList.add('active');
+            document.getElementById('sw-btn-input').classList.remove('active');
+            tmId=setTimeout(()=>{
+              animateTo(0, ()=>{
+                document.getElementById('sw-btn-input').classList.add('active');
+                document.getElementById('sw-btn-hidden').classList.remove('active');
+                tmId=setTimeout(()=>animateTo(1, ()=>{
+                  document.getElementById('sw-btn-hidden').classList.add('active');
+                  document.getElementById('sw-btn-input').classList.remove('active');
+                }), 800);
+              });
+            }, 1800);
+          });
+          document.getElementById('sw-btn-input').classList.remove('active');
+        };
+
+        // ── Init ──────────────────────────────────────────────────
+        draw(0);
       })();
       </script>
 
