@@ -480,11 +480,11 @@
       <div class="math-box">
         <div class="label">Definition</div>
         <strong>Vector in &Ropf;&sup3;:</strong><br/>
-        <strong>v</strong> = [v&sub1;, v&sub2;, v&sub3;]&nbsp;&nbsp; or equivalently a column:
-        v&sub1;, v&sub2;, v&sub3; stacked vertically.<br/><br/>
-        <strong>Dot product:</strong> <strong>a</strong> &middot; <strong>b</strong> = &sum; a&sub;i&sub; b&sub;i&sub; = |<strong>a</strong>| |<strong>b</strong>| cos(&theta;)<br/><br/>
-        <strong>L2 norm (Euclidean length):</strong> |<strong>v</strong>| = &radic;(v&sub1;&sup2; + v&sub2;&sup2; + &hellip; + v&sub;n&sub;&sup2;)<br/><br/>
-        <strong>L1 norm (Manhattan):</strong> |<strong>v</strong>|&sub1;&sub; = |v&sub1;| + |v&sub2;| + &hellip; + |v&sub;n&sub;|
+        <strong>v</strong> = [v<sub>1</sub>, v<sub>2</sub>, v<sub>3</sub>]&nbsp;&nbsp; or equivalently a column:
+        v<sub>1</sub>, v<sub>2</sub>, v<sub>3</sub> stacked vertically.<br/><br/>
+        <strong>Dot product:</strong> <strong>a</strong> &middot; <strong>b</strong> = &sum; a<sub>i</sub> b<sub>i</sub> = |<strong>a</strong>| |<strong>b</strong>| cos(&theta;)<br/><br/>
+        <strong>L2 norm (Euclidean length):</strong> |<strong>v</strong>| = &radic;(v<sub>1</sub>&sup2; + v<sub>2</sub>&sup2; + &hellip; + v<sub>n</sub>&sup2;)<br/><br/>
+        <strong>L1 norm (Manhattan):</strong> |<strong>v</strong>|<sub>1</sub> = |v<sub>1</sub>| + |v<sub>2</sub>| + &hellip; + |v<sub>n</sub>|
       </div>
 
       <p>
@@ -969,11 +969,11 @@
 
       <p>
         <strong>Linear combinations and span.</strong> If you take two vectors
-        <strong>v</strong>&sub1; and <strong>v</strong>&sub2; and form
-        a&sub1;<strong>v</strong>&sub1; + a&sub2;<strong>v</strong>&sub2; for all possible
-        scalars a&sub1;, a&sub2;, the set of all results is the <em>span</em> of those
-        vectors. The span is the entire space you can reach. If <strong>v</strong>&sub1;
-        and <strong>v</strong>&sub2; are parallel, the span is just a line &mdash; you're
+        <strong>v</strong><sub>1</sub> and <strong>v</strong><sub>2</sub> and form
+        a<sub>1</sub><strong>v</strong><sub>1</sub> + a<sub>2</sub><strong>v</strong><sub>2</sub> for all possible
+        scalars a<sub>1</sub>, a<sub>2</sub>, the set of all results is the <em>span</em> of those
+        vectors. The span is the entire space you can reach. If <strong>v</strong><sub>1</sub>
+        and <strong>v</strong><sub>2</sub> are parallel, the span is just a line &mdash; you're
         stuck in one dimension no matter how you combine them.
         Linear independence means no vector in the set is a combination of the others.
       </p>
@@ -1233,11 +1233,11 @@
       <div class="math-box">
         <div class="label">Key Matrix Operations</div>
         <strong>Matrix multiplication (A is m&times;k, B is k&times;n, result is m&times;n):</strong><br/>
-        (AB)&sub;ij&sub; = &sum;&sub;r&sub; A&sub;ir&sub; B&sub;rj&sub;<br/><br/>
-        <strong>Transpose:</strong> (A&sup;T)&sub;ij&sub; = A&sub;ji&sub;<br/><br/>
-        <strong>Inverse (square A only):</strong> A&sup;-1 exists iff det(A) &ne; 0<br/>
-        &nbsp;&nbsp;&nbsp;&nbsp;AA&sup;-1 = A&sup;-1A = I<br/><br/>
-        <strong>Trace:</strong> tr(A) = &sum;&sub;i&sub; A&sub;ii&sub; (sum of diagonal)<br/><br/>
+        (AB)<sub>ij</sub> = &sum;<sub>r</sub> A<sub>ir</sub> B<sub>rj</sub><br/><br/>
+        <strong>Transpose:</strong> (A<sup>T</sup>)<sub>ij</sub> = A<sub>ji</sub><br/><br/>
+        <strong>Inverse (square A only):</strong> A<sup>-1</sup> exists iff det(A) &ne; 0<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;AA<sup>-1</sup> = A<sup>-1</sup>A = I<br/><br/>
+        <strong>Trace:</strong> tr(A) = &sum;<sub>i</sub> A<sub>ii</sub> (sum of diagonal)<br/><br/>
         <strong>Determinant (2&times;2):</strong> det([[a,b],[c,d]]) = ad &minus; bc
       </div>
 
@@ -1280,9 +1280,9 @@
         <tbody>
           <tr><td>Identity <strong>I</strong></td><td>I<strong>x</strong> = <strong>x</strong></td><td>Residual connections, initialization</td></tr>
           <tr><td>Diagonal</td><td>Only main diagonal nonzero</td><td>Scaling, fast inversion</td></tr>
-          <tr><td>Symmetric</td><td>A = A&sup;T</td><td>Covariance matrices, kernel matrices, Hessians</td></tr>
-          <tr><td>Orthogonal</td><td>A&sup;T A = I, det = &plusmn;1</td><td>Rotations, QR decomposition, weight init</td></tr>
-          <tr><td>Positive Definite</td><td><strong>x</strong>&sup;T A<strong>x</strong> &gt; 0 for all <strong>x</strong>&ne;0</td><td>Covariance matrices, convex loss surfaces</td></tr>
+          <tr><td>Symmetric</td><td>A = A<sup>T</sup></td><td>Covariance matrices, kernel matrices, Hessians</td></tr>
+          <tr><td>Orthogonal</td><td>A<sup>T</sup> A = I, det = &plusmn;1</td><td>Rotations, QR decomposition, weight init</td></tr>
+          <tr><td>Positive Definite</td><td><strong>x</strong><sup>T</sup> A<strong>x</strong> &gt; 0 for all <strong>x</strong>&ne;0</td><td>Covariance matrices, convex loss surfaces</td></tr>
           <tr><td>Sparse</td><td>Mostly zeros</td><td>Adjacency matrices, word co-occurrence</td></tr>
         </tbody>
       </table>
@@ -1338,7 +1338,7 @@
 
       <div class="insight-box">
         <div class="label">Spectral decomposition</div>
-        A symmetric matrix can be written as <strong>A</strong> = <strong>Q</strong>&Lambda;<strong>Q</strong>&sup;T,
+        A symmetric matrix can be written as <strong>A</strong> = <strong>Q</strong>&Lambda;<strong>Q</strong><sup>T</sup>,
         where <strong>Q</strong> is orthogonal (columns are eigenvectors) and &Lambda; is diagonal
         (eigenvalues on diagonal). This is the eigendecomposition. It says: any symmetric
         transformation is just a rotation, axis-aligned scaling, then rotate back.
@@ -1357,9 +1357,9 @@
 
       <div class="math-box">
         <div class="label">SVD Factorization</div>
-        <strong>A</strong> = <strong>U</strong> &Sigma; <strong>V</strong>&sup;T<br/><br/>
+        <strong>A</strong> = <strong>U</strong> &Sigma; <strong>V</strong><sup>T</sup><br/><br/>
         &bull; <strong>U</strong> (m&times;m): orthogonal, columns are left singular vectors<br/>
-        &bull; &Sigma; (m&times;n): diagonal, non-negative singular values &sigma;&sub;1&sub; &ge; &sigma;&sub;2&sub; &ge; &hellip; &ge; 0<br/>
+        &bull; &Sigma; (m&times;n): diagonal, non-negative singular values &sigma;<sub>1</sub> &ge; &sigma;<sub>2</sub> &ge; &hellip; &ge; 0<br/>
         &bull; <strong>V</strong> (n&times;n): orthogonal, columns are right singular vectors
       </div>
 
@@ -1391,16 +1391,16 @@
       <ul>
         <li><strong>Recommender systems</strong> (collaborative filtering via matrix factorization)</li>
         <li><strong>Image compression</strong> (JPEG-like compression)</li>
-        <li><strong>LoRA</strong> (Low-Rank Adaptation for LLMs: approximate weight updates as UV&sup;T with small rank k)</li>
+        <li><strong>LoRA</strong> (Low-Rank Adaptation for LLMs: approximate weight updates as UV<sup>T</sup> with small rank k)</li>
         <li><strong>Latent Semantic Analysis</strong> in NLP</li>
       </ul>
 
       <div class="insight-box">
         <div class="label">SVD vs Eigendecomposition</div>
-        Eigendecomposition: <strong>A</strong> = <strong>Q</strong>&Lambda;<strong>Q</strong>&sup;-1 (requires square A)<br/>
-        SVD: <strong>A</strong> = <strong>U</strong>&Sigma;<strong>V</strong>&sup;T (works for any A)<br/><br/>
+        Eigendecomposition: <strong>A</strong> = <strong>Q</strong>&Lambda;<strong>Q</strong><sup>-1</sup> (requires square A)<br/>
+        SVD: <strong>A</strong> = <strong>U</strong>&Sigma;<strong>V</strong><sup>T</sup> (works for any A)<br/><br/>
         For symmetric positive semidefinite A (like covariance matrices):
-        SVD = eigendecomposition, and U = V = Q, &sigma;&sub;i&sub; = &lambda;&sub;i&sub;.
+        SVD = eigendecomposition, and U = V = Q, &sigma;<sub>i</sub> = &lambda;<sub>i</sub>.
         So PCA via SVD or via eigenvectors of the covariance matrix gives the same answer.
       </div>
 
@@ -1472,7 +1472,7 @@
         The derivative f'(x) = df/dx is the slope of f at x. Formally:<br/><br/>
         f'(x) = lim<sub>h&rarr;0</sub> [f(x+h) &minus; f(x)] / h<br/><br/>
         <strong>Key rules:</strong><br/>
-        Power: d/dx [x&sup;n] = nx&sup;(n-1)<br/>
+        Power: d/dx [x<sup>n</sup>] = nx<sup>(n-1)</sup><br/>
         Product: d/dx [fg] = f'g + fg'<br/>
         Quotient: d/dx [f/g] = (f'g &minus; fg') / g&sup2;<br/>
         Chain rule: d/dx [f(g(x))] = f'(g(x)) &middot; g'(x)
@@ -1480,8 +1480,8 @@
 
       <p>
         <strong>The chain rule is backpropagation.</strong> A neural network is a composition
-        of functions: loss = L(softmax(W&sub;2&sub; &sigma;(W&sub;1&sub; x))). To find
-        dL/dW&sub;1&sub;, you apply the chain rule repeatedly from output to input.
+        of functions: loss = L(softmax(W<sub>2</sub> &sigma;(W<sub>1</sub> x))). To find
+        dL/dW<sub>1</sub>, you apply the chain rule repeatedly from output to input.
         Every "autograd" framework (PyTorch, JAX) automates this.
       </p>
 
@@ -1516,8 +1516,8 @@
           <tr><th>Function</th><th>Derivative</th><th>Notes</th></tr>
         </thead>
         <tbody>
-          <tr><td>x&sup;n</td><td>nx&sup;(n&minus;1)</td><td>Power rule</td></tr>
-          <tr><td>e&sup;x</td><td>e&sup;x</td><td>Only function equal to its own derivative</td></tr>
+          <tr><td>x<sup>n</sup></td><td>nx<sup>(n&minus;1)</sup></td><td>Power rule</td></tr>
+          <tr><td>e<sup>x</sup></td><td>e<sup>x</sup></td><td>Only function equal to its own derivative</td></tr>
           <tr><td>ln(x)</td><td>1/x</td><td>Appears in log-likelihood</td></tr>
           <tr><td>sin(x)</td><td>cos(x)</td><td></td></tr>
           <tr><td>cos(x)</td><td>&minus;sin(x)</td><td></td></tr>
@@ -1532,15 +1532,15 @@
       <h3 id="partial">Partial Derivatives and Gradients</h3>
 
       <p>
-        When a function takes multiple inputs, the <em>partial derivative</em> &part;f/&part;x&sub;i&sub;
-        measures how f changes when x&sub;i&sub; changes and all other inputs are held fixed.
+        When a function takes multiple inputs, the <em>partial derivative</em> &part;f/&part;x<sub>i</sub>
+        measures how f changes when x<sub>i</sub> changes and all other inputs are held fixed.
         The <strong>gradient</strong> collects all partial derivatives into a vector.
       </p>
 
       <div class="math-box">
         <div class="label">Gradient</div>
-        For f: &Ropf;&sup;n &rarr; &Ropf;:<br/><br/>
-        &nabla;f(<strong>x</strong>) = [&part;f/&part;x&sub;1&sub;, &part;f/&part;x&sub;2&sub;, &hellip;, &part;f/&part;x&sub;n&sub;]<br/><br/>
+        For f: &Ropf;<sup>n</sup> &rarr; &Ropf;:<br/><br/>
+        &nabla;f(<strong>x</strong>) = [&part;f/&part;x<sub>1</sub>, &part;f/&part;x<sub>2</sub>, &hellip;, &part;f/&part;x<sub>n</sub>]<br/><br/>
         The gradient always points in the direction of steepest ascent.
         The negative gradient &minus;&nabla;f points downhill.
       </div>
@@ -1576,16 +1576,16 @@
       <h3 id="jacobian">Jacobians and Hessians</h3>
 
       <p>
-        When a function maps vectors to vectors (f: &Ropf;&sup;n &rarr; &Ropf;&sup;m),
+        When a function maps vectors to vectors (f: &Ropf;<sup>n</sup> &rarr; &Ropf;<sup>m</sup>),
         the generalization of the gradient is the <strong>Jacobian</strong>.
       </p>
 
       <div class="math-box">
         <div class="label">Jacobian and Hessian</div>
-        <strong>Jacobian</strong> J of f: &Ropf;&sup;n &rarr; &Ropf;&sup;m:<br/>
-        J&sub;ij&sub; = &part;f&sub;i&sub;/&part;x&sub;j&sub; &nbsp; &nbsp;(m&times;n matrix)<br/><br/>
-        <strong>Hessian</strong> H of f: &Ropf;&sup;n &rarr; &Ropf; (scalar):<br/>
-        H&sub;ij&sub; = &part;&sup2;f/(&part;x&sub;i&sub; &part;x&sub;j&sub;) &nbsp; &nbsp;(n&times;n symmetric matrix)<br/><br/>
+        <strong>Jacobian</strong> J of f: &Ropf;<sup>n</sup> &rarr; &Ropf;<sup>m</sup>:<br/>
+        J<sub>ij</sub> = &part;f<sub>i</sub>/&part;x<sub>j</sub> &nbsp; &nbsp;(m&times;n matrix)<br/><br/>
+        <strong>Hessian</strong> H of f: &Ropf;<sup>n</sup> &rarr; &Ropf; (scalar):<br/>
+        H<sub>ij</sub> = &part;&sup2;f/(&part;x<sub>i</sub> &part;x<sub>j</sub>) &nbsp; &nbsp;(n&times;n symmetric matrix)<br/><br/>
         The Hessian encodes curvature: how the gradient itself is changing.
       </div>
 
@@ -1682,19 +1682,19 @@
         <tbody>
           <tr>
             <td>Bernoulli(p)</td>
-            <td>P(x) = p&sup;x(1&minus;p)&sup;(1&minus;x)</td>
+            <td>P(x) = p<sup>x</sup>(1&minus;p)<sup>(1&minus;x)</sup></td>
             <td>p</td><td>p(1&minus;p)</td>
             <td>Binary classification output</td>
           </tr>
           <tr>
             <td>Binomial(n,p)</td>
-            <td>C(n,k) p&sup;k(1&minus;p)&sup;(n&minus;k)</td>
+            <td>C(n,k) p<sup>k</sup>(1&minus;p)<sup>(n&minus;k)</sup></td>
             <td>np</td><td>np(1&minus;p)</td>
             <td>Count of successes</td>
           </tr>
           <tr>
-            <td>Categorical(p&sub;1&sub;,&hellip;)</td>
-            <td>P(x=k) = p&sub;k&sub;</td>
+            <td>Categorical(p<sub>1</sub>,&hellip;)</td>
+            <td>P(x=k) = p<sub>k</sub></td>
             <td>&mdash;</td><td>&mdash;</td>
             <td>Multiclass output (softmax)</td>
           </tr>
@@ -1917,7 +1917,7 @@
         f(tx + (1&minus;t)y) &le; t f(x) + (1&minus;t) f(y)<br/><br/>
         Geometrically: the line segment between any two points on the graph lies above or
         on the graph. "Bowl shape."<br/><br/>
-        <strong>For differentiable f: convex &hArr; f(y) &ge; f(x) + &nabla;f(x)&sup;T(y&minus;x)</strong><br/>
+        <strong>For differentiable f: convex &hArr; f(y) &ge; f(x) + &nabla;f(x)<sup>T</sup>(y&minus;x)</strong><br/>
         (the function lies above all its tangent hyperplanes)<br/><br/>
         <strong>For twice-differentiable f: convex &hArr; H(x) is positive semidefinite</strong>
       </div>
@@ -2394,9 +2394,9 @@
           <tr><td>Union</td><td>A &cup; B</td><td>Elements in A or B or both</td></tr>
           <tr><td>Intersection</td><td>A &cap; B</td><td>Elements in both A and B</td></tr>
           <tr><td>Difference</td><td>A &setminus; B</td><td>Elements in A but not B</td></tr>
-          <tr><td>Complement</td><td>A&sup;c</td><td>Elements not in A (within universe U)</td></tr>
+          <tr><td>Complement</td><td>A<sup>c</sup></td><td>Elements not in A (within universe U)</td></tr>
           <tr><td>Subset</td><td>A &sube; B</td><td>Every element of A is in B</td></tr>
-          <tr><td>Power set</td><td>2&sup;A</td><td>Set of all subsets; |2&sup;A| = 2&sup;|A|</td></tr>
+          <tr><td>Power set</td><td>2<sup>A</sup></td><td>Set of all subsets; |2<sup>A</sup>| = 2<sup>|A|</sup></td></tr>
           <tr><td>Cartesian product</td><td>A &times; B</td><td>All ordered pairs (a,b), a&isin;A, b&isin;B</td></tr>
         </tbody>
       </table>
@@ -2427,8 +2427,8 @@
         P(n,k) = n!/(n&minus;k)! &nbsp; (choose k from n in order)<br/><br/>
         <strong>Combinations</strong> (order doesn't matter):<br/>
         C(n,k) = n!/[k!(n&minus;k)!] = "n choose k"<br/><br/>
-        <strong>With repetition:</strong> n&sup;k arrangements of k items from n<br/><br/>
-        <strong>Multinomial:</strong> n!/(k&sub;1&sub;! k&sub;2&sub;! &hellip; k&sub;r&sub;!) ways to arrange n items in r groups
+        <strong>With repetition:</strong> n<sup>k</sup> arrangements of k items from n<br/><br/>
+        <strong>Multinomial:</strong> n!/(k<sub>1</sub>! k<sub>2</sub>! &hellip; k<sub>r</sub>!) ways to arrange n items in r groups
       </div>
 
       <pre><code>  from math import comb, perm, factorial
@@ -3251,7 +3251,7 @@ print(np.degrees(np.arccos(np.dot(a,b) / (np.linalg.norm(a)*np.linalg.norm(b))))
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
-            <p><strong>A:</strong> det = 2&times;4 &minus; 3&times;1 = 5 &ne; 0 &rarr; invertible.<br/>A&sup;-1 = (1/5)[[4,&minus;3],[&minus;1,2]] = [[0.8,&minus;0.6],[&minus;0.2,0.4]]</p>
+            <p><strong>A:</strong> det = 2&times;4 &minus; 3&times;1 = 5 &ne; 0 &rarr; invertible.<br/>A<sup>-1</sup> = (1/5)[[4,&minus;3],[&minus;1,2]] = [[0.8,&minus;0.6],[&minus;0.2,0.4]]</p>
             <p><strong>B:</strong> det = 4&times;1 &minus; 2&times;2 = 0 &rarr; singular, not invertible. Row 1 = 2&times;Row 2.</p>
             <p><strong>C:</strong> Row 3 = 2&times;Row 2 &minus; Row 1, so rows are linearly dependent &rarr; rank 2 &lt; 3 &rarr; not invertible. det(C) = 0.</p>
             <pre>import numpy as np
@@ -3290,9 +3290,9 @@ print(np.linalg.inv(A))     # [[0.8,-0.6],[-0.2,0.4]]</pre>
           <div class="hint-body">
             <p><strong>Characteristic polynomial:</strong></p>
             <p>det([[4&minus;&lambda;, 1],[2, 3&minus;&lambda;]]) = (4&minus;&lambda;)(3&minus;&lambda;) &minus; 2 = &lambda;&sup2; &minus; 7&lambda; + 10 = (&lambda;&minus;5)(&lambda;&minus;2) = 0</p>
-            <p>&rArr; &lambda;&sub;1&sub; = 5, &lambda;&sub;2&sub; = 2</p>
-            <p><strong>Eigenvector for &lambda;=5:</strong> (A&minus;5I)<strong>v</strong>=0 &rArr; [[-1,1],[2,-2]]<strong>v</strong>=0 &rArr; v&sub;1&sub;=v&sub;2&sub; &rArr; <strong>v</strong>&sub;1&sub;=[1,1]</p>
-            <p><strong>Eigenvector for &lambda;=2:</strong> (A&minus;2I)<strong>v</strong>=0 &rArr; [[2,1],[2,1]]<strong>v</strong>=0 &rArr; 2v&sub;1&sub;+v&sub;2&sub;=0 &rArr; <strong>v</strong>&sub;2&sub;=[1,&minus;2]</p>
+            <p>&rArr; &lambda;<sub>1</sub> = 5, &lambda;<sub>2</sub> = 2</p>
+            <p><strong>Eigenvector for &lambda;=5:</strong> (A&minus;5I)<strong>v</strong>=0 &rArr; [[-1,1],[2,-2]]<strong>v</strong>=0 &rArr; v<sub>1</sub>=v<sub>2</sub> &rArr; <strong>v</strong><sub>1</sub>=[1,1]</p>
+            <p><strong>Eigenvector for &lambda;=2:</strong> (A&minus;2I)<strong>v</strong>=0 &rArr; [[2,1],[2,1]]<strong>v</strong>=0 &rArr; 2v<sub>1</sub>+v<sub>2</sub>=0 &rArr; <strong>v</strong><sub>2</sub>=[1,&minus;2]</p>
             <p><strong>Geometric meaning:</strong> Along direction [1,1], A stretches by 5&times;. Along [1,&minus;2], A stretches by 2&times;. Any vector is a combination of these; after applying A, each component is scaled by its eigenvalue.</p>
             <pre>import numpy as np
 A = np.array([[4,1],[2,3]])
@@ -3438,7 +3438,7 @@ plt.show()
           <span class="diff diff-hard">Hard</span>
           <span class="prob-type">Proof</span>
         </div>
-        <p>Let X be an n&times;d centered data matrix. Let C = (1/(n&minus;1)) X&sup;T X be the sample covariance.</p>
+        <p>Let X be an n&times;d centered data matrix. Let C = (1/(n&minus;1)) X<sup>T</sup> X be the sample covariance.</p>
         <ol>
           <li>Prove that C is symmetric.</li>
           <li>Prove that C is positive semidefinite (all eigenvalues &ge; 0).</li>
@@ -3448,19 +3448,19 @@ plt.show()
         <details class="hint-block hint">
           <summary>Hint</summary>
           <div class="hint-body">
-            <p>For symmetry: (X&sup;TX)&sup;T = ?</p>
-            <p>For PSD: show <strong>v</strong>&sup;TC<strong>v</strong> &ge; 0 for all <strong>v</strong>. Write out <strong>v</strong>&sup;T X&sup;T X <strong>v</strong> and recognise it as a squared norm.</p>
+            <p>For symmetry: (X<sup>T</sup>X)<sup>T</sup> = ?</p>
+            <p>For PSD: show <strong>v</strong><sup>T</sup>C<strong>v</strong> &ge; 0 for all <strong>v</strong>. Write out <strong>v</strong><sup>T</sup> X<sup>T</sup> X <strong>v</strong> and recognise it as a squared norm.</p>
           </div>
         </details>
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
-            <p><strong>1. Symmetry:</strong> C&sup;T = ((1/(n&minus;1))X&sup;TX)&sup;T = (1/(n&minus;1))(X&sup;TX)&sup;T = (1/(n&minus;1))X&sup;T(X&sup;T)&sup;T = (1/(n&minus;1))X&sup;TX = C. &nbsp; &check;</p>
+            <p><strong>1. Symmetry:</strong> C<sup>T</sup> = ((1/(n&minus;1))X<sup>T</sup>X)<sup>T</sup> = (1/(n&minus;1))(X<sup>T</sup>X)<sup>T</sup> = (1/(n&minus;1))X<sup>T</sup>(X<sup>T</sup>)<sup>T</sup> = (1/(n&minus;1))X<sup>T</sup>X = C. &nbsp; &check;</p>
             <p><strong>2. PSD:</strong> For any vector <strong>v</strong>:<br/>
-            <strong>v</strong>&sup;TC<strong>v</strong> = (1/(n&minus;1)) <strong>v</strong>&sup;T X&sup;TX <strong>v</strong> = (1/(n&minus;1)) |X<strong>v</strong>|&sup2; &ge; 0.<br/>
+            <strong>v</strong><sup>T</sup>C<strong>v</strong> = (1/(n&minus;1)) <strong>v</strong><sup>T</sup> X<sup>T</sup>X <strong>v</strong> = (1/(n&minus;1)) |X<strong>v</strong>|&sup2; &ge; 0.<br/>
             A squared norm is always non-negative. &nbsp; &check;</p>
             <p><strong>3. Positive definite iff X has full column rank (rank d)</strong>: Then X<strong>v</strong> = 0 implies <strong>v</strong> = 0, so |X<strong>v</strong>|&sup2; = 0 only for <strong>v</strong> = 0.</p>
-            <p><strong>4. Zero eigenvalues mean:</strong> (a) In OLS regression, (X&sup;TX)&sup;-1 doesn't exist &rarr; infinitely many solutions. Ridge adds &lambda;I to make it (X&sup;TX + &lambda;I) which is always PD. (b) In a Gaussian: the covariance is degenerate &rarr; can't compute the PDF (det = 0). The distribution lies in a lower-dimensional subspace.</p>
+            <p><strong>4. Zero eigenvalues mean:</strong> (a) In OLS regression, (X<sup>T</sup>X)<sup>-1</sup> doesn't exist &rarr; infinitely many solutions. Ridge adds &lambda;I to make it (X<sup>T</sup>X + &lambda;I) which is always PD. (b) In a Gaussian: the covariance is degenerate &rarr; can't compute the PDF (det = 0). The distribution lies in a lower-dimensional subspace.</p>
           </div>
         </details>
       </div>
@@ -3479,9 +3479,9 @@ plt.show()
         </div>
         <p>Differentiate each function. Show all steps using the chain rule.</p>
         <ol>
-          <li>f(x) = (3x&sup2; + 1)&sup5;</li>
-          <li>g(x) = ln(sigmoid(x)) &nbsp; where sigmoid(x) = 1/(1+e&sup;-x)</li>
-          <li>h(x) = e&sup;(-x&sup2;/2) &nbsp; (the Gaussian kernel)</li>
+          <li>f(x) = (3x&sup2; + 1)<sup>5</sup></li>
+          <li>g(x) = ln(sigmoid(x)) &nbsp; where sigmoid(x) = 1/(1+e<sup>-x</sup>)</li>
+          <li>h(x) = e<sup>(-x&sup2;/2)</sup> &nbsp; (the Gaussian kernel)</li>
           <li>k(x) = &radic;(x&sup2; + 1) &nbsp; (appears in L2 norm gradients)</li>
         </ol>
         <details class="hint-block hint">
@@ -3494,10 +3494,10 @@ plt.show()
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
-            <p><strong>1.</strong> Outer: u&sup5;, inner: u=3x&sup2;+1<br/>f'(x) = 5(3x&sup2;+1)&sup4; &times; 6x = 30x(3x&sup2;+1)&sup4;</p>
+            <p><strong>1.</strong> Outer: u<sup>5</sup>, inner: u=3x&sup2;+1<br/>f'(x) = 5(3x&sup2;+1)<sup>4</sup> &times; 6x = 30x(3x&sup2;+1)<sup>4</sup></p>
             <p><strong>2.</strong> g(x) = ln(&sigma;(x))<br/>g'(x) = &sigma;'(x)/&sigma;(x) = (1&minus;&sigma;(x)) = sigmoid(&minus;x)<br/>This is the log-loss gradient component for positive labels!</p>
-            <p><strong>3.</strong> h(x) = e&sup;u, u=&minus;x&sup2;/2<br/>h'(x) = e&sup;(-x&sup2;/2) &times; (&minus;x) = &minus;x e&sup;(-x&sup2;/2)</p>
-            <p><strong>4.</strong> k(x) = &radic;(x&sup2;+1) = (x&sup2;+1)&sup;(1/2)<br/>k'(x) = (1/2)(x&sup2;+1)&sup;(-1/2) &times; 2x = x/&radic;(x&sup2;+1)</p>
+            <p><strong>3.</strong> h(x) = e<sup>u</sup>, u=&minus;x&sup2;/2<br/>h'(x) = e<sup>(-x&sup2;/2)</sup> &times; (&minus;x) = &minus;x e<sup>(-x&sup2;/2)</sup></p>
+            <p><strong>4.</strong> k(x) = &radic;(x&sup2;+1) = (x&sup2;+1)<sup>(1/2)</sup><br/>k'(x) = (1/2)(x&sup2;+1)<sup>(-1/2)</sup> &times; 2x = x/&radic;(x&sup2;+1)</p>
           </div>
         </details>
       </div>
@@ -3510,29 +3510,29 @@ plt.show()
           <span class="diff diff-easy">Easy</span>
           <span class="prob-type">Calculation</span>
         </div>
-        <p>Consider linear regression: &ycirc; = <strong>w</strong>&sup;T<strong>x</strong> + b, with MSE loss:</p>
-        <p>L = (1/n) &sum;&sub;i&sub; (&ycirc;&sub;i&sub; &minus; y&sub;i&sub;)&sup2;</p>
+        <p>Consider linear regression: &ycirc; = <strong>w</strong><sup>T</sup><strong>x</strong> + b, with MSE loss:</p>
+        <p>L = (1/n) &sum;<sub>i</sub> (&ycirc;<sub>i</sub> &minus; y<sub>i</sub>)&sup2;</p>
         <ol>
-          <li>Compute &part;L/&part;w&sub;j&sub; for a single sample (n=1).</li>
+          <li>Compute &part;L/&part;w<sub>j</sub> for a single sample (n=1).</li>
           <li>Compute &part;L/&part;b for a single sample.</li>
           <li>Write the gradient descent update rule for <strong>w</strong> and b.</li>
-          <li>In matrix form for all n samples: L = (1/n)|X<strong>w</strong>&minus;<strong>y</strong>|&sup2;. Show &nabla;<sub><strong>w</strong></sub>L = (2/n)X&sup;T(X<strong>w</strong>&minus;<strong>y</strong>).</li>
+          <li>In matrix form for all n samples: L = (1/n)|X<strong>w</strong>&minus;<strong>y</strong>|&sup2;. Show &nabla;<sub><strong>w</strong></sub>L = (2/n)X<sup>T</sup>(X<strong>w</strong>&minus;<strong>y</strong>).</li>
         </ol>
         <details class="hint-block hint">
           <summary>Hint</summary>
           <div class="hint-body">
-            <p>Use chain rule: &part;L/&part;w&sub;j&sub; = &part;L/&part;&ycirc; &times; &part;&ycirc;/&part;w&sub;j&sub;. Note: &part;&ycirc;/&part;w&sub;j&sub; = x&sub;j&sub;.</p>
-            <p>For matrix form: |X<strong>w</strong>&minus;<strong>y</strong>|&sup2; = (<strong>y</strong>&minus;X<strong>w</strong>)&sup;T(<strong>y</strong>&minus;X<strong>w</strong>). Expand and differentiate.</p>
+            <p>Use chain rule: &part;L/&part;w<sub>j</sub> = &part;L/&part;&ycirc; &times; &part;&ycirc;/&part;w<sub>j</sub>. Note: &part;&ycirc;/&part;w<sub>j</sub> = x<sub>j</sub>.</p>
+            <p>For matrix form: |X<strong>w</strong>&minus;<strong>y</strong>|&sup2; = (<strong>y</strong>&minus;X<strong>w</strong>)<sup>T</sup>(<strong>y</strong>&minus;X<strong>w</strong>). Expand and differentiate.</p>
           </div>
         </details>
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
-            <p><strong>1.</strong> &part;L/&part;w&sub;j&sub; = 2(&ycirc;&minus;y) &times; x&sub;j&sub; = 2(prediction error) &times; input feature</p>
+            <p><strong>1.</strong> &part;L/&part;w<sub>j</sub> = 2(&ycirc;&minus;y) &times; x<sub>j</sub> = 2(prediction error) &times; input feature</p>
             <p><strong>2.</strong> &part;L/&part;b = 2(&ycirc;&minus;y) &times; 1 = 2(prediction error)</p>
             <p><strong>3.</strong> Update: <strong>w</strong> &larr; <strong>w</strong> &minus; &eta; &times; 2(error)&times;<strong>x</strong>; &nbsp; b &larr; b &minus; &eta; &times; 2(error)</p>
-            <p><strong>4.</strong> L = (1/n)(X<strong>w</strong>&minus;<strong>y</strong>)&sup;T(X<strong>w</strong>&minus;<strong>y</strong>).<br/>
-            dL/d<strong>w</strong> = (1/n) &times; 2 X&sup;T(X<strong>w</strong>&minus;<strong>y</strong>) &nbsp; [standard matrix calculus: d/d<strong>w</strong>(A<strong>w</strong>)&sup;T(A<strong>w</strong>) = 2A&sup;TA<strong>w</strong>]<br/>Setting to zero: X&sup;TX<strong>w</strong> = X&sup;T<strong>y</strong> &rArr; <strong>w</strong>* = (X&sup;TX)&sup;-1 X&sup;T<strong>y</strong> &nbsp; (the OLS solution!)</p>
+            <p><strong>4.</strong> L = (1/n)(X<strong>w</strong>&minus;<strong>y</strong>)<sup>T</sup>(X<strong>w</strong>&minus;<strong>y</strong>).<br/>
+            dL/d<strong>w</strong> = (1/n) &times; 2 X<sup>T</sup>(X<strong>w</strong>&minus;<strong>y</strong>) &nbsp; [standard matrix calculus: d/d<strong>w</strong>(A<strong>w</strong>)<sup>T</sup>(A<strong>w</strong>) = 2A<sup>T</sup>A<strong>w</strong>]<br/>Setting to zero: X<sup>T</sup>X<strong>w</strong> = X<sup>T</sup><strong>y</strong> &rArr; <strong>w</strong>* = (X<sup>T</sup>X)<sup>-1</sup> X<sup>T</sup><strong>y</strong> &nbsp; (the OLS solution!)</p>
           </div>
         </details>
       </div>
@@ -3545,36 +3545,36 @@ plt.show()
           <span class="diff diff-medium">Medium</span>
           <span class="prob-type">Calculation</span>
         </div>
-        <p>Consider a tiny network: input x (scalar), hidden h = ReLU(w&sub;1&sub;x), output &ycirc; = w&sub;2&sub;h, loss L = (&ycirc;&minus;y)&sup2;.</p>
-        <p>Given: x=2, w&sub;1&sub;=&minus;0.5, w&sub;2&sub;=3, y=1.</p>
+        <p>Consider a tiny network: input x (scalar), hidden h = ReLU(w<sub>1</sub>x), output &ycirc; = w<sub>2</sub>h, loss L = (&ycirc;&minus;y)&sup2;.</p>
+        <p>Given: x=2, w<sub>1</sub>=&minus;0.5, w<sub>2</sub>=3, y=1.</p>
         <ol>
           <li>Forward pass: compute h, &ycirc;, and L.</li>
-          <li>Backward pass: compute &part;L/&part;w&sub;2&sub; and &part;L/&part;w&sub;1&sub; by hand, using the chain rule step-by-step.</li>
-          <li>What happens to &part;L/&part;w&sub;1&sub; because of the ReLU? What does this tell you about dead neurons?</li>
+          <li>Backward pass: compute &part;L/&part;w<sub>2</sub> and &part;L/&part;w<sub>1</sub> by hand, using the chain rule step-by-step.</li>
+          <li>What happens to &part;L/&part;w<sub>1</sub> because of the ReLU? What does this tell you about dead neurons?</li>
           <li>Verify using PyTorch autograd.</li>
         </ol>
         <details class="hint-block hint">
           <summary>Hint</summary>
           <div class="hint-body">
-            <p>ReLU(x) = max(0,x). If the pre-activation w&sub;1&sub;x is negative, ReLU outputs 0 and its derivative is 0 &rarr; gradient is killed.</p>
-            <p>Chain rule: &part;L/&part;w&sub;1&sub; = &part;L/&part;&ycirc; &times; &part;&ycirc;/&part;h &times; &part;h/&part;(w&sub;1&sub;x) &times; &part;(w&sub;1&sub;x)/&part;w&sub;1&sub;</p>
+            <p>ReLU(x) = max(0,x). If the pre-activation w<sub>1</sub>x is negative, ReLU outputs 0 and its derivative is 0 &rarr; gradient is killed.</p>
+            <p>Chain rule: &part;L/&part;w<sub>1</sub> = &part;L/&part;&ycirc; &times; &part;&ycirc;/&part;h &times; &part;h/&part;(w<sub>1</sub>x) &times; &part;(w<sub>1</sub>x)/&part;w<sub>1</sub></p>
           </div>
         </details>
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
             <p><strong>1. Forward pass:</strong><br/>
-            w&sub;1&sub;x = &minus;0.5 &times; 2 = &minus;1<br/>
+            w<sub>1</sub>x = &minus;0.5 &times; 2 = &minus;1<br/>
             h = ReLU(&minus;1) = 0<br/>
-            &ycirc; = w&sub;2&sub; &times; h = 3 &times; 0 = 0<br/>
+            &ycirc; = w<sub>2</sub> &times; h = 3 &times; 0 = 0<br/>
             L = (0 &minus; 1)&sup2; = 1</p>
             <p><strong>2. Backward pass:</strong><br/>
             &part;L/&part;&ycirc; = 2(&ycirc;&minus;y) = 2(0&minus;1) = &minus;2<br/>
-            &part;&ycirc;/&part;h = w&sub;2&sub; = 3<br/>
-            &part;h/&part;(w&sub;1&sub;x) = ReLU'(&minus;1) = 0 &nbsp; (because &minus;1 &lt; 0)<br/>
-            &part;L/&part;w&sub;2&sub; = &part;L/&part;&ycirc; &times; h = &minus;2 &times; 0 = 0<br/>
-            &part;L/&part;w&sub;1&sub; = &minus;2 &times; 3 &times; 0 &times; x = 0</p>
-            <p><strong>3. Dead neuron:</strong> When ReLU input is negative, gradient is exactly zero. The weight w&sub;1&sub; receives no update <em>ever</em> in this state. If it happens consistently across all samples, the neuron is permanently "dead" &mdash; it will never learn. This is why initialization and learning rates matter, and why LeakyReLU (small nonzero slope for x&lt;0) was invented.</p>
+            &part;&ycirc;/&part;h = w<sub>2</sub> = 3<br/>
+            &part;h/&part;(w<sub>1</sub>x) = ReLU'(&minus;1) = 0 &nbsp; (because &minus;1 &lt; 0)<br/>
+            &part;L/&part;w<sub>2</sub> = &part;L/&part;&ycirc; &times; h = &minus;2 &times; 0 = 0<br/>
+            &part;L/&part;w<sub>1</sub> = &minus;2 &times; 3 &times; 0 &times; x = 0</p>
+            <p><strong>3. Dead neuron:</strong> When ReLU input is negative, gradient is exactly zero. The weight w<sub>1</sub> receives no update <em>ever</em> in this state. If it happens consistently across all samples, the neuron is permanently "dead" &mdash; it will never learn. This is why initialization and learning rates matter, and why LeakyReLU (small nonzero slope for x&lt;0) was invented.</p>
             <pre>import torch
 x  = torch.tensor(2.0)
 w1 = torch.tensor(-0.5, requires_grad=True)
@@ -3598,31 +3598,31 @@ print(w1.grad, w2.grad)   # both 0.0 — dead neuron confirmed</pre>
           <span class="diff diff-medium">Medium</span>
           <span class="prob-type">Calculation</span>
         </div>
-        <p>For a vector <strong>z</strong> = [z&sub;1&sub;, z&sub;2&sub;, z&sub;3&sub;], the softmax output is s&sub;i&sub; = e&sup;(z_i) / &sum;&sub;j&sub; e&sup;(z_j).</p>
+        <p>For a vector <strong>z</strong> = [z<sub>1</sub>, z<sub>2</sub>, z<sub>3</sub>], the softmax output is s<sub>i</sub> = e<sup>(z_i)</sup> / &sum;<sub>j</sub> e<sup>(z_j)</sup>.</p>
         <ol>
-          <li>Compute &part;s&sub;i&sub;/&part;z&sub;j&sub; for two cases: i=j and i&ne;j.</li>
-          <li>Write the full Jacobian J = &part;<strong>s</strong>/&part;<strong>z</strong> in matrix form. (Hint: it involves diag(s) and ss&sup;T.)</li>
+          <li>Compute &part;s<sub>i</sub>/&part;z<sub>j</sub> for two cases: i=j and i&ne;j.</li>
+          <li>Write the full Jacobian J = &part;<strong>s</strong>/&part;<strong>z</strong> in matrix form. (Hint: it involves diag(s) and ss<sup>T</sup>.)</li>
           <li>Show that the Jacobian of softmax combined with cross-entropy loss gives the clean gradient (s&minus;y).</li>
           <li>Why does this clean gradient make training stable?</li>
         </ol>
         <details class="hint-block hint">
           <summary>Hint</summary>
           <div class="hint-body">
-            <p>Use quotient rule carefully. Let Z = &sum;&sub;k&sub; e&sup;(z_k). Then s&sub;i&sub; = e&sup;(z_i)/Z.</p>
-            <p>For i=j: &part;s&sub;i&sub;/&part;z&sub;i&sub; = (e&sup;(z_i)Z &minus; e&sup;(z_i)e&sup;(z_i))/Z&sup2; = s&sub;i&sub;(1&minus;s&sub;i&sub;)</p>
-            <p>For i&ne;j: &part;s&sub;i&sub;/&part;z&sub;j&sub; = (0&minus;e&sup;(z_i)e&sup;(z_j))/Z&sup2; = &minus;s&sub;i&sub;s&sub;j&sub;</p>
+            <p>Use quotient rule carefully. Let Z = &sum;<sub>k</sub> e<sup>(z_k)</sup>. Then s<sub>i</sub> = e<sup>(z_i)</sup>/Z.</p>
+            <p>For i=j: &part;s<sub>i</sub>/&part;z<sub>i</sub> = (e<sup>(z_i)</sup>Z &minus; e<sup>(z_i)</sup>e<sup>(z_i)</sup>)/Z&sup2; = s<sub>i</sub>(1&minus;s<sub>i</sub>)</p>
+            <p>For i&ne;j: &part;s<sub>i</sub>/&part;z<sub>j</sub> = (0&minus;e<sup>(z_i)</sup>e<sup>(z_j)</sup>)/Z&sup2; = &minus;s<sub>i</sub>s<sub>j</sub></p>
           </div>
         </details>
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
-            <p><strong>1 &amp; 2:</strong> J&sub;ij&sub; = s&sub;i&sub;(&delta;&sub;ij&sub; &minus; s&sub;j&sub;) where &delta;&sub;ij&sub;=1 if i=j, else 0.<br/>In matrix form: <strong>J</strong> = diag(<strong>s</strong>) &minus; <strong>ss</strong>&sup;T</p>
-            <p><strong>3.</strong> Cross-entropy loss with true label one-hot <strong>y</strong>:<br/>L = &minus;&sum;&sub;i&sub; y&sub;i&sub; log s&sub;i&sub;<br/>
-            &part;L/&part;z&sub;j&sub; = &sum;&sub;i&sub; (&part;L/&part;s&sub;i&sub;) &times; (&part;s&sub;i&sub;/&part;z&sub;j&sub;)<br/>
-            = &sum;&sub;i&sub; (&minus;y&sub;i&sub;/s&sub;i&sub;) &times; s&sub;i&sub;(&delta;&sub;ij&sub;&minus;s&sub;j&sub;)<br/>
-            = &sum;&sub;i&sub; &minus;y&sub;i&sub;(&delta;&sub;ij&sub;&minus;s&sub;j&sub;)<br/>
-            = &minus;y&sub;j&sub; + s&sub;j&sub;&sum;&sub;i&sub;y&sub;i&sub;<br/>
-            = &minus;y&sub;j&sub; + s&sub;j&sub; &nbsp; (since &sum;y=1)<br/>
+            <p><strong>1 &amp; 2:</strong> J<sub>ij</sub> = s<sub>i</sub>(&delta;<sub>ij</sub> &minus; s<sub>j</sub>) where &delta;<sub>ij</sub>=1 if i=j, else 0.<br/>In matrix form: <strong>J</strong> = diag(<strong>s</strong>) &minus; <strong>ss</strong><sup>T</sup></p>
+            <p><strong>3.</strong> Cross-entropy loss with true label one-hot <strong>y</strong>:<br/>L = &minus;&sum;<sub>i</sub> y<sub>i</sub> log s<sub>i</sub><br/>
+            &part;L/&part;z<sub>j</sub> = &sum;<sub>i</sub> (&part;L/&part;s<sub>i</sub>) &times; (&part;s<sub>i</sub>/&part;z<sub>j</sub>)<br/>
+            = &sum;<sub>i</sub> (&minus;y<sub>i</sub>/s<sub>i</sub>) &times; s<sub>i</sub>(&delta;<sub>ij</sub>&minus;s<sub>j</sub>)<br/>
+            = &sum;<sub>i</sub> &minus;y<sub>i</sub>(&delta;<sub>ij</sub>&minus;s<sub>j</sub>)<br/>
+            = &minus;y<sub>j</sub> + s<sub>j</sub>&sum;<sub>i</sub>y<sub>i</sub><br/>
+            = &minus;y<sub>j</sub> + s<sub>j</sub> &nbsp; (since &sum;y=1)<br/>
             = <strong>s</strong>&minus;<strong>y</strong></p>
             <p><strong>4.</strong> The gradient (s&minus;y) is bounded between &minus;1 and 1 regardless of network depth or the magnitude of z. No explosion, no vanishing. This is why softmax+cross-entropy is the canonical choice for classification.</p>
           </div>
@@ -3755,9 +3755,9 @@ print(np.allclose(G_num, GA.T))  # also True — A is transposed B
           <span class="diff diff-medium">Medium</span>
           <span class="prob-type">Derivation</span>
         </div>
-        <p>You observe server response times (seconds): x&sub;1&sub;=0.5, x&sub;2&sub;=1.2, x&sub;3&sub;=0.3, x&sub;4&sub;=2.1, x&sub;5&sub;=0.8. You model these as i.i.d. Exponential(&lambda;): p(x|&lambda;) = &lambda;e&sup;(&minus;&lambda;x).</p>
+        <p>You observe server response times (seconds): x<sub>1</sub>=0.5, x<sub>2</sub>=1.2, x<sub>3</sub>=0.3, x<sub>4</sub>=2.1, x<sub>5</sub>=0.8. You model these as i.i.d. Exponential(&lambda;): p(x|&lambda;) = &lambda;e<sup>(&minus;&lambda;x)</sup>.</p>
         <ol>
-          <li>Write the log-likelihood log L(&lambda;; x&sub;1&sub;,&hellip;,x&sub;n&sub;).</li>
+          <li>Write the log-likelihood log L(&lambda;; x<sub>1</sub>,&hellip;,x<sub>n</sub>).</li>
           <li>Find &lambda;&circ;<sub>MLE</sub> by taking the derivative and setting to zero.</li>
           <li>Compute &lambda;&circ;<sub>MLE</sub> for the observations above.</li>
           <li>What is the MLE estimate for the mean response time E[X] = 1/&lambda;?</li>
@@ -3766,15 +3766,15 @@ print(np.allclose(G_num, GA.T))  # also True — A is transposed B
         <details class="hint-block hint">
           <summary>Hint</summary>
           <div class="hint-body">
-            <p>log L = &sum;[log &lambda; &minus; &lambda;x&sub;i&sub;] = n log &lambda; &minus; &lambda;&sum;x&sub;i&sub;. Differentiate w.r.t. &lambda; and set to 0.</p>
+            <p>log L = &sum;[log &lambda; &minus; &lambda;x<sub>i</sub>] = n log &lambda; &minus; &lambda;&sum;x<sub>i</sub>. Differentiate w.r.t. &lambda; and set to 0.</p>
           </div>
         </details>
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
-            <p><strong>1.</strong> log L = &sum;&sub;i&sub; (log &lambda; &minus; &lambda;x&sub;i&sub;) = n log &lambda; &minus; &lambda; &sum;x&sub;i&sub;</p>
-            <p><strong>2.</strong> d/d&lambda; log L = n/&lambda; &minus; &sum;x&sub;i&sub; = 0<br/>
-            &rArr; &lambda;&circ; = n / &sum;x&sub;i&sub; = 1/x&#772;</p>
+            <p><strong>1.</strong> log L = &sum;<sub>i</sub> (log &lambda; &minus; &lambda;x<sub>i</sub>) = n log &lambda; &minus; &lambda; &sum;x<sub>i</sub></p>
+            <p><strong>2.</strong> d/d&lambda; log L = n/&lambda; &minus; &sum;x<sub>i</sub> = 0<br/>
+            &rArr; &lambda;&circ; = n / &sum;x<sub>i</sub> = 1/x&#772;</p>
             <p><strong>3.</strong> &sum;x = 0.5+1.2+0.3+2.1+0.8 = 4.9, n=5<br/>
             &lambda;&circ; = 5/4.9 &asymp; 1.02 per second</p>
             <p><strong>4.</strong> E&#770;[X] = 1/&lambda;&circ; = x&#772; = 4.9/5 = 0.98 seconds<br/>The MLE for the mean is just the sample mean. Beautiful.</p>
@@ -3793,8 +3793,8 @@ print(np.allclose(G_num, GA.T))  # also True — A is transposed B
         </div>
         <p>Show rigorously that minimizing cross-entropy + L2 regularization is equivalent to MAP estimation with a Gaussian prior on weights.</p>
         <ol>
-          <li>Write the MAP objective: argmax&sub;&theta;&sub; [log P(data|&theta;) + log P(&theta;)].</li>
-          <li>Assume P(&theta;) = &prod;&sub;j&sub; N(&theta;&sub;j&sub;; 0, 1/&lambda;) (zero-mean Gaussian with precision &lambda;). Write log P(&theta;).</li>
+          <li>Write the MAP objective: argmax<sub>θ</sub> [log P(data|&theta;) + log P(&theta;)].</li>
+          <li>Assume P(&theta;) = &prod;<sub>j</sub> N(&theta;<sub>j</sub>; 0, 1/&lambda;) (zero-mean Gaussian with precision &lambda;). Write log P(&theta;).</li>
           <li>Show that maximizing MAP = minimizing cross-entropy + &lambda;/2 &times; |&theta;|&sup2;.</li>
           <li>What prior corresponds to L1 regularization? Write its PDF.</li>
           <li>Why does L1 lead to sparsity but L2 doesn't? Answer geometrically.</li>
@@ -3802,16 +3802,16 @@ print(np.allclose(G_num, GA.T))  # also True — A is transposed B
         <details class="hint-block hint">
           <summary>Hint</summary>
           <div class="hint-body">
-            <p>log N(x; 0, &sigma;&sup2;) = &minus;x&sup2;/(2&sigma;&sup2;) + const. With &sigma;&sup2; = 1/&lambda;: log P(&theta;) = &minus;&lambda;/2 &sum;&theta;&sub;j&sub;&sup2; + const.</p>
+            <p>log N(x; 0, &sigma;&sup2;) = &minus;x&sup2;/(2&sigma;&sup2;) + const. With &sigma;&sup2; = 1/&lambda;: log P(&theta;) = &minus;&lambda;/2 &sum;&theta;<sub>j</sub>&sup2; + const.</p>
           </div>
         </details>
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
-            <p><strong>1.</strong> argmax&sub;&theta;&sub; log P(&theta;|data) = argmax [log P(data|&theta;) + log P(&theta;)]</p>
-            <p><strong>2.</strong> log P(&theta;) = &sum;&sub;j&sub; log N(&theta;&sub;j&sub;;0,1/&lambda;) = &sum;&sub;j&sub; [&minus;&lambda;/2 &theta;&sub;j&sub;&sup2; + const] = &minus;&lambda;/2 |&theta;|&sup2; + const</p>
+            <p><strong>1.</strong> argmax<sub>θ</sub> log P(&theta;|data) = argmax [log P(data|&theta;) + log P(&theta;)]</p>
+            <p><strong>2.</strong> log P(&theta;) = &sum;<sub>j</sub> log N(&theta;<sub>j</sub>;0,1/&lambda;) = &sum;<sub>j</sub> [&minus;&lambda;/2 &theta;<sub>j</sub>&sup2; + const] = &minus;&lambda;/2 |&theta;|&sup2; + const</p>
             <p><strong>3.</strong> MAP = max [log P(data|&theta;) &minus; &lambda;/2 |&theta;|&sup2;]<br/>= min [&minus;log P(data|&theta;) + &lambda;/2 |&theta;|&sup2;]<br/>= min [cross-entropy + &lambda;/2 |&theta;|&sup2;] &nbsp; &check;</p>
-            <p><strong>4.</strong> L1 corresponds to Laplace prior: P(&theta;&sub;j&sub;) = (&lambda;/2)exp(&minus;&lambda;|&theta;&sub;j&sub;|). log P = &minus;&lambda;&sum;|&theta;&sub;j&sub;| + const.</p>
+            <p><strong>4.</strong> L1 corresponds to Laplace prior: P(&theta;<sub>j</sub>) = (&lambda;/2)exp(&minus;&lambda;|&theta;<sub>j</sub>|). log P = &minus;&lambda;&sum;|&theta;<sub>j</sub>| + const.</p>
             <p><strong>5.</strong> Geometric: the L2 ball is a smooth sphere &rarr; the optimum can land anywhere on the surface, rarely at zero. The L1 ball is a diamond (hypercube) with corners on the axes &rarr; the optimum is pulled toward corners where many coordinates are exactly zero. Sparsity comes from the corners of the L1 geometry.</p>
           </div>
         </details>
@@ -3847,8 +3847,8 @@ print(np.allclose(G_num, GA.T))  # also True — A is transposed B
             <p><strong>2.</strong> Var(Y) = a&sup2;Var(X) = a&sup2;&sigma;&sup2;</p>
             <p><strong>3.</strong> Y ~ N(a&mu;+b, a&sup2;&sigma;&sup2;). Linear transforms of Gaussians are Gaussian.</p>
             <p><strong>4.</strong> E[Z] = E[X&sup2;] = Var(X)+E[X]&sup2; = &sigma;&sup2;+&mu;&sup2;<br/>
-            Var(Z) = E[X&sup4;] &minus; E[X&sup2;]&sup2;. For Gaussian: E[X&sup4;] = 3&sigma;&sup4;+6&sigma;&sup2;&mu;&sup2;+&mu;&sup4; (fourth moment).<br/>
-            Var(Z) = 2&sigma;&sup4;+4&sigma;&sup2;&mu;&sup2;</p>
+            Var(Z) = E[X<sup>4</sup>] &minus; E[X&sup2;]&sup2;. For Gaussian: E[X<sup>4</sup>] = 3&sigma;<sup>4</sup>+6&sigma;&sup2;&mu;&sup2;+&mu;<sup>4</sup> (fourth moment).<br/>
+            Var(Z) = 2&sigma;<sup>4</sup>+4&sigma;&sup2;&mu;&sup2;</p>
             <p><strong>5.</strong> For &mu;=0,&sigma;=1 (standard normal): Z = X&sup2; ~ chi-squared(1).<br/>E[Z]=1, Var[Z]=2. These are the standard chi-squared moments.</p>
           </div>
         </details>
@@ -3912,7 +3912,7 @@ plt.legend(); plt.show()
           <span class="diff diff-easy">Easy</span>
           <span class="prob-type">Calculation</span>
         </div>
-        <p>Minimize f(x, y) = x&sup2; + 4y&sup2; starting from (x&sub;0&sub;, y&sub;0&sub;) = (3, 2), using learning rate &eta; = 0.1.</p>
+        <p>Minimize f(x, y) = x&sup2; + 4y&sup2; starting from (x<sub>0</sub>, y<sub>0</sub>) = (3, 2), using learning rate &eta; = 0.1.</p>
         <ol>
           <li>Compute &nabla;f at (3, 2).</li>
           <li>Perform 3 steps of gradient descent by hand. Track (x, y) and f(x,y) at each step.</li>
@@ -3950,7 +3950,7 @@ plt.legend(); plt.show()
         </div>
         <p>Implement Adam optimizer from scratch in NumPy. Minimize f(x) = x&sup2; + 10sin(x) (non-convex, multiple local minima).</p>
         <ol>
-          <li>Implement Adam with default hyperparameters: &beta;&sub;1&sub;=0.9, &beta;&sub;2&sub;=0.999, &epsilon;=1e&minus;8, lr=0.01.</li>
+          <li>Implement Adam with default hyperparameters: &beta;<sub>1</sub>=0.9, &beta;<sub>2</sub>=0.999, &epsilon;=1e&minus;8, lr=0.01.</li>
           <li>Run for 1000 steps from x=5. Plot the trajectory of x and f(x) over time.</li>
           <li>Compare with vanilla gradient descent (same lr). Which finds a better minimum?</li>
           <li>Change the starting point to x=&minus;5. Does Adam find the same minimum? What does this say about local minima?</li>
@@ -4016,15 +4016,15 @@ for x0 in [5, -5]:
         <ol>
           <li>Write the entropy functional H[p] = &minus;&int; p(x) ln p(x) dx.</li>
           <li>Write the three constraints as equalities: normalization, mean, variance.</li>
-          <li>Form the Lagrangian L[p] = H[p] &minus; &lambda;&sub;0&sub;(&int;p&minus;1) &minus; &lambda;&sub;1&sub;(&int;xp&minus;&mu;) &minus; &lambda;&sub;2&sub;(&int;(x&minus;&mu;)&sup2;p&minus;&sigma;&sup2;).</li>
+          <li>Form the Lagrangian L[p] = H[p] &minus; &lambda;<sub>0</sub>(&int;p&minus;1) &minus; &lambda;<sub>1</sub>(&int;xp&minus;&mu;) &minus; &lambda;<sub>2</sub>(&int;(x&minus;&mu;)&sup2;p&minus;&sigma;&sup2;).</li>
           <li>Differentiate with respect to p(x) and set to zero. What form does p(x) have?</li>
           <li>Show that the result is exactly the Gaussian distribution.</li>
         </ol>
         <details class="hint-block hint">
           <summary>Hint</summary>
           <div class="hint-body">
-            <p>&delta;L/&delta;p(x) = &minus;ln p(x) &minus; 1 &minus; &lambda;&sub;0&sub; &minus; &lambda;&sub;1&sub;x &minus; &lambda;&sub;2&sub;(x&minus;&mu;)&sup2; = 0.<br/>
-            This means ln p(x) = &minus;1 &minus; &lambda;&sub;0&sub; &minus; &lambda;&sub;1&sub;x &minus; &lambda;&sub;2&sub;(x&minus;&mu;)&sup2;, so p(x) = C exp(&minus;&lambda;&sub;2&sub;(x&minus;&mu;)&sup2; + linear terms). The linear terms get absorbed into a shift of &mu; if you complete the square.</p>
+            <p>&delta;L/&delta;p(x) = &minus;ln p(x) &minus; 1 &minus; &lambda;<sub>0</sub> &minus; &lambda;<sub>1</sub>x &minus; &lambda;<sub>2</sub>(x&minus;&mu;)&sup2; = 0.<br/>
+            This means ln p(x) = &minus;1 &minus; &lambda;<sub>0</sub> &minus; &lambda;<sub>1</sub>x &minus; &lambda;<sub>2</sub>(x&minus;&mu;)&sup2;, so p(x) = C exp(&minus;&lambda;<sub>2</sub>(x&minus;&mu;)&sup2; + linear terms). The linear terms get absorbed into a shift of &mu; if you complete the square.</p>
           </div>
         </details>
         <details class="hint-block solution">
@@ -4032,11 +4032,11 @@ for x0 in [5, -5]:
           <div class="hint-body">
             <p><strong>Variational derivative:</strong><br/>
             Setting &delta;L/&delta;p = 0:<br/>
-            &minus;ln p(x) &minus; 1 &minus; &lambda;&sub;0&sub; &minus; &lambda;&sub;1&sub;x &minus; &lambda;&sub;2&sub;(x&minus;&mu;)&sup2; = 0<br/>
-            &rArr; p(x) = exp(&minus;1 &minus; &lambda;&sub;0&sub;) &middot; exp(&minus;&lambda;&sub;1&sub;x &minus; &lambda;&sub;2&sub;(x&minus;&mu;)&sup2;)</p>
-            <p>The &minus;&lambda;&sub;1&sub;x term combines with &minus;&lambda;&sub;2&sub;(x&minus;&mu;)&sup2; by completing the square, and since we have the constraint that the mean is &mu;, &lambda;&sub;1&sub; must be zero (the exponential must be symmetric around &mu;).</p>
-            <p>So: p(x) &prop; exp(&minus;&lambda;&sub;2&sub;(x&minus;&mu;)&sup2;)<br/>
-            Applying the normalization constraint: &lambda;&sub;2&sub; = 1/(2&sigma;&sup2;)<br/>
+            &minus;ln p(x) &minus; 1 &minus; &lambda;<sub>0</sub> &minus; &lambda;<sub>1</sub>x &minus; &lambda;<sub>2</sub>(x&minus;&mu;)&sup2; = 0<br/>
+            &rArr; p(x) = exp(&minus;1 &minus; &lambda;<sub>0</sub>) &middot; exp(&minus;&lambda;<sub>1</sub>x &minus; &lambda;<sub>2</sub>(x&minus;&mu;)&sup2;)</p>
+            <p>The &minus;&lambda;<sub>1</sub>x term combines with &minus;&lambda;<sub>2</sub>(x&minus;&mu;)&sup2; by completing the square, and since we have the constraint that the mean is &mu;, &lambda;<sub>1</sub> must be zero (the exponential must be symmetric around &mu;).</p>
+            <p>So: p(x) &prop; exp(&minus;&lambda;<sub>2</sub>(x&minus;&mu;)&sup2;)<br/>
+            Applying the normalization constraint: &lambda;<sub>2</sub> = 1/(2&sigma;&sup2;)<br/>
             &rArr; p(x) = (1/&radic;(2&pi;&sigma;&sup2;)) exp(&minus;(x&minus;&mu;)&sup2;/(2&sigma;&sup2;))</p>
             <p><strong>Conclusion:</strong> The Gaussian is the maximum entropy distribution for fixed mean and variance. This is the deepest reason it appears in so many places: it makes the fewest additional assumptions beyond mean and variance.</p>
           </div>
@@ -4057,7 +4057,7 @@ for x0 in [5, -5]:
         </div>
         <p>A coin shows heads with probability p.</p>
         <ol>
-          <li>Write H(p) = &minus;p log&sub;2&sub;(p) &minus; (1&minus;p) log&sub;2&sub;(1&minus;p). Evaluate at p=0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0.</li>
+          <li>Write H(p) = &minus;p log<sub>2</sub>(p) &minus; (1&minus;p) log<sub>2</sub>(1&minus;p). Evaluate at p=0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0.</li>
           <li>Plot H(p) for p &isin; [0,1]. What shape is it? Where is the maximum?</li>
           <li>A fair coin has H=1 bit. A coin with p=0.9 has H&asymp;0.47 bits. Interpret both values.</li>
           <li>Decision trees split on features that maximize <em>information gain</em> = H(parent) &minus; &sum;H(children). Connect this to entropy reduction.</li>
@@ -4214,9 +4214,9 @@ print(f"MC KL:       {kl_mc:.4f}")   # ≈ 2.1931
         </div>
         <p>Prove each claim by induction:</p>
         <ol>
-          <li>&sum;&sub;i=1&sub;&sup;n i&sup2; = n(n+1)(2n+1)/6</li>
+          <li>&sum;<sub>i=1</sub><sup>n</sup> i&sup2; = n(n+1)(2n+1)/6</li>
           <li>A binary tree with n internal nodes has exactly n+1 leaf nodes.</li>
-          <li>The number of subsets of an n-element set is 2&sup;n.</li>
+          <li>The number of subsets of an n-element set is 2<sup>n</sup>.</li>
         </ol>
         <details class="hint-block hint">
           <summary>Hint</summary>
@@ -4229,16 +4229,16 @@ print(f"MC KL:       {kl_mc:.4f}")   # ≈ 2.1931
           <summary>Full Solution</summary>
           <div class="hint-body">
             <p><strong>1.</strong> Base: n=1: 1&sup2;=1=1&times;2&times;3/6=1. &check;<br/>
-            Inductive step: assume &sum;&sub;i=1&sub;&sup;k i&sup2; = k(k+1)(2k+1)/6.<br/>
-            &sum;&sub;i=1&sub;&sup;(k+1) i&sup2; = k(k+1)(2k+1)/6 + (k+1)&sup2;<br/>
+            Inductive step: assume &sum;<sub>i=1</sub><sup>k</sup> i&sup2; = k(k+1)(2k+1)/6.<br/>
+            &sum;<sub>i=1</sub><sup>(k+1)</sup> i&sup2; = k(k+1)(2k+1)/6 + (k+1)&sup2;<br/>
             = (k+1)[k(2k+1)/6 + (k+1)]<br/>
             = (k+1)(2k&sup2;+k+6k+6)/6<br/>
             = (k+1)(2k&sup2;+7k+6)/6<br/>
             = (k+1)(k+2)(2k+3)/6 &nbsp; &check;</p>
             <p><strong>2.</strong> Base: single internal node &rarr; 2 leaves, 1+1=2. &check;<br/>
             Step: tree with k internals &rarr; k+1 leaves. Add an internal node by replacing any leaf with an internal node + 2 new leaves: internal count k+1, leaves = (k+1)-1+2 = k+2 = (k+1)+1. &check;</p>
-            <p><strong>3.</strong> Base: n=0: one subset (empty set), 2&sup;0=1. &check;<br/>
-            Step: adding element x<sub>n+1</sub> to an n-set: every subset of the (n+1)-set either contains x<sub>n+1</sub> or not. So |subsets of (n+1)-set| = 2&times;2&sup;n = 2&sup;(n+1). &check;</p>
+            <p><strong>3.</strong> Base: n=0: one subset (empty set), 2<sup>0</sup>=1. &check;<br/>
+            Step: adding element x<sub>n+1</sub> to an n-set: every subset of the (n+1)-set either contains x<sub>n+1</sub> or not. So |subsets of (n+1)-set| = 2&times;2<sup>n</sup> = 2<sup>(n+1)</sup>. &check;</p>
           </div>
         </details>
       </div>
@@ -4385,10 +4385,10 @@ print("MST total weight:", sum(w for _,_,w in mst))
           <span class="diff diff-hard">Hard</span>
           <span class="prob-type">Derivation</span>
         </div>
-        <p>Assume observed data y&sub;i&sub; = <strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub; + &epsilon;&sub;i&sub;, where &epsilon;&sub;i&sub; ~ N(0, &sigma;&sup2;) i.i.d. noise.</p>
+        <p>Assume observed data y<sub>i</sub> = <strong>w</strong><sup>T</sup><strong>x</strong><sub>i</sub> + &epsilon;<sub>i</sub>, where &epsilon;<sub>i</sub> ~ N(0, &sigma;&sup2;) i.i.d. noise.</p>
         <ol>
-          <li>Write P(y&sub;i&sub; | <strong>x</strong>&sub;i&sub;, <strong>w</strong>) as a Gaussian density.</li>
-          <li>Write the log-likelihood log L(<strong>w</strong>) = &sum;&sub;i&sub; log P(y&sub;i&sub;|<strong>x</strong>&sub;i&sub;,<strong>w</strong>).</li>
+          <li>Write P(y<sub>i</sub> | <strong>x</strong><sub>i</sub>, <strong>w</strong>) as a Gaussian density.</li>
+          <li>Write the log-likelihood log L(<strong>w</strong>) = &sum;<sub>i</sub> log P(y<sub>i</sub>|<strong>x</strong><sub>i</sub>,<strong>w</strong>).</li>
           <li>Show that maximizing log L(<strong>w</strong>) is equivalent to minimizing the MSE loss.</li>
           <li>What assumption about the noise does MSE loss encode? What if the noise is Laplace instead?</li>
           <li>How does this change the loss function and which real-world scenarios call for it?</li>
@@ -4396,10 +4396,10 @@ print("MST total weight:", sum(w for _,_,w in mst))
         <details class="hint-block solution">
           <summary>Full Solution</summary>
           <div class="hint-body">
-            <p><strong>1.</strong> P(y&sub;i&sub;|<strong>x</strong>&sub;i&sub;,<strong>w</strong>) = (1/&radic;(2&pi;&sigma;&sup2;)) exp(&minus;(y&sub;i&sub;&minus;<strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub;)&sup2; / (2&sigma;&sup2;))</p>
-            <p><strong>2.</strong> log L = &sum;&sub;i&sub;[&minus;(1/2)log(2&pi;&sigma;&sup2;) &minus; (y&sub;i&sub;&minus;<strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub;)&sup2;/(2&sigma;&sup2;)]</p>
-            <p><strong>3.</strong> Maximizing log L &hArr; minimizing &sum;&sub;i&sub;(y&sub;i&sub;&minus;<strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub;)&sup2; = n &times; MSE &nbsp; &check;</p>
-            <p><strong>4.</strong> MSE encodes <em>Gaussian noise</em> assumption. If noise is Laplace: P(&epsilon;) &prop; exp(&minus;|&epsilon;|/b) &rArr; log-likelihood has &minus;&sum;|y&sub;i&sub;&minus;<strong>w</strong>&sup;T<strong>x</strong>&sub;i&sub;|/b term &rArr; <em>maximizing = minimizing MAE (Mean Absolute Error)</em>.</p>
+            <p><strong>1.</strong> P(y<sub>i</sub>|<strong>x</strong><sub>i</sub>,<strong>w</strong>) = (1/&radic;(2&pi;&sigma;&sup2;)) exp(&minus;(y<sub>i</sub>&minus;<strong>w</strong><sup>T</sup><strong>x</strong><sub>i</sub>)&sup2; / (2&sigma;&sup2;))</p>
+            <p><strong>2.</strong> log L = &sum;<sub>i</sub>[&minus;(1/2)log(2&pi;&sigma;&sup2;) &minus; (y<sub>i</sub>&minus;<strong>w</strong><sup>T</sup><strong>x</strong><sub>i</sub>)&sup2;/(2&sigma;&sup2;)]</p>
+            <p><strong>3.</strong> Maximizing log L &hArr; minimizing &sum;<sub>i</sub>(y<sub>i</sub>&minus;<strong>w</strong><sup>T</sup><strong>x</strong><sub>i</sub>)&sup2; = n &times; MSE &nbsp; &check;</p>
+            <p><strong>4.</strong> MSE encodes <em>Gaussian noise</em> assumption. If noise is Laplace: P(&epsilon;) &prop; exp(&minus;|&epsilon;|/b) &rArr; log-likelihood has &minus;&sum;|y<sub>i</sub>&minus;<strong>w</strong><sup>T</sup><strong>x</strong><sub>i</sub>|/b term &rArr; <em>maximizing = minimizing MAE (Mean Absolute Error)</em>.</p>
             <p><strong>5.</strong> MAE is more robust to outliers because the Laplace distribution has heavier tails than Gaussian — it doesn't penalize large errors as severely. Use MAE when: predicting house prices (heavy tails), financial returns, any domain where outliers are common and real, not errors to ignore.</p>
           </div>
         </details>
@@ -4412,13 +4412,13 @@ print("MST total weight:", sum(w for _,_,w in mst))
           <span class="diff diff-hard">Hard</span>
           <span class="prob-type">Derivation + Coding</span>
         </div>
-        <p>The scaled dot-product attention computes: Attention(Q,K,V) = softmax(QK&sup;T/&radic;d)<strong>V</strong>.</p>
+        <p>The scaled dot-product attention computes: Attention(Q,K,V) = softmax(QK<sup>T</sup>/&radic;d)<strong>V</strong>.</p>
         <ol>
           <li>Implement self-attention from scratch for a sequence of 3 tokens with d=4 dimensions.</li>
-          <li>Show that QK&sup;T is a matrix of dot products (similarities). Why is it divided by &radic;d?</li>
+          <li>Show that QK<sup>T</sup> is a matrix of dot products (similarities). Why is it divided by &radic;d?</li>
           <li>After softmax, each row of the attention matrix sums to 1. Interpret each row as a probability distribution. What is it a distribution over?</li>
           <li>Show that if Q=K=V=X (self-attention, identity projections), the output is a <em>weighted average</em> of the input tokens, where the weights come from pairwise similarity.</li>
-          <li>How does temperature &tau; in softmax(QK&sup;T/&tau;) change the attention pattern? What does &tau;&rarr;0 give?</li>
+          <li>How does temperature &tau; in softmax(QK<sup>T</sup>/&tau;) change the attention pattern? What does &tau;&rarr;0 give?</li>
         </ol>
         <details class="hint-block solution">
           <summary>Full Solution</summary>
@@ -4474,8 +4474,8 @@ print("Low  τ (sharp):", np.round(W_low_T[0],  3))
         <ol>
           <li>Start from log P(x) = log &int; P(x|z)P(z) dz. Introduce an approximate posterior q(z|x) and derive: log P(x) &ge; E<sub>q</sub>[log P(x|z)] &minus; KL(q(z|x) || P(z)). This is the ELBO.</li>
           <li>Name both terms and explain what they each minimize.</li>
-          <li>Assume q(z|x) = N(&mu;&sub;&phi;&sub;, &sigma;&sub;&phi;&sub;&sup2;) and P(z) = N(0,I). Use your result from Problem 5.3 to write the analytic KL term.</li>
-          <li>The reparameterization trick: z = &mu;&sub;&phi;&sub; + &sigma;&sub;&phi;&sub; &odot; &epsilon;, &epsilon; ~ N(0,I). Why is this needed for backpropagation?</li>
+          <li>Assume q(z|x) = N(&mu;<sub>φ</sub>, &sigma;<sub>φ</sub>&sup2;) and P(z) = N(0,I). Use your result from Problem 5.3 to write the analytic KL term.</li>
+          <li>The reparameterization trick: z = &mu;<sub>φ</sub> + &sigma;<sub>φ</sub> &odot; &epsilon;, &epsilon; ~ N(0,I). Why is this needed for backpropagation?</li>
           <li>Implement the VAE loss (ELBO) in PyTorch for a single batch.</li>
         </ol>
         <details class="hint-block hint">
@@ -4497,7 +4497,7 @@ print("Low  τ (sharp):", np.round(W_low_T[0],  3))
             <p><strong>2.</strong> Term 1 E<sub>q</sub>[log P(x|z)] = <em>reconstruction loss</em>: how well the decoder reconstructs x from z. For images with MSE decoder: &minus;||x&minus;x&#770;||&sup2;.<br/>
             Term 2 &minus;KL(q||P(z)) = <em>regularization</em>: keeps the encoder's posterior close to the standard normal prior. Enables smooth interpolation in latent space and random sampling.</p>
             <p><strong>3.</strong> KL(N(&mu;,&sigma;&sup2;)||N(0,1)) = (1/2)(&sigma;&sup2;+&mu;&sup2;&minus;1&minus;log&sigma;&sup2;) &nbsp; (per dimension; sum over all dims).</p>
-            <p><strong>4.</strong> Sampling z ~ q(z|x) is non-differentiable &rarr; gradients can't flow to &mu;&sub;&phi;&sub;, &sigma;&sub;&phi;&sub;. Reparameterize: z = &mu;+&sigma;&odot;&epsilon;, &epsilon;~N(0,I). Now randomness is in &epsilon; (not a parameter), so &part;z/&part;&mu; = 1 and &part;z/&part;&sigma; = &epsilon; &rarr; gradients flow.</p>
+            <p><strong>4.</strong> Sampling z ~ q(z|x) is non-differentiable &rarr; gradients can't flow to &mu;<sub>φ</sub>, &sigma;<sub>φ</sub>. Reparameterize: z = &mu;+&sigma;&odot;&epsilon;, &epsilon;~N(0,I). Now randomness is in &epsilon; (not a parameter), so &part;z/&part;&mu; = 1 and &part;z/&part;&sigma; = &epsilon; &rarr; gradients flow.</p>
             <pre>import torch
 import torch.nn.functional as F
 
