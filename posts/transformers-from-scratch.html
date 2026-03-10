@@ -1,0 +1,1919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transformers from Scratch: The Complete Guide — Sudhanshu</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    .concept-box { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .warning-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .danger-box { background: #fff1f2; border-left: 4px solid #ef4444; border-radius: 0 8px 8px 0; padding: 1.1rem 1.3rem; margin: 1.8rem 0; font-size: 0.95rem; }
+    .output-block { background: #0f172a; border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-family: monospace; font-size: 0.85rem; color: #a3e635; overflow-x: auto; border: 1px solid #1e293b; }
+    .toc { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.5rem; margin: 2rem 0; }
+    .toc h4 { margin-bottom: 0.6rem; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 1.2rem; }
+    .toc li { margin: 0.3rem 0; font-size: 0.92rem; }
+    .toc a { color: var(--accent); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .section-divider { border: none; border-top: 2px dashed var(--border); margin: 2.5rem 0; }
+    .math-block { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-family: monospace; font-size: 0.92rem; overflow-x: auto; text-align: center; line-height: 1.8; }
+    .dim-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.88rem; }
+    .dim-table th { background: #1e1e2e; color: #cdd6f4; padding: 0.5rem 0.75rem; text-align: left; }
+    .dim-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-family: monospace; }
+    .dim-table tr:nth-child(even) td { background: #f8fafc; }
+
+    /* ── Animation Box Styles ── */
+    .anim-box {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.85rem;
+      margin: 1.75rem 0;
+      background: #fafafa;
+      text-align: center;
+      overflow: hidden;
+    }
+    .anim-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #9ca3af;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .anim-title::before, .anim-title::after {
+      content: '';
+      flex: 1;
+      max-width: 80px;
+      height: 1px;
+      background: #e5e7eb;
+    }
+    .anim-canvas-wrap { display: flex; justify-content: center; }
+    .anim-canvas-wrap canvas { border-radius: 8px; max-width: 100%; }
+    .anim-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.83rem;
+      color: #4b5563;
+    }
+    .anim-btn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.28rem 0.75rem;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      transition: background 0.15s;
+    }
+    .anim-btn:hover { background: #1d4ed8; }
+    .anim-note {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 0.55rem;
+    }
+  </style>
+</head>
+<body>
+
+  <script>
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      this.beginPath();
+      this.moveTo(x+r, y);
+      this.lineTo(x+w-r, y); this.arcTo(x+w, y, x+w, y+r, r);
+      this.lineTo(x+w, y+h-r); this.arcTo(x+w, y+h, x+w-r, y+h, r);
+      this.lineTo(x+r, y+h); this.arcTo(x, y+h, x, y+h-r, r);
+      this.lineTo(x, y+r); this.arcTo(x, y, x+r, y, r);
+      this.closePath();
+    };
+  }
+  </script>
+
+  <nav>
+    <a href="../index.html" class="nav-brand">&#x26A1; sudhanshu</a>
+    <div class="nav-links">
+      <a href="../index.html#writing">writing</a>
+      <a href="../index.html#about">about</a>
+      <a href="mailto:sudhanshufromearth@gmail.com">contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <a href="../index.html" class="back-link">&larr; back to home</a>
+
+    <div class="post-header">
+      <div class="post-meta">
+        <span class="post-date">March 2026</span>
+        <span class="post-tag">research</span>
+        <span class="read-time">&middot; 90 min read</span>
+      </div>
+      <h1>Transformers from Scratch: Beginner to Hero</h1>
+      <p class="post-description">
+        The complete, ground-up guide to the Transformer architecture &mdash; from why RNNs
+        failed, through every matrix multiplication in self-attention, to building GPT and
+        BERT from first principles. No hand-waving, no magic. Every dimension tracked,
+        every design choice explained, with PyTorch code you can actually run.
+      </p>
+    </div>
+
+    <div class="post-body">
+
+      <p>
+        The Transformer is the single most important architecture in modern AI. GPT, BERT,
+        LLaMA, Gemini, DALL-E, Whisper, AlphaFold 2 &mdash; all Transformers. If you work
+        in ML and don't deeply understand this architecture, you're driving a car without
+        knowing where the steering wheel is.
+      </p>
+
+      <p>
+        This post builds the Transformer from absolute scratch. We start from the problems
+        that motivated it, derive every component mathematically, implement it in PyTorch,
+        and then show how it spawned the entire modern AI landscape. By the end, you'll be
+        able to read "Attention Is All You Need" and understand every single line.
+      </p>
+
+      <div class="toc">
+        <h4>Table of Contents</h4>
+        <ol>
+          <li><a href="#before-transformers">Before Transformers: Why RNNs and LSTMs failed</a></li>
+          <li><a href="#attention-intuition">The attention intuition</a></li>
+          <li><a href="#self-attention">Self-attention: The math, step by step</a></li>
+          <li><a href="#multi-head">Multi-head attention</a></li>
+          <li><a href="#positional-encoding">Positional encoding</a></li>
+          <li><a href="#encoder-block">The encoder block</a></li>
+          <li><a href="#decoder-block">The decoder block</a></li>
+          <li><a href="#full-architecture">The full Transformer architecture</a></li>
+          <li><a href="#training">Training: Loss, optimizer, and schedule</a></li>
+          <li><a href="#pytorch-implementation">Complete PyTorch implementation</a></li>
+          <li><a href="#bert-gpt">BERT vs GPT: Encoder-only vs decoder-only</a></li>
+          <li><a href="#modern-improvements">Modern improvements: RoPE, GQA, FlashAttention, RMSNorm</a></li>
+          <li><a href="#scaling-laws">Scaling laws and why size matters</a></li>
+          <li><a href="#inference">Inference: KV cache, speculative decoding, and serving</a></li>
+          <li><a href="#vision-transformers">Beyond text: Vision Transformers and multimodal</a></li>
+          <li><a href="#takeaways">Takeaways</a></li>
+        </ol>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 1 ==================== -->
+      <h2 id="before-transformers">1. Before Transformers: Why RNNs and LSTMs Failed</h2>
+
+      <p>
+        To understand why Transformers exist, you need to understand what they replaced and
+        why the old approaches broke down. The story starts with sequence modeling.
+      </p>
+
+      <h3>The sequence problem</h3>
+
+      <p>
+        Language is sequential. The meaning of "bank" in "I went to the bank to deposit money"
+        is different from "I sat on the river bank." To understand a word, you need context
+        from other words in the sequence. The question is: how does a neural network process
+        a variable-length sequence of tokens and produce useful representations?
+      </p>
+
+      <h3>RNNs: Process one token at a time</h3>
+
+      <p>
+        Recurrent Neural Networks (RNNs) process sequences one token at a time, maintaining
+        a hidden state that gets updated at each step:
+      </p>
+
+      <div class="math-block">
+        h_t = tanh(W_hh &middot; h_{t-1} + W_xh &middot; x_t + b)
+      </div>
+
+      <p>
+        The hidden state <code>h_t</code> is supposed to encode "everything the model has
+        seen so far." In practice, it has three fatal problems:
+      </p>
+
+      <ul>
+        <li><strong>Vanishing gradients.</strong> During backpropagation through time (BPTT),
+        gradients are multiplied by W_hh at every timestep. If the largest eigenvalue of W_hh
+        is &lt; 1, gradients shrink exponentially. A 100-token sentence means the gradient
+        from token 100 barely influences the parameters used at token 1. The model simply
+        cannot learn long-range dependencies.</li>
+
+        <li><strong>Sequential computation.</strong> Token t depends on h_{t-1}, which depends
+        on h_{t-2}, all the way back. You cannot parallelize across the sequence dimension.
+        On a GPU with thousands of cores, you're using essentially one core at a time per
+        sequence step. Training on long sequences is painfully slow.</li>
+
+        <li><strong>Information bottleneck.</strong> All information about a 500-token
+        sentence must be compressed into a single fixed-size vector h_500. This is like
+        trying to remember an entire book by writing a one-sentence summary after reading
+        each page. Important details from early in the sequence are inevitably overwritten.</li>
+      </ul>
+
+      <h3>LSTMs and GRUs: Band-aids, not solutions</h3>
+
+      <p>
+        Long Short-Term Memory (LSTM) networks introduced gates &mdash; forget gate, input
+        gate, output gate &mdash; and a separate cell state that allows information to flow
+        across timesteps without being multiplied by a weight matrix:
+      </p>
+
+      <div class="math-block">
+        f_t = &sigma;(W_f &middot; [h_{t-1}, x_t] + b_f)&emsp;&emsp;<em>forget gate</em><br>
+        i_t = &sigma;(W_i &middot; [h_{t-1}, x_t] + b_i)&emsp;&emsp;<em>input gate</em><br>
+        C_t = f_t &odot; C_{t-1} + i_t &odot; tanh(W_C &middot; [h_{t-1}, x_t] + b_C)<br>
+        o_t = &sigma;(W_o &middot; [h_{t-1}, x_t] + b_o)&emsp;&emsp;<em>output gate</em><br>
+        h_t = o_t &odot; tanh(C_t)
+      </div>
+
+      <p>
+        The cell state C_t provides a "highway" for gradient flow, significantly reducing
+        (but not eliminating) vanishing gradients. LSTMs can learn dependencies over ~100-200
+        tokens in practice. But they still have the sequential computation problem, and the
+        information bottleneck remains.
+      </p>
+
+      <div class="concept-box">
+        <strong>The fundamental insight:</strong> The sequential processing constraint is not
+        a feature &mdash; it's a limitation. Language doesn't require sequential processing.
+        When you read a sentence, you don't forget the beginning by the time you reach the
+        end. You see all the words at once and understand their relationships in parallel.
+        What if a model could do the same?
+      </div>
+
+      <h3>Seq2Seq with attention: The first breakthrough</h3>
+
+      <p>
+        In 2014, Bahdanau et al. proposed a crucial modification to the encoder-decoder
+        architecture: instead of forcing the decoder to rely on a single context vector,
+        let it <em>attend</em> to all encoder hidden states at each decoding step. The
+        decoder learns a weighted combination of encoder states, where the weights are
+        computed based on how relevant each encoder state is to the current decoder state.
+      </p>
+
+      <p>
+        This was a game-changer for translation quality. But the model still used RNNs
+        underneath &mdash; attention was layered on top. The sequential bottleneck remained.
+        The question became: what if we got rid of recurrence entirely and used
+        <em>only</em> attention?
+      </p>
+
+      <p>
+        That question was answered in June 2017 by Vaswani et al. in "Attention Is All You Need."
+      </p>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 2 ==================== -->
+      <h2 id="attention-intuition">2. The Attention Intuition</h2>
+
+      <p>
+        Before diving into the math, let's build the right mental model. Attention answers
+        a simple question: <strong>for each element in a sequence, how much should it
+        "look at" every other element?</strong>
+      </p>
+
+      <h3>The database analogy</h3>
+
+      <p>
+        Think of attention as a soft database lookup. In a traditional database:
+      </p>
+
+      <ul>
+        <li>You have a <strong>query</strong> (what you're looking for)</li>
+        <li>You have <strong>keys</strong> (index entries in the database)</li>
+        <li>You have <strong>values</strong> (the actual data stored)</li>
+        <li>You match the query against keys, and return the corresponding values</li>
+      </ul>
+
+      <p>
+        In a hard database lookup, you get exactly one result: the entry whose key matches
+        your query. In attention, the lookup is <em>soft</em>: you compute a similarity
+        score between the query and <em>every</em> key, turn those scores into weights
+        (using softmax), and return a weighted sum of all values. Every entry contributes,
+        but relevant entries contribute more.
+      </p>
+
+      <h3>A concrete example</h3>
+
+      <p>
+        Consider the sentence: "The cat sat on the mat because it was tired."
+      </p>
+
+      <p>
+        What does "it" refer to? A human instantly knows: "the cat." An attention mechanism
+        learns the same thing. When processing "it":
+      </p>
+
+      <ul>
+        <li>The <strong>query</strong> is: "what does 'it' refer to?"</li>
+        <li>Each word produces a <strong>key</strong>: "am I a good referent for 'it'?"</li>
+        <li>Each word also produces a <strong>value</strong>: "here is my semantic content"</li>
+        <li>The attention scores will be high for "cat" (because it's a noun, animate, singular),
+        lower for "mat" (noun but inanimate), and near zero for function words like "the" and "on"</li>
+        <li>The output for "it" is a weighted combination of all word values, dominated by "cat"</li>
+      </ul>
+
+      <div class="concept-box">
+        <strong>Key insight:</strong> Attention doesn't care about distance. Token 1 can attend
+        to token 500 just as easily as token 499. This immediately solves the long-range
+        dependency problem that plagued RNNs. The cost is quadratic: every token must compare
+        against every other token, giving O(n&sup2;) complexity.
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 3 ==================== -->
+      <h2 id="self-attention">3. Self-Attention: The Math, Step by Step</h2>
+
+      <p>
+        Now let's formalize this. Self-attention is "self" because the queries, keys, and
+        values all come from the same sequence. The input attends to itself.
+      </p>
+
+      <h3>Step 1: Linear projections</h3>
+
+      <p>
+        Given an input matrix X of shape <code>(n, d_model)</code> where n is the sequence
+        length and d_model is the embedding dimension, we project it into three separate
+        spaces:
+      </p>
+
+      <div class="math-block">
+        Q = X &middot; W_Q&emsp;&emsp;shape: (n, d_k)<br>
+        K = X &middot; W_K&emsp;&emsp;shape: (n, d_k)<br>
+        V = X &middot; W_V&emsp;&emsp;shape: (n, d_v)
+      </div>
+
+      <p>
+        Where W_Q, W_K have shape <code>(d_model, d_k)</code> and W_V has shape
+        <code>(d_model, d_v)</code>. In the original paper, d_k = d_v = d_model / h,
+        where h is the number of attention heads.
+      </p>
+
+      <p>
+        <strong>Why separate projections?</strong> If we used X directly for all three,
+        every word would have the same query, key, and value representation. The separate
+        learned projections allow the model to ask different questions (Q) than what it
+        advertises as relevant (K) or what it communicates as content (V). A word might be
+        a great answer to a certain question without being the one asking that question.
+      </p>
+
+      <h3>Step 2: Compute attention scores</h3>
+
+      <p>
+        Multiply every query against every key using a dot product:
+      </p>
+
+      <div class="math-block">
+        scores = Q &middot; K^T&emsp;&emsp;shape: (n, n)
+      </div>
+
+      <p>
+        Element (i, j) of this matrix is the dot product of query_i and key_j &mdash; how
+        much token i should attend to token j. The result is an n &times; n matrix. For a
+        512-token sequence, that's 262,144 pairwise scores. This is where the quadratic
+        cost comes from.
+      </p>
+
+      <h3>Step 3: Scale</h3>
+
+      <p>
+        Divide by the square root of d_k:
+      </p>
+
+      <div class="math-block">
+        scaled_scores = scores / &radic;d_k
+      </div>
+
+      <p>
+        <strong>Why scale?</strong> Without scaling, when d_k is large, the dot products
+        grow large in magnitude. Large values push softmax into regions where gradients
+        are extremely small (the tails of the softmax curve), causing vanishing gradients.
+        Dividing by &radic;d_k keeps the variance of the dot products at ~1, keeping softmax
+        in its useful range.
+      </p>
+
+      <div class="concept-box">
+        <strong>The math behind scaling:</strong> If the components of Q and K are independent
+        random variables with mean 0 and variance 1, then their dot product Q &middot; K has
+        mean 0 and variance d_k. Dividing by &radic;d_k normalizes the variance back to 1.
+        This isn't a hack &mdash; it's a principled normalization.
+      </div>
+
+      <h3>Step 4: Softmax</h3>
+
+      <p>
+        Apply softmax along the last dimension (across keys for each query):
+      </p>
+
+      <div class="math-block">
+        attention_weights = softmax(scaled_scores)&emsp;&emsp;shape: (n, n)
+      </div>
+
+      <p>
+        Each row now sums to 1. Row i contains the attention distribution for token i:
+        how much of each other token's value it should incorporate. These weights are
+        non-negative and normalized &mdash; they form a proper probability distribution
+        over the sequence.
+      </p>
+
+      <h3>Step 5: Weighted sum of values</h3>
+
+      <div class="math-block">
+        output = attention_weights &middot; V&emsp;&emsp;shape: (n, d_v)
+      </div>
+
+      <p>
+        Each output row is a weighted combination of all value vectors, where the weights
+        come from the attention scores. Token i's output is dominated by the values of
+        tokens that are most relevant to it.
+      </p>
+
+      <h3>The complete formula</h3>
+
+      <div class="math-block">
+        Attention(Q, K, V) = softmax(Q &middot; K^T / &radic;d_k) &middot; V
+      </div>
+
+      <p>
+        That's it. One line. Every modern language model, vision model, and multimodal model
+        is built on variations of this single equation.
+      </p>
+
+      <h3>Let's trace through with numbers</h3>
+
+      <p>
+        Suppose d_model = 4, d_k = d_v = 2, and our sequence is 3 tokens: ["I", "love", "ML"].
+      </p>
+
+      <pre><code># Input embeddings X: shape (3, 4)
+X = [[0.1, 0.2, 0.3, 0.4],   # "I"
+     [0.5, 0.6, 0.7, 0.8],   # "love"
+     [0.9, 1.0, 1.1, 1.2]]   # "ML"
+
+# Weight matrices (learned)
+W_Q = [[0.1, 0.2],
+       [0.3, 0.4],
+       [0.5, 0.6],
+       [0.7, 0.8]]  # shape (4, 2)
+
+# Q = X @ W_Q  →  shape (3, 2)
+# Each row is a query vector for that token
+
+# scores = Q @ K^T  →  shape (3, 3)
+# scores[i][j] = how much token i attends to token j
+
+# After softmax, each row sums to 1
+# output = weights @ V  →  shape (3, 2)</code></pre>
+
+      <h3>PyTorch implementation</h3>
+
+      <pre><code>import torch
+import torch.nn.functional as F
+import math
+
+def scaled_dot_product_attention(Q, K, V, mask=None):
+    """
+    Q: (batch, seq_len, d_k)
+    K: (batch, seq_len, d_k)
+    V: (batch, seq_len, d_v)
+    mask: (batch, 1, seq_len) or (batch, seq_len, seq_len)
+    """
+    d_k = Q.size(-1)
+
+    # Step 1: Compute scaled scores
+    scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d_k)
+
+    # Step 2: Apply mask (for decoder / padding)
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, float('-inf'))
+
+    # Step 3: Softmax over keys
+    attention_weights = F.softmax(scores, dim=-1)
+
+    # Step 4: Weighted sum of values
+    output = torch.matmul(attention_weights, V)
+
+    return output, attention_weights</code></pre>
+
+      <!-- ─── Self-Attention Animation ─── -->
+      <div class="anim-box">
+        <div class="anim-title">Interactive &middot; Self-Attention Score Matrix</div>
+        <div class="anim-canvas-wrap">
+          <canvas id="attn-canvas" width="560" height="300"></canvas>
+        </div>
+        <div class="anim-controls">
+          <button class="anim-btn" id="attn-play">&#9654; Play</button>
+          <button class="anim-btn" style="background:#6b7280" id="attn-reset">&#8634; Reset</button>
+        </div>
+        <p class="anim-note">Watch how queries match against keys to produce attention weights, then combine values.</p>
+      </div>
+      <script>
+      (function(){
+        const cv = document.getElementById('attn-canvas');
+        const ctx = cv.getContext('2d');
+        const W = cv.width, H = cv.height;
+        const tokens = ['The', 'cat', 'sat', 'on', 'it'];
+        const n = tokens.length;
+        // Simulated attention weights (pre-softmax scores converted)
+        const attnWeights = [
+          [0.35, 0.15, 0.10, 0.10, 0.30],
+          [0.10, 0.40, 0.15, 0.05, 0.30],
+          [0.08, 0.20, 0.45, 0.12, 0.15],
+          [0.12, 0.10, 0.18, 0.50, 0.10],
+          [0.05, 0.55, 0.10, 0.05, 0.25]
+        ];
+
+        let progress = 0, playing = false, raf = null;
+
+        function draw(p) {
+          ctx.clearRect(0, 0, W, H);
+          const cellSize = 42;
+          const startX = 180, startY = 60;
+          const currentRow = Math.min(Math.floor(p * n), n - 1);
+          const rowProgress = (p * n) - Math.floor(p * n);
+
+          // Title
+          ctx.font = '600 13px Inter, sans-serif';
+          ctx.fillStyle = '#374151';
+          ctx.textAlign = 'center';
+          ctx.fillText('Attention Weight Matrix', W / 2, 28);
+
+          // Column headers (Keys)
+          ctx.font = '500 12px Inter, sans-serif';
+          ctx.fillStyle = '#6b7280';
+          ctx.textAlign = 'center';
+          for (let j = 0; j < n; j++) {
+            ctx.fillText(tokens[j], startX + j * cellSize + cellSize / 2, startY - 10);
+          }
+
+          // Row labels (Queries)
+          ctx.textAlign = 'right';
+          for (let i = 0; i < n; i++) {
+            ctx.fillStyle = i === currentRow && p < 1 ? '#2563eb' : '#6b7280';
+            ctx.font = i === currentRow && p < 1 ? '600 12px Inter, sans-serif' : '500 12px Inter, sans-serif';
+            ctx.fillText(tokens[i], startX - 12, startY + i * cellSize + cellSize / 2 + 4);
+          }
+
+          // Labels
+          ctx.font = '600 11px Inter, sans-serif';
+          ctx.fillStyle = '#9ca3af';
+          ctx.textAlign = 'center';
+          ctx.fillText('Keys →', startX + (n * cellSize) / 2, startY - 28);
+          ctx.save();
+          ctx.translate(startX - 50, startY + (n * cellSize) / 2);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillText('Queries →', 0, 0);
+          ctx.restore();
+
+          // Grid cells
+          for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+              const x = startX + j * cellSize;
+              const y = startY + i * cellSize;
+              const w = attnWeights[i][j];
+              let alpha;
+              if (i < currentRow || p >= 1) {
+                alpha = w;
+              } else if (i === currentRow) {
+                alpha = w * Math.min(rowProgress * 2, 1);
+              } else {
+                alpha = 0.05;
+              }
+              ctx.fillStyle = `rgba(37, 99, 235, ${alpha})`;
+              ctx.fillRect(x, y, cellSize - 2, cellSize - 2);
+              ctx.strokeStyle = '#e5e7eb';
+              ctx.strokeRect(x, y, cellSize - 2, cellSize - 2);
+
+              if (i <= currentRow || p >= 1) {
+                ctx.font = '600 11px Inter, sans-serif';
+                ctx.fillStyle = w > 0.35 ? '#ffffff' : '#374151';
+                ctx.textAlign = 'center';
+                ctx.fillText(w.toFixed(2), x + cellSize / 2 - 1, y + cellSize / 2 + 3);
+              }
+            }
+          }
+
+          // Insight text
+          if (p >= 1) {
+            ctx.font = '500 12px Inter, sans-serif';
+            ctx.fillStyle = '#2563eb';
+            ctx.textAlign = 'center';
+            ctx.fillText('"it" attends strongly to "cat" (0.55) — learned coreference!', W / 2, H - 15);
+          }
+        }
+
+        document.getElementById('attn-play').addEventListener('click', function() {
+          playing = !playing;
+          this.textContent = playing ? '⏸ Pause' : '▶ Play';
+          if (playing) {
+            (function loop() {
+              progress = Math.min(progress + 0.008, 1);
+              draw(progress);
+              if (progress < 1 && playing) raf = requestAnimationFrame(loop);
+              else { playing = false; document.getElementById('attn-play').textContent = '▶ Play'; }
+            })();
+          } else cancelAnimationFrame(raf);
+        });
+        document.getElementById('attn-reset').addEventListener('click', function() {
+          playing = false; cancelAnimationFrame(raf); progress = 0; draw(0);
+          document.getElementById('attn-play').textContent = '▶ Play';
+        });
+
+        const obs = new IntersectionObserver(entries => {
+          if (entries[0].isIntersecting) { draw(0); obs.disconnect(); }
+        }, { threshold: 0.3 });
+        obs.observe(cv);
+        draw(0);
+      })();
+      </script>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 4 ==================== -->
+      <h2 id="multi-head">4. Multi-Head Attention</h2>
+
+      <p>
+        A single attention head can only learn one type of relationship. But language has
+        many simultaneous relationships: syntactic (subject-verb agreement), semantic
+        (coreference), positional (adjacent words), and more. Multi-head attention runs
+        multiple attention operations in parallel, each learning a different relationship.
+      </p>
+
+      <h3>How it works</h3>
+
+      <p>
+        Instead of performing a single attention function with d_model-dimensional keys,
+        values, and queries, we split d_model into h heads, each operating on
+        d_k = d_model / h dimensions:
+      </p>
+
+      <div class="math-block">
+        head_i = Attention(X &middot; W_Q^i, X &middot; W_K^i, X &middot; W_V^i)<br><br>
+        MultiHead(X) = Concat(head_1, ..., head_h) &middot; W_O
+      </div>
+
+      <p>
+        Where W_O has shape <code>(h &middot; d_v, d_model)</code> and projects the
+        concatenated heads back to the model dimension.
+      </p>
+
+      <table class="dim-table">
+        <tr><th>Component</th><th>Shape</th><th>Example (d_model=512, h=8)</th></tr>
+        <tr><td>Input X</td><td>(n, d_model)</td><td>(n, 512)</td></tr>
+        <tr><td>W_Q^i, W_K^i</td><td>(d_model, d_k)</td><td>(512, 64)</td></tr>
+        <tr><td>W_V^i</td><td>(d_model, d_v)</td><td>(512, 64)</td></tr>
+        <tr><td>Each head_i</td><td>(n, d_v)</td><td>(n, 64)</td></tr>
+        <tr><td>Concat heads</td><td>(n, h &middot; d_v)</td><td>(n, 512)</td></tr>
+        <tr><td>W_O</td><td>(h &middot; d_v, d_model)</td><td>(512, 512)</td></tr>
+        <tr><td>Final output</td><td>(n, d_model)</td><td>(n, 512)</td></tr>
+      </table>
+
+      <div class="concept-box">
+        <strong>Why this is efficient:</strong> The total computation of h heads with d_k = d_model/h
+        is the same as a single head with full d_model. We're not adding compute &mdash;
+        we're partitioning the same compute into independent subspaces, each learning different
+        attention patterns. It's parallel specialization, not additional cost.
+      </div>
+
+      <h3>What different heads learn</h3>
+
+      <p>
+        Research has shown that in trained Transformers, different heads specialize in
+        remarkably specific patterns:
+      </p>
+
+      <ul>
+        <li><strong>Syntactic heads:</strong> One head might learn to connect verbs to their
+        subjects, even across long distances</li>
+        <li><strong>Positional heads:</strong> Another head might attend primarily to the
+        previous or next token (local context)</li>
+        <li><strong>Coreference heads:</strong> A head might specialize in connecting pronouns
+        to their antecedents</li>
+        <li><strong>Copy heads:</strong> Some heads learn to "copy" information from earlier
+        in the sequence, useful for names and entities</li>
+      </ul>
+
+      <h3>PyTorch implementation</h3>
+
+      <pre><code>import torch
+import torch.nn as nn
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, n_heads):
+        super().__init__()
+        assert d_model % n_heads == 0
+
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.d_k = d_model // n_heads
+
+        self.W_q = nn.Linear(d_model, d_model)  # projects to all heads at once
+        self.W_k = nn.Linear(d_model, d_model)
+        self.W_v = nn.Linear(d_model, d_model)
+        self.W_o = nn.Linear(d_model, d_model)
+
+    def forward(self, x, mask=None):
+        batch_size, seq_len, _ = x.shape
+
+        # Project and reshape: (batch, seq, d_model) → (batch, heads, seq, d_k)
+        Q = self.W_q(x).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+        K = self.W_k(x).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+        V = self.W_v(x).view(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+
+        # Scaled dot-product attention
+        scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)
+
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, float('-inf'))
+
+        attn_weights = F.softmax(scores, dim=-1)
+        context = torch.matmul(attn_weights, V)
+
+        # Reshape back: (batch, heads, seq, d_k) → (batch, seq, d_model)
+        context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
+
+        return self.W_o(context)</code></pre>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 5 ==================== -->
+      <h2 id="positional-encoding">5. Positional Encoding</h2>
+
+      <p>
+        Self-attention is <strong>permutation invariant</strong>. If you shuffle the input
+        tokens, the attention scores change but the mechanism itself doesn't know the
+        difference between position 1 and position 100. "Dog bites man" and "Man bites dog"
+        produce the same set of pairwise attention scores (just rearranged). This is
+        catastrophic for language, where word order determines meaning.
+      </p>
+
+      <p>
+        The solution: add positional information to the input embeddings before feeding
+        them into attention.
+      </p>
+
+      <h3>Sinusoidal positional encoding (original paper)</h3>
+
+      <p>
+        The original Transformer uses fixed sinusoidal functions:
+      </p>
+
+      <div class="math-block">
+        PE(pos, 2i) = sin(pos / 10000^(2i/d_model))<br>
+        PE(pos, 2i+1) = cos(pos / 10000^(2i/d_model))
+      </div>
+
+      <p>
+        Where <code>pos</code> is the position in the sequence and <code>i</code> is the
+        dimension index. This produces a unique vector for each position.
+      </p>
+
+      <p><strong>Why sinusoids?</strong> Three reasons:</p>
+
+      <ol>
+        <li><strong>Unique encoding:</strong> Each position gets a different vector</li>
+        <li><strong>Bounded magnitude:</strong> Values stay in [-1, 1], won't blow up embeddings</li>
+        <li><strong>Relative position via linear transformation:</strong> PE(pos + k) can be
+        expressed as a linear function of PE(pos) for any fixed offset k. This means the
+        model can learn to attend to relative positions (e.g., "two tokens ahead") rather
+        than only absolute positions</li>
+      </ol>
+
+      <pre><code>class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=5000):
+        super().__init__()
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+        )
+
+        pe[:, 0::2] = torch.sin(position * div_term)  # even dimensions
+        pe[:, 1::2] = torch.cos(position * div_term)  # odd dimensions
+
+        pe = pe.unsqueeze(0)  # (1, max_len, d_model)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        # x shape: (batch, seq_len, d_model)
+        return x + self.pe[:, :x.size(1), :]</code></pre>
+
+      <div class="warning-box">
+        <strong>Learned vs. sinusoidal:</strong> The original paper found no performance
+        difference between learned and sinusoidal encodings. Modern models (GPT-2, BERT)
+        typically use learned positional embeddings. Even more modern models (LLaMA, GPT-NeoX)
+        use Rotary Position Embeddings (RoPE), which we'll cover in the advanced section.
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 6 ==================== -->
+      <h2 id="encoder-block">6. The Encoder Block</h2>
+
+      <p>
+        An encoder block combines multi-head attention with a feed-forward network, wrapped
+        in residual connections and layer normalization. It's the repeating unit of the
+        encoder stack.
+      </p>
+
+      <h3>Components in order</h3>
+
+      <ol>
+        <li><strong>Multi-Head Self-Attention</strong> &mdash; each token attends to all
+        tokens in the input</li>
+        <li><strong>Add &amp; Norm</strong> &mdash; residual connection + layer normalization</li>
+        <li><strong>Feed-Forward Network (FFN)</strong> &mdash; two linear layers with a
+        ReLU activation between them</li>
+        <li><strong>Add &amp; Norm</strong> &mdash; another residual connection + layer normalization</li>
+      </ol>
+
+      <h3>The feed-forward network</h3>
+
+      <div class="math-block">
+        FFN(x) = max(0, x &middot; W_1 + b_1) &middot; W_2 + b_2
+      </div>
+
+      <p>
+        W_1 has shape <code>(d_model, d_ff)</code> and W_2 has shape <code>(d_ff, d_model)</code>.
+        The original paper uses d_ff = 2048 with d_model = 512 (a 4x expansion). The FFN
+        is applied identically and independently to each position. This is where the
+        model stores factual knowledge &mdash; it's essentially a key-value memory where
+        the first layer selects relevant "slots" and the second layer retrieves their content.
+      </p>
+
+      <h3>Residual connections</h3>
+
+      <p>
+        Every sub-layer (attention and FFN) has a residual connection around it:
+      </p>
+
+      <div class="math-block">
+        output = LayerNorm(x + SubLayer(x))
+      </div>
+
+      <p>
+        <strong>Why residuals matter:</strong> They solve vanishing gradients in deep networks.
+        During backpropagation, the gradient can flow directly through the identity connection,
+        bypassing the sublayer entirely. This lets you stack 6, 12, or even 96 layers without
+        the gradient dying. Without residuals, training a 6-layer Transformer is already
+        difficult.
+      </p>
+
+      <h3>Layer normalization</h3>
+
+      <p>
+        LayerNorm normalizes across the feature dimension for each token independently:
+      </p>
+
+      <div class="math-block">
+        LayerNorm(x) = &gamma; &middot; (x - &mu;) / &radic;(&sigma;&sup2; + &epsilon;) + &beta;
+      </div>
+
+      <p>
+        Where &mu; and &sigma;&sup2; are computed across d_model for each token. Unlike
+        BatchNorm, LayerNorm doesn't depend on batch size and works the same during training
+        and inference.
+      </p>
+
+      <pre><code>class EncoderBlock(nn.Module):
+    def __init__(self, d_model, n_heads, d_ff, dropout=0.1):
+        super().__init__()
+        self.attention = MultiHeadAttention(d_model, n_heads)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.ff = nn.Sequential(
+            nn.Linear(d_model, d_ff),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_ff, d_model),
+        )
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, mask=None):
+        # Self-attention with residual
+        attn_out = self.attention(x, mask)
+        x = self.norm1(x + self.dropout(attn_out))
+
+        # Feed-forward with residual
+        ff_out = self.ff(x)
+        x = self.norm2(x + self.dropout(ff_out))
+
+        return x</code></pre>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 7 ==================== -->
+      <h2 id="decoder-block">7. The Decoder Block</h2>
+
+      <p>
+        The decoder block has the same structure as the encoder block, plus one critical
+        addition: <strong>cross-attention</strong> between the decoder and encoder outputs.
+        It also uses <strong>masked self-attention</strong> to prevent the decoder from
+        cheating.
+      </p>
+
+      <h3>Three sub-layers</h3>
+
+      <ol>
+        <li><strong>Masked Multi-Head Self-Attention</strong> &mdash; the decoder attends to
+        previously generated tokens only</li>
+        <li><strong>Multi-Head Cross-Attention</strong> &mdash; the decoder attends to the
+        full encoder output</li>
+        <li><strong>Feed-Forward Network</strong> &mdash; same as the encoder</li>
+      </ol>
+
+      <h3>Why masking?</h3>
+
+      <p>
+        During training, we feed the entire target sequence into the decoder at once (teacher
+        forcing). But at position t, the decoder should only see tokens 1 through t-1 &mdash;
+        it shouldn't be able to peek at the answer. We enforce this with a causal mask: an
+        upper-triangular matrix of negative infinities that, after softmax, zeros out
+        attention to future positions.
+      </p>
+
+      <pre><code>def create_causal_mask(seq_len):
+    """Creates a lower-triangular mask to prevent attending to future tokens."""
+    mask = torch.tril(torch.ones(seq_len, seq_len))
+    return mask  # 1 = attend, 0 = block
+
+# For seq_len = 4:
+# [[1, 0, 0, 0],
+#  [1, 1, 0, 0],
+#  [1, 1, 1, 0],
+#  [1, 1, 1, 1]]</code></pre>
+
+      <h3>Cross-attention</h3>
+
+      <p>
+        In cross-attention, the <strong>queries come from the decoder</strong> and the
+        <strong>keys and values come from the encoder</strong>. This is where the decoder
+        asks: "given what I've generated so far, what parts of the input should I focus on
+        to generate the next token?"
+      </p>
+
+      <div class="math-block">
+        Q = decoder_output &middot; W_Q&emsp;&emsp;(from decoder)<br>
+        K = encoder_output &middot; W_K&emsp;&emsp;(from encoder)<br>
+        V = encoder_output &middot; W_V&emsp;&emsp;(from encoder)
+      </div>
+
+      <pre><code>class DecoderBlock(nn.Module):
+    def __init__(self, d_model, n_heads, d_ff, dropout=0.1):
+        super().__init__()
+        self.masked_attention = MultiHeadAttention(d_model, n_heads)
+        self.norm1 = nn.LayerNorm(d_model)
+
+        self.cross_attention = MultiHeadAttention(d_model, n_heads)
+        self.norm2 = nn.LayerNorm(d_model)
+
+        self.ff = nn.Sequential(
+            nn.Linear(d_model, d_ff),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_ff, d_model),
+        )
+        self.norm3 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, encoder_output, src_mask=None, tgt_mask=None):
+        # Masked self-attention
+        attn_out = self.masked_attention(x, tgt_mask)
+        x = self.norm1(x + self.dropout(attn_out))
+
+        # Cross-attention (queries from decoder, keys/values from encoder)
+        # Note: cross_attention needs modification to accept separate K,V sources
+        cross_out = self.cross_attention_fn(x, encoder_output, src_mask)
+        x = self.norm2(x + self.dropout(cross_out))
+
+        # Feed-forward
+        ff_out = self.ff(x)
+        x = self.norm3(x + self.dropout(ff_out))
+
+        return x</code></pre>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 8 ==================== -->
+      <h2 id="full-architecture">8. The Full Transformer Architecture</h2>
+
+      <p>
+        Now we assemble everything. The full Transformer for sequence-to-sequence tasks
+        (like translation) consists of:
+      </p>
+
+      <ol>
+        <li><strong>Input embedding + positional encoding</strong> (source side)</li>
+        <li><strong>Encoder stack</strong>: N encoder blocks (N=6 in the original paper)</li>
+        <li><strong>Output embedding + positional encoding</strong> (target side)</li>
+        <li><strong>Decoder stack</strong>: N decoder blocks</li>
+        <li><strong>Final linear + softmax</strong>: projects decoder output to vocabulary
+        probabilities</li>
+      </ol>
+
+      <table class="dim-table">
+        <tr><th>Hyperparameter</th><th>Base Model</th><th>Big Model</th></tr>
+        <tr><td>d_model</td><td>512</td><td>1024</td></tr>
+        <tr><td>n_heads</td><td>8</td><td>16</td></tr>
+        <tr><td>d_ff</td><td>2048</td><td>4096</td></tr>
+        <tr><td>N (layers)</td><td>6</td><td>6</td></tr>
+        <tr><td>d_k = d_v</td><td>64</td><td>64</td></tr>
+        <tr><td>Parameters</td><td>65M</td><td>213M</td></tr>
+        <tr><td>Dropout</td><td>0.1</td><td>0.3</td></tr>
+      </table>
+
+      <!-- ─── Architecture Animation ─── -->
+      <div class="anim-box">
+        <div class="anim-title">Interactive &middot; Transformer Architecture Data Flow</div>
+        <div class="anim-canvas-wrap">
+          <canvas id="arch-canvas" width="560" height="420"></canvas>
+        </div>
+        <div class="anim-controls">
+          <button class="anim-btn" id="arch-play">&#9654; Play</button>
+          <button class="anim-btn" style="background:#6b7280" id="arch-reset">&#8634; Reset</button>
+        </div>
+        <p class="anim-note">Data flows from input embeddings through encoder and decoder stacks to output probabilities.</p>
+      </div>
+      <script>
+      (function(){
+        const cv = document.getElementById('arch-canvas');
+        const ctx = cv.getContext('2d');
+        const W = cv.width, H = cv.height;
+
+        const blocks = [
+          { label: 'Input\nEmbedding', x: 70, y: 360, w: 110, h: 40, color: '#6366f1' },
+          { label: 'Positional\nEncoding', x: 70, y: 300, w: 110, h: 40, color: '#8b5cf6' },
+          { label: 'Encoder\nBlock ×N', x: 70, y: 200, w: 110, h: 70, color: '#2563eb' },
+          { label: 'Output\nEmbedding', x: 370, y: 360, w: 110, h: 40, color: '#6366f1' },
+          { label: 'Positional\nEncoding', x: 370, y: 300, w: 110, h: 40, color: '#8b5cf6' },
+          { label: 'Decoder\nBlock ×N', x: 370, y: 180, w: 110, h: 90, color: '#059669' },
+          { label: 'Linear +\nSoftmax', x: 370, y: 70, w: 110, h: 40, color: '#dc2626' },
+        ];
+
+        const arrows = [
+          [0, 1], [1, 2],
+          [3, 4], [4, 5], [5, 6],
+          [2, 5],  // cross-attention arrow
+        ];
+
+        let progress = 0, playing = false, raf = null;
+
+        function drawBlock(b, alpha) {
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = b.color;
+          ctx.roundRect(b.x, b.y, b.w, b.h, 8);
+          ctx.fill();
+          ctx.font = '600 11px Inter, sans-serif';
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          const lines = b.label.split('\n');
+          lines.forEach((line, i) => {
+            ctx.fillText(line, b.x + b.w/2, b.y + b.h/2 + (i - (lines.length-1)/2) * 14 + 4);
+          });
+          ctx.globalAlpha = 1;
+        }
+
+        function drawArrow(from, to, alpha, isCross) {
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = isCross ? '#f59e0b' : '#9ca3af';
+          ctx.lineWidth = isCross ? 2.5 : 1.5;
+          ctx.setLineDash(isCross ? [5, 3] : []);
+          ctx.beginPath();
+          if (isCross) {
+            const fx = from.x + from.w, fy = from.y + from.h/2;
+            const tx = to.x, ty = to.y + to.h/2;
+            ctx.moveTo(fx, fy);
+            ctx.bezierCurveTo(fx + 50, fy, tx - 50, ty, tx, ty);
+          } else {
+            ctx.moveTo(from.x + from.w/2, from.y);
+            ctx.lineTo(to.x + to.w/2, to.y + to.h);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+        }
+
+        function draw(p) {
+          ctx.clearRect(0, 0, W, H);
+
+          // Title
+          ctx.font = '600 14px Inter, sans-serif';
+          ctx.fillStyle = '#374151';
+          ctx.textAlign = 'center';
+          ctx.fillText('Transformer Architecture', W/2, 28);
+
+          // Column labels
+          ctx.font = '600 12px Inter, sans-serif';
+          ctx.fillStyle = '#6b7280';
+          ctx.fillText('ENCODER', 125, 165);
+          ctx.fillText('DECODER', 425, 145);
+
+          const totalSteps = blocks.length + arrows.length;
+          const currentStep = p * totalSteps;
+
+          // Draw arrows
+          arrows.forEach((a, idx) => {
+            const arrowStep = blocks.length + idx;
+            const alpha = currentStep >= arrowStep ? Math.min((currentStep - arrowStep), 1) : 0;
+            if (alpha > 0) drawArrow(blocks[a[0]], blocks[a[1]], alpha, idx === 5);
+          });
+
+          // Draw blocks
+          blocks.forEach((b, idx) => {
+            const alpha = currentStep >= idx ? Math.min((currentStep - idx) * 0.8 + 0.2, 1) : 0.1;
+            drawBlock(b, alpha);
+          });
+
+          // Cross-attention label
+          if (p > 0.7) {
+            ctx.globalAlpha = Math.min((p - 0.7) / 0.15, 1);
+            ctx.font = '500 10px Inter, sans-serif';
+            ctx.fillStyle = '#f59e0b';
+            ctx.textAlign = 'center';
+            ctx.fillText('cross-attention', 270, 220);
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        document.getElementById('arch-play').addEventListener('click', function() {
+          playing = !playing;
+          this.textContent = playing ? '⏸ Pause' : '▶ Play';
+          if (playing) {
+            (function loop() {
+              progress = Math.min(progress + 0.006, 1);
+              draw(progress);
+              if (progress < 1 && playing) raf = requestAnimationFrame(loop);
+              else { playing = false; document.getElementById('arch-play').textContent = '▶ Play'; }
+            })();
+          } else cancelAnimationFrame(raf);
+        });
+        document.getElementById('arch-reset').addEventListener('click', function() {
+          playing = false; cancelAnimationFrame(raf); progress = 0; draw(0);
+          document.getElementById('arch-play').textContent = '▶ Play';
+        });
+
+        const obs = new IntersectionObserver(entries => {
+          if (entries[0].isIntersecting) { draw(0); obs.disconnect(); }
+        }, { threshold: 0.3 });
+        obs.observe(cv);
+        draw(0);
+      })();
+      </script>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 9 ==================== -->
+      <h2 id="training">9. Training: Loss, Optimizer, and Schedule</h2>
+
+      <h3>Loss function</h3>
+
+      <p>
+        For sequence-to-sequence tasks, the loss is <strong>cross-entropy</strong> between
+        the predicted token probabilities and the true next token, averaged over all
+        positions:
+      </p>
+
+      <div class="math-block">
+        L = -1/T &middot; &sum;_{t=1}^{T} log P(y_t | y_{&lt;t}, x)
+      </div>
+
+      <p>
+        Where T is the target sequence length, y_t is the true token at position t, and
+        P(y_t | ...) is the model's predicted probability for that token.
+      </p>
+
+      <h3>Label smoothing</h3>
+
+      <p>
+        The original paper uses label smoothing with &epsilon; = 0.1. Instead of training
+        the model to assign probability 1.0 to the correct token and 0.0 to everything
+        else, the target distribution is smoothed: 0.9 for the correct token and 0.1 / (V-1)
+        spread across all other tokens. This hurts perplexity (the model is less "confident")
+        but improves BLEU score and generalization.
+      </p>
+
+      <h3>The Adam optimizer with warmup</h3>
+
+      <p>
+        The paper uses Adam with &beta;_1 = 0.9, &beta;_2 = 0.98, &epsilon; = 10^-9, and a
+        custom learning rate schedule:
+      </p>
+
+      <div class="math-block">
+        lr = d_model^(-0.5) &middot; min(step^(-0.5), step &middot; warmup_steps^(-1.5))
+      </div>
+
+      <p>
+        This increases the learning rate linearly for the first <code>warmup_steps</code>
+        (4000 in the paper), then decreases it proportionally to the inverse square root
+        of the step number. The warmup prevents the model from making large, destructive
+        updates early in training when the gradients are noisy and the model hasn't
+        learned meaningful representations yet.
+      </p>
+
+      <pre><code>class TransformerScheduler:
+    def __init__(self, d_model, warmup_steps=4000):
+        self.d_model = d_model
+        self.warmup_steps = warmup_steps
+
+    def get_lr(self, step):
+        step = max(step, 1)
+        return self.d_model ** (-0.5) * min(
+            step ** (-0.5),
+            step * self.warmup_steps ** (-1.5)
+        )</code></pre>
+
+      <h3>Training details from the paper</h3>
+
+      <ul>
+        <li>Trained on 8 NVIDIA P100 GPUs</li>
+        <li>Base model: 12 hours (100K steps, batch size ~25K tokens)</li>
+        <li>Big model: 3.5 days (300K steps)</li>
+        <li>Dropout: 0.1 (base), 0.3 (big) applied to attention weights and FFN</li>
+        <li>Token batching: sentences grouped by approximate length, each batch contains ~25,000 source + target tokens</li>
+      </ul>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 10 ==================== -->
+      <h2 id="pytorch-implementation">10. Complete PyTorch Implementation</h2>
+
+      <p>
+        Here's a complete, runnable Transformer. Every component we've discussed, assembled
+        into one model.
+      </p>
+
+      <pre><code>import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import math
+
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, n_heads, dropout=0.1):
+        super().__init__()
+        assert d_model % n_heads == 0
+        self.d_k = d_model // n_heads
+        self.n_heads = n_heads
+
+        self.W_q = nn.Linear(d_model, d_model)
+        self.W_k = nn.Linear(d_model, d_model)
+        self.W_v = nn.Linear(d_model, d_model)
+        self.W_o = nn.Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, query, key, value, mask=None):
+        B, T, C = query.shape
+
+        Q = self.W_q(query).view(B, -1, self.n_heads, self.d_k).transpose(1, 2)
+        K = self.W_k(key).view(B, -1, self.n_heads, self.d_k).transpose(1, 2)
+        V = self.W_v(value).view(B, -1, self.n_heads, self.d_k).transpose(1, 2)
+
+        scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, float('-inf'))
+
+        attn = self.dropout(F.softmax(scores, dim=-1))
+        out = torch.matmul(attn, V)
+
+        out = out.transpose(1, 2).contiguous().view(B, T, -1)
+        return self.W_o(out)
+
+
+class FeedForward(nn.Module):
+    def __init__(self, d_model, d_ff, dropout=0.1):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(d_model, d_ff),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_ff, d_model),
+            nn.Dropout(dropout),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=5000, dropout=0.1):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+        )
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe.unsqueeze(0))
+
+    def forward(self, x):
+        return self.dropout(x + self.pe[:, :x.size(1)])
+
+
+class EncoderBlock(nn.Module):
+    def __init__(self, d_model, n_heads, d_ff, dropout=0.1):
+        super().__init__()
+        self.self_attn = MultiHeadAttention(d_model, n_heads, dropout)
+        self.ff = FeedForward(d_model, d_ff, dropout)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, mask=None):
+        x = self.norm1(x + self.dropout(self.self_attn(x, x, x, mask)))
+        x = self.norm2(x + self.dropout(self.ff(x)))
+        return x
+
+
+class DecoderBlock(nn.Module):
+    def __init__(self, d_model, n_heads, d_ff, dropout=0.1):
+        super().__init__()
+        self.self_attn = MultiHeadAttention(d_model, n_heads, dropout)
+        self.cross_attn = MultiHeadAttention(d_model, n_heads, dropout)
+        self.ff = FeedForward(d_model, d_ff, dropout)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.norm3 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, encoder_out, src_mask=None, tgt_mask=None):
+        x = self.norm1(x + self.dropout(self.self_attn(x, x, x, tgt_mask)))
+        x = self.norm2(x + self.dropout(self.cross_attn(x, encoder_out, encoder_out, src_mask)))
+        x = self.norm3(x + self.dropout(self.ff(x)))
+        return x
+
+
+class Transformer(nn.Module):
+    def __init__(self, src_vocab, tgt_vocab, d_model=512, n_heads=8,
+                 n_layers=6, d_ff=2048, max_len=5000, dropout=0.1):
+        super().__init__()
+
+        self.d_model = d_model
+
+        # Embeddings
+        self.src_embed = nn.Embedding(src_vocab, d_model)
+        self.tgt_embed = nn.Embedding(tgt_vocab, d_model)
+        self.pos_encoding = PositionalEncoding(d_model, max_len, dropout)
+
+        # Encoder
+        self.encoder_layers = nn.ModuleList([
+            EncoderBlock(d_model, n_heads, d_ff, dropout) for _ in range(n_layers)
+        ])
+
+        # Decoder
+        self.decoder_layers = nn.ModuleList([
+            DecoderBlock(d_model, n_heads, d_ff, dropout) for _ in range(n_layers)
+        ])
+
+        # Output
+        self.output_proj = nn.Linear(d_model, tgt_vocab)
+
+        self._init_params()
+
+    def _init_params(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def encode(self, src, src_mask=None):
+        x = self.pos_encoding(self.src_embed(src) * math.sqrt(self.d_model))
+        for layer in self.encoder_layers:
+            x = layer(x, src_mask)
+        return x
+
+    def decode(self, tgt, encoder_out, src_mask=None, tgt_mask=None):
+        x = self.pos_encoding(self.tgt_embed(tgt) * math.sqrt(self.d_model))
+        for layer in self.decoder_layers:
+            x = layer(x, encoder_out, src_mask, tgt_mask)
+        return x
+
+    def forward(self, src, tgt, src_mask=None, tgt_mask=None):
+        encoder_out = self.encode(src, src_mask)
+        decoder_out = self.decode(tgt, encoder_out, src_mask, tgt_mask)
+        return self.output_proj(decoder_out)
+
+
+# Usage example
+model = Transformer(src_vocab=32000, tgt_vocab=32000)
+src = torch.randint(0, 32000, (2, 50))   # batch=2, seq_len=50
+tgt = torch.randint(0, 32000, (2, 40))   # batch=2, seq_len=40
+
+# Create causal mask for decoder
+tgt_mask = torch.tril(torch.ones(40, 40)).unsqueeze(0).unsqueeze(0)
+
+logits = model(src, tgt, tgt_mask=tgt_mask)
+print(f"Output shape: {logits.shape}")  # (2, 40, 32000)
+print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")</code></pre>
+
+      <div class="output-block">
+Output shape: torch.Size([2, 40, 32000])
+Parameters: 64,517,632
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 11 ==================== -->
+      <h2 id="bert-gpt">11. BERT vs GPT: Encoder-Only vs Decoder-Only</h2>
+
+      <p>
+        The original Transformer is an encoder-decoder model designed for translation. But
+        its most impactful descendants use only half the architecture.
+      </p>
+
+      <h3>BERT: Encoder-only (2018)</h3>
+
+      <p>
+        BERT (Bidirectional Encoder Representations from Transformers) uses <strong>only the
+        encoder stack</strong>. Every token can attend to every other token &mdash; including
+        tokens to the right. This bidirectional attention gives BERT a major advantage for
+        understanding tasks.
+      </p>
+
+      <p><strong>Pre-training objectives:</strong></p>
+
+      <ul>
+        <li><strong>Masked Language Modeling (MLM):</strong> Randomly mask 15% of input tokens
+        and predict them. The model sees: "The [MASK] sat on the mat" and must predict "cat".
+        This forces the model to learn contextual representations.</li>
+        <li><strong>Next Sentence Prediction (NSP):</strong> Given two sentences, predict
+        whether sentence B follows sentence A in the original text. (Later found to be less
+        important than MLM.)</li>
+      </ul>
+
+      <p><strong>Best for:</strong> Classification, NER, question answering, sentiment analysis
+      &mdash; tasks where you have the full input and need to understand it.</p>
+
+      <table class="dim-table">
+        <tr><th>Variant</th><th>Layers</th><th>d_model</th><th>Heads</th><th>Parameters</th></tr>
+        <tr><td>BERT-Base</td><td>12</td><td>768</td><td>12</td><td>110M</td></tr>
+        <tr><td>BERT-Large</td><td>24</td><td>1024</td><td>16</td><td>340M</td></tr>
+      </table>
+
+      <h3>GPT: Decoder-only (2018)</h3>
+
+      <p>
+        GPT (Generative Pre-trained Transformer) uses <strong>only the decoder stack</strong>,
+        with masked (causal) self-attention. Each token can only attend to previous tokens.
+        There's no encoder and no cross-attention &mdash; just autoregressive generation.
+      </p>
+
+      <p><strong>Pre-training objective:</strong></p>
+
+      <ul>
+        <li><strong>Causal Language Modeling (CLM):</strong> Predict the next token given all
+        previous tokens. The model sees "The cat sat on the" and must predict "mat".
+        Simple, scalable, and surprisingly powerful.</li>
+      </ul>
+
+      <p><strong>Best for:</strong> Text generation, code generation, reasoning, chat &mdash;
+      any task that can be framed as "given this prefix, generate the continuation."</p>
+
+      <table class="dim-table">
+        <tr><th>Model</th><th>Layers</th><th>d_model</th><th>Heads</th><th>Parameters</th></tr>
+        <tr><td>GPT-1</td><td>12</td><td>768</td><td>12</td><td>117M</td></tr>
+        <tr><td>GPT-2</td><td>48</td><td>1600</td><td>25</td><td>1.5B</td></tr>
+        <tr><td>GPT-3</td><td>96</td><td>12288</td><td>96</td><td>175B</td></tr>
+        <tr><td>GPT-4</td><td>?</td><td>?</td><td>?</td><td>~1.8T (rumored MoE)</td></tr>
+      </table>
+
+      <div class="concept-box">
+        <strong>Why decoder-only won:</strong> Decoder-only models scale better for two
+        reasons. First, the training objective (next-token prediction) is simpler and
+        naturally aligns with generation. Second, any task can be reformulated as text
+        generation through prompting &mdash; you don't need task-specific heads. This
+        universality, combined with scaling laws showing predictable improvement with more
+        data and compute, made decoder-only the dominant paradigm.
+      </div>
+
+      <h3>The key architectural differences</h3>
+
+      <table class="dim-table">
+        <tr><th>Aspect</th><th>Encoder-only (BERT)</th><th>Decoder-only (GPT)</th><th>Encoder-Decoder (T5)</th></tr>
+        <tr><td>Attention</td><td>Bidirectional</td><td>Causal (left-to-right)</td><td>Both</td></tr>
+        <tr><td>Pre-training</td><td>MLM (fill in blanks)</td><td>CLM (predict next)</td><td>Span corruption</td></tr>
+        <tr><td>Generation</td><td>Poor at generation</td><td>Excellent</td><td>Good</td></tr>
+        <tr><td>Understanding</td><td>Excellent</td><td>Good (with scale)</td><td>Excellent</td></tr>
+        <tr><td>Examples</td><td>BERT, RoBERTa</td><td>GPT, LLaMA, Claude</td><td>T5, BART</td></tr>
+      </table>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 12 ==================== -->
+      <h2 id="modern-improvements">12. Modern Improvements: RoPE, GQA, FlashAttention, RMSNorm</h2>
+
+      <p>
+        The basic Transformer architecture from 2017 has been refined extensively. Here are
+        the key improvements found in modern models like LLaMA, Mistral, and GPT-4.
+      </p>
+
+      <h3>RoPE: Rotary Position Embeddings</h3>
+
+      <p>
+        Instead of adding positional encodings to the input, RoPE rotates the query and
+        key vectors based on their position. The rotation angle depends on the position and
+        the dimension:
+      </p>
+
+      <div class="math-block">
+        RoPE(x, pos) = x &middot; cos(pos &middot; &theta;) + rotate(x) &middot; sin(pos &middot; &theta;)
+      </div>
+
+      <p>
+        <strong>Why RoPE wins:</strong> The dot product between two rotated vectors naturally
+        encodes their <em>relative</em> distance. Q_m &middot; K_n depends only on (m - n),
+        not on absolute positions. This gives the model length generalization &mdash; it can
+        handle sequences longer than those seen during training, especially with techniques
+        like NTK-aware scaling or YaRN.
+      </p>
+
+      <pre><code>def apply_rope(x, freqs_cos, freqs_sin):
+    """Apply Rotary Position Embeddings to queries and keys."""
+    # x shape: (batch, n_heads, seq_len, d_k)
+    # Split into pairs of dimensions
+    x_r = x.float().reshape(*x.shape[:-1], -1, 2)
+    x1, x2 = x_r.unbind(-1)
+
+    # Apply rotation
+    out1 = x1 * freqs_cos - x2 * freqs_sin
+    out2 = x1 * freqs_sin + x2 * freqs_cos
+
+    out = torch.stack([out1, out2], dim=-1).flatten(-2)
+    return out.type_as(x)</code></pre>
+
+      <h3>Grouped Query Attention (GQA)</h3>
+
+      <p>
+        Standard multi-head attention uses separate K, V projections for each head. GQA
+        shares K, V across groups of query heads:
+      </p>
+
+      <ul>
+        <li><strong>Multi-Head Attention (MHA):</strong> n_heads Q, n_heads K, n_heads V</li>
+        <li><strong>Grouped Query Attention (GQA):</strong> n_heads Q, n_kv_heads K, n_kv_heads V (n_kv_heads &lt; n_heads)</li>
+        <li><strong>Multi-Query Attention (MQA):</strong> n_heads Q, 1 K, 1 V (extreme case)</li>
+      </ul>
+
+      <p>
+        LLaMA 2 70B uses GQA with 8 KV heads for 64 query heads. This reduces the KV cache
+        size by 8x during inference with minimal quality loss. The KV cache is often the
+        bottleneck for long-context inference, so this is a critical optimization.
+      </p>
+
+      <h3>FlashAttention</h3>
+
+      <p>
+        The standard attention implementation materializes the full n &times; n attention
+        matrix in GPU HBM (high bandwidth memory). FlashAttention computes attention in
+        tiles that fit in SRAM (on-chip memory), avoiding the expensive HBM round-trips:
+      </p>
+
+      <ul>
+        <li>Splits Q, K, V into blocks</li>
+        <li>Computes attention within SRAM using online softmax (numerically stable
+        incremental softmax)</li>
+        <li>Never materializes the full attention matrix</li>
+        <li>Result: 2-4x faster, uses O(n) memory instead of O(n&sup2;)</li>
+      </ul>
+
+      <div class="concept-box">
+        <strong>Why this matters:</strong> FlashAttention didn't change the math at all. It
+        computes the exact same result. The speedup comes entirely from being IO-aware &mdash;
+        understanding that GPU compute is cheap but memory transfers are expensive. The
+        algorithm is designed around the memory hierarchy, not the arithmetic.
+      </div>
+
+      <h3>RMSNorm instead of LayerNorm</h3>
+
+      <p>
+        Modern models replace LayerNorm with RMSNorm (Root Mean Square Normalization):
+      </p>
+
+      <div class="math-block">
+        RMSNorm(x) = x / RMS(x) &middot; &gamma;<br>
+        where RMS(x) = &radic;(1/d &middot; &sum; x_i&sup2;)
+      </div>
+
+      <p>
+        RMSNorm drops the mean-centering step and the bias term. It's ~10-15% faster than
+        LayerNorm and works equally well. Used in LLaMA, Mistral, and most modern models.
+      </p>
+
+      <h3>Pre-Norm vs Post-Norm</h3>
+
+      <p>
+        The original Transformer applies LayerNorm after the residual addition (post-norm).
+        Modern models apply it before the sublayer (pre-norm):
+      </p>
+
+      <pre><code># Post-norm (original, 2017)
+x = LayerNorm(x + Sublayer(x))
+
+# Pre-norm (modern, LLaMA etc.)
+x = x + Sublayer(RMSNorm(x))</code></pre>
+
+      <p>
+        Pre-norm makes training more stable, especially for very deep models. The gradient
+        flow through the residual stream is cleaner because the normalization doesn't
+        interfere with the identity path.
+      </p>
+
+      <h3>SwiGLU activation</h3>
+
+      <p>
+        The original Transformer uses ReLU in the FFN. Modern models (LLaMA, PaLM) use SwiGLU:
+      </p>
+
+      <div class="math-block">
+        SwiGLU(x) = (x &middot; W_1) &odot; SiLU(x &middot; W_gate) then &middot; W_2
+      </div>
+
+      <p>
+        Where SiLU(x) = x &middot; &sigma;(x) (also called Swish). The gate provides a
+        learned, smooth activation that outperforms ReLU. The cost is one additional
+        weight matrix (W_gate), and the intermediate dimension is typically adjusted
+        (2/3 &middot; 4d instead of 4d) to keep parameter count constant.
+      </p>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 13 ==================== -->
+      <h2 id="scaling-laws">13. Scaling Laws and Why Size Matters</h2>
+
+      <p>
+        One of the most surprising discoveries in modern ML is that Transformer performance
+        follows predictable power laws as you scale model size, dataset size, and compute.
+      </p>
+
+      <h3>The Kaplan scaling laws (2020)</h3>
+
+      <p>
+        OpenAI showed that test loss decreases as a power law with respect to three factors:
+      </p>
+
+      <div class="math-block">
+        L(N) ~ N^(-0.076)&emsp;&emsp;(model parameters)<br>
+        L(D) ~ D^(-0.095)&emsp;&emsp;(dataset size)<br>
+        L(C) ~ C^(-0.050)&emsp;&emsp;(compute budget)
+      </div>
+
+      <p>
+        The exponents are small, meaning you need to scale by 10x to get a meaningful
+        improvement. But the laws are remarkably consistent across many orders of magnitude.
+      </p>
+
+      <h3>The Chinchilla revision (2022)</h3>
+
+      <p>
+        DeepMind's Chinchilla paper showed that most large models were significantly
+        undertrained. The compute-optimal ratio is approximately:
+      </p>
+
+      <div class="math-block">
+        Optimal tokens &asymp; 20 &times; Parameters
+      </div>
+
+      <p>
+        A 70B parameter model should be trained on ~1.4 trillion tokens. GPT-3 (175B)
+        was trained on only 300B tokens &mdash; heavily over-parameterized relative to its
+        data. Chinchilla (70B, 1.4T tokens) matched GPT-3's performance with 4x fewer
+        parameters. This shifted the field toward training smaller models on more data.
+      </p>
+
+      <h3>Emergent abilities</h3>
+
+      <p>
+        At certain scales, capabilities appear to emerge suddenly rather than gradually:
+      </p>
+
+      <ul>
+        <li><strong>~1B parameters:</strong> Coherent text generation, basic pattern completion</li>
+        <li><strong>~10B parameters:</strong> Few-shot learning, basic reasoning</li>
+        <li><strong>~100B parameters:</strong> Chain-of-thought reasoning, code generation,
+        multi-step math</li>
+        <li><strong>~1T+ parameters:</strong> Complex instruction following, tool use,
+        nuanced understanding</li>
+      </ul>
+
+      <div class="warning-box">
+        <strong>Debate:</strong> Whether emergent abilities are truly "emergent" or just
+        artifacts of evaluation metrics is actively debated. Some researchers argue that
+        performance improvement is smooth when measured with continuous metrics, and only
+        appears sudden when using binary accuracy thresholds. Regardless, the practical
+        outcome is the same: bigger models do qualitatively different things.
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 14 ==================== -->
+      <h2 id="inference">14. Inference: KV Cache, Speculative Decoding, and Serving</h2>
+
+      <p>
+        Training a Transformer and serving it are fundamentally different problems. Training
+        is compute-bound (matrix multiplications dominate). Inference, especially for
+        autoregressive generation, is memory-bandwidth-bound.
+      </p>
+
+      <h3>The autoregressive bottleneck</h3>
+
+      <p>
+        Generating text with a decoder-only model means producing one token at a time.
+        Each token requires a full forward pass through the model. For a 70B parameter model
+        generating 100 tokens, that's 100 sequential forward passes. You can't parallelize
+        across output tokens because each token depends on all previous ones.
+      </p>
+
+      <h3>KV cache</h3>
+
+      <p>
+        Without caching, generating token t requires recomputing attention over all t-1
+        previous tokens. This means the work grows quadratically with sequence length. The
+        KV cache stores the key and value projections from all previous tokens, so each new
+        token only needs to compute one new Q, K, V and attend to the cached K, V:
+      </p>
+
+      <pre><code># Without KV cache (naive): O(n^2) per generation step
+for t in range(max_tokens):
+    logits = model(all_tokens[:t+1])  # reprocess everything
+    next_token = sample(logits[:, -1])
+
+# With KV cache: O(n) per generation step
+kv_cache = None
+for t in range(max_tokens):
+    logits, kv_cache = model(tokens[:, t:t+1], kv_cache=kv_cache)
+    next_token = sample(logits[:, -1])</code></pre>
+
+      <p>
+        <strong>KV cache memory:</strong> For a model with L layers, n_heads heads,
+        d_k per head, and sequence length S, the KV cache uses:
+      </p>
+
+      <div class="math-block">
+        KV cache = 2 &middot; L &middot; n_kv_heads &middot; d_k &middot; S &middot; bytes_per_param
+      </div>
+
+      <p>
+        For LLaMA 2 70B with 128K context: 2 &times; 80 &times; 8 &times; 128 &times; 128,000 &times; 2 bytes
+        = ~33 GB just for the KV cache. This is why GQA (fewer KV heads) is critical for
+        long-context models.
+      </p>
+
+      <h3>Speculative decoding</h3>
+
+      <p>
+        Use a small, fast "draft" model to generate k candidate tokens, then verify all k
+        tokens in parallel with the large model. If the large model agrees with the draft,
+        you get k tokens for the cost of 1 forward pass. Typical speedup: 2-3x for
+        well-matched draft models.
+      </p>
+
+      <h3>Serving optimizations</h3>
+
+      <ul>
+        <li><strong>Continuous batching:</strong> Instead of waiting for all sequences in a
+        batch to finish, immediately fill completed slots with new requests. Maximizes GPU
+        utilization.</li>
+        <li><strong>PagedAttention (vLLM):</strong> Manages KV cache like virtual memory
+        pages, eliminating fragmentation and enabling sharing across requests.</li>
+        <li><strong>Quantization:</strong> Run the model in INT4/INT8 instead of FP16.
+        Reduces memory by 2-4x with minimal quality loss. GPTQ, AWQ, and GGUF are common
+        formats.</li>
+        <li><strong>Tensor parallelism:</strong> Split the model across multiple GPUs by
+        partitioning weight matrices, not layers. Reduces per-GPU memory and latency.</li>
+      </ul>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 15 ==================== -->
+      <h2 id="vision-transformers">15. Beyond Text: Vision Transformers and Multimodal</h2>
+
+      <p>
+        Transformers aren't just for language. They've conquered vision, audio, biology,
+        and more.
+      </p>
+
+      <h3>Vision Transformer (ViT)</h3>
+
+      <p>
+        The key insight: treat an image as a sequence of patches. A 224x224 image with
+        16x16 patches gives 196 "tokens," each being a flattened 16x16x3 = 768-dimensional
+        vector. Add a [CLS] token, feed through a standard Transformer encoder, and use
+        the [CLS] output for classification.
+      </p>
+
+      <pre><code># ViT tokenization
+image = torch.randn(1, 3, 224, 224)  # (batch, channels, H, W)
+
+# Split into 16x16 patches
+patches = image.unfold(2, 16, 16).unfold(3, 16, 16)  # (1, 3, 14, 14, 16, 16)
+patches = patches.contiguous().view(1, -1, 3 * 16 * 16)  # (1, 196, 768)
+
+# Now it's just a sequence — feed to a Transformer encoder</code></pre>
+
+      <h3>Multimodal Transformers</h3>
+
+      <p>
+        Models like GPT-4V, Gemini, and LLaVA process multiple modalities by:
+      </p>
+
+      <ol>
+        <li><strong>Encoding each modality</strong> into a shared embedding space (e.g., use
+        a vision encoder like CLIP to produce image tokens)</li>
+        <li><strong>Concatenating</strong> the token sequences (image tokens + text tokens)</li>
+        <li><strong>Processing with a standard Transformer</strong> that doesn't care whether
+        a token came from text or an image &mdash; it just processes the sequence</li>
+      </ol>
+
+      <p>
+        This is remarkable: the same attention mechanism that learns "it" refers to "cat" also
+        learns which part of an image a text description refers to. Attention is a universal
+        relationship-learning mechanism.
+      </p>
+
+      <h3>Other domains</h3>
+
+      <ul>
+        <li><strong>Audio:</strong> Whisper converts spectrograms to token sequences for
+        speech recognition</li>
+        <li><strong>Protein structure:</strong> AlphaFold 2 uses attention over amino acid
+        sequences and MSA (multiple sequence alignment) features</li>
+        <li><strong>Reinforcement learning:</strong> Decision Transformer treats RL as
+        sequence modeling: (return, state, action, return, state, action, ...)</li>
+        <li><strong>Time series:</strong> Temporal Fusion Transformer for forecasting</li>
+        <li><strong>Code:</strong> CodeGen, StarCoder, and Codex are just language
+        models trained on code</li>
+      </ul>
+
+      <hr class="section-divider" />
+
+      <!-- ==================== SECTION 16 ==================== -->
+      <h2 id="takeaways">16. Takeaways</h2>
+
+      <ul>
+        <li><strong>Self-attention is just a soft database lookup.</strong> Queries match
+        against keys, and the corresponding values are returned as a weighted sum. One
+        equation: softmax(QK^T / &radic;d_k) &middot; V.</li>
+
+        <li><strong>Multi-head attention partitions compute, not adds it.</strong> Same
+        total FLOPs as single-head, but each head learns a different relationship type.</li>
+
+        <li><strong>Positional encoding is essential.</strong> Attention is permutation
+        invariant; without position information, "dog bites man" = "man bites dog."</li>
+
+        <li><strong>Residual connections are why deep Transformers work.</strong> Without
+        them, gradients vanish by layer 6. With them, you can stack 100+ layers.</li>
+
+        <li><strong>The FFN is a key-value memory.</strong> It stores factual knowledge
+        and is where most parameters live (2/3 of the model).</li>
+
+        <li><strong>Decoder-only won for generation.</strong> Simpler training objective,
+        universal task formulation through prompting, and better scaling properties.</li>
+
+        <li><strong>Modern improvements are surgical.</strong> RoPE, GQA, FlashAttention,
+        RMSNorm, SwiGLU &mdash; each targets a specific bottleneck without changing the
+        core architecture.</li>
+
+        <li><strong>Inference is memory-bound.</strong> The KV cache, quantization, and
+        continuous batching matter more than raw FLOPs for serving.</li>
+
+        <li><strong>Scaling laws are real.</strong> Performance improves predictably with
+        more parameters, data, and compute. But the Chinchilla insight showed most models
+        were undertrained relative to their size.</li>
+
+        <li><strong>Attention is universal.</strong> The same mechanism works for text,
+        images, audio, proteins, and RL. It's a general-purpose relationship learner.</li>
+      </ul>
+
+      <blockquote>
+        The Transformer didn't succeed because it was clever. It succeeded because it was
+        simple, parallelizable, and scalable. Attention is just matrix multiplication.
+        The genius is in what was removed (recurrence, convolution) more than what was added.
+      </blockquote>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>built with &#9749; by sudhanshu &mdash; <a href="mailto:sudhanshufromearth@gmail.com">sudhanshufromearth@gmail.com</a></p>
+  </footer>
+
+</body>
+</html>

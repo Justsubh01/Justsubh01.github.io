@@ -493,8 +493,605 @@
         <strong>a</strong> &middot; <strong>b</strong> = 0, they are perpendicular
         (orthogonal) &mdash; completely unrelated. When it equals |<strong>a</strong>||<strong>b</strong>|,
         they point in the same direction. Every attention score, every cosine similarity,
-        every linear classifier decision boundary uses this.
+        every linear classifier decision boundary uses this &mdash; here is exactly how each one works.
       </p>
+
+      <!-- ────────────────────────────────── -->
+      <h4 style="margin-top:1.6rem;font-size:1rem;color:#1e3a5f;">① Attention Score &mdash; transformers are just learned dot products</h4>
+
+      <p>
+        In a Transformer, every token produces three vectors: a <strong>Query</strong> (Q),
+        a <strong>Key</strong> (K), and a <strong>Value</strong> (V). The attention score
+        between two tokens is literally their dot product, scaled to prevent gradients
+        from vanishing in high dimensions:
+      </p>
+      <div class="math-box" style="margin:0.75rem 0;">
+        <div class="label">Scaled Dot-Product Attention</div>
+        score(Q, K) = <strong>Q &middot; K</strong> / &radic;d<sub>k</sub>
+        &nbsp;&nbsp;&rarr;&nbsp;&nbsp;
+        attention weight = softmax(scores)
+        &nbsp;&nbsp;&rarr;&nbsp;&nbsp;
+        output = &sum; weight<sub>i</sub> &times; V<sub>i</sub>
+      </div>
+      <p>
+        <strong>What this means:</strong> the model learns Q and K projection matrices so that
+        tokens which should influence each other end up with <em>aligned</em> Q and K vectors
+        (high dot product &rarr; high score &rarr; high attention weight). Tokens that are
+        irrelevant stay nearly orthogonal (dot product &asymp; 0 &rarr; near-zero weight after
+        softmax). The &radic;d<sub>k</sub> scaling prevents the dot products from growing too
+        large in high dimensions, which would push softmax into a near-zero-gradient region.
+        <strong>The entire self-attention mechanism &mdash; the heart of GPT, BERT, and every
+        modern LLM &mdash; is just learning which vectors to make parallel.</strong>
+      </p>
+
+      <!-- ANIMATION: Attention Score -->
+      <div class="anim-box" id="attn-score-box">
+        <div class="anim-title">Interactive &middot; How Dot Product Drives Attention</div>
+        <div class="anim-canvas-wrap">
+          <canvas id="as-canvas" width="560" height="270"></canvas>
+        </div>
+        <div class="anim-controls">
+          <span style="font-size:0.8rem;">Query token:</span>
+          <button class="anim-btn active" onclick="asQuery(0,this)">&ldquo;cat&rdquo;</button>
+          <button class="anim-btn" onclick="asQuery(1,this)">&ldquo;sat&rdquo;</button>
+          <button class="anim-btn" onclick="asQuery(2,this)">&ldquo;mat&rdquo;</button>
+          <button class="anim-btn" onclick="asQuery(3,this)">&ldquo;on&rdquo;</button>
+        </div>
+        <p class="anim-note">
+          Pick a query token. Each bar = softmax(Q&middot;K/&radic;d). Higher dot product &rarr; more attention.
+          Tokens in similar contexts end up with aligned vectors &rarr; high score.
+        </p>
+      </div>
+      <script>
+      (function(){
+        const cv=document.getElementById('as-canvas');
+        const ctx=cv.getContext('2d');
+        const W=cv.width, H=cv.height;
+
+        // Tokens + simplified 2-D embeddings (illustrative, hand-crafted)
+        const tokens=[
+          {name:'cat',  q:[0.9,0.4],  k:[0.85,0.38]},  // noun-animal cluster
+          {name:'sat',  q:[0.3,0.85], k:[0.25,0.80]},  // verb cluster
+          {name:'mat',  q:[0.80,0.35],k:[0.78,0.32]},  // noun-object cluster
+          {name:'on',   q:[0.1,0.2],  k:[0.08,0.18]},  // preposition cluster (orthogonal)
+        ];
+        const colors=['#2563eb','#15803d','#7c3aed','#d97706'];
+
+        let qIdx=0;
+
+        function dot(a,b){return a[0]*b[0]+a[1]*b[1];}
+        function norm(a){return Math.sqrt(a[0]*a[0]+a[1]*a[1]);}
+        function softmax(arr){
+          const mx=Math.max(...arr);
+          const e=arr.map(v=>Math.exp(v-mx));
+          const s=e.reduce((a,b)=>a+b);
+          return e.map(v=>v/s);
+        }
+
+        function draw(qi){
+          ctx.clearRect(0,0,W,H);
+          const Q=tokens[qi].q;
+          const d=2; // dimension
+          const scale=1/Math.sqrt(d);
+
+          // Compute raw scores and attention weights
+          const scores=tokens.map(t=>dot(Q,t.k)*scale);
+          const weights=softmax(scores);
+
+          // ── Left panel: 2-D vector space ──
+          const VW=220, VH=230, VX=30, VY=25;
+          // axis
+          ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1;
+          ctx.strokeRect(VX,VY,VW,VH);
+          ctx.strokeStyle='#f1f5f9'; ctx.lineWidth=0.5;
+          [0.25,0.5,0.75].forEach(g=>{
+            ctx.beginPath();ctx.moveTo(VX+g*VW,VY);ctx.lineTo(VX+g*VW,VY+VH);ctx.stroke();
+            ctx.beginPath();ctx.moveTo(VX,VY+g*VH);ctx.lineTo(VX+VW,VY+g*VH);ctx.stroke();
+          });
+
+          ctx.fillStyle='#9ca3af'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText('Embedding dimension 1',VX+VW/2,VY+VH+14);
+          ctx.save(); ctx.translate(VX-16,VY+VH/2); ctx.rotate(-Math.PI/2);
+          ctx.fillText('Embedding dimension 2',0,0); ctx.restore();
+
+          ctx.fillStyle='#374151'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText('Vector Space (2-D simplified)',VX+VW/2,VY-8);
+
+          function toV(v){return {cx:VX+v[0]*VW*0.85+VX*0.1, cy:VY+VH-(v[1]*VH*0.85+VH*0.08)};}
+
+          function arrow(x1,y1,x2,y2,col,lw,dash){
+            const a=Math.atan2(y2-y1,x2-x1),hl=9;
+            ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=lw;
+            if(dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(x2,y2);
+            ctx.lineTo(x2-hl*Math.cos(a-0.4),y2-hl*Math.sin(a-0.4));
+            ctx.lineTo(x2-hl*Math.cos(a+0.4),y2-hl*Math.sin(a+0.4));
+            ctx.closePath(); ctx.fill();
+          }
+
+          const orig=toV([0,0]);
+          // Draw Key vectors
+          tokens.forEach((t,i)=>{
+            const kp=toV(t.k);
+            const isQ=(i===qi);
+            const alpha=0.3+weights[i]*0.7;
+            const col=colors[i];
+            arrow(orig.cx,orig.cy,kp.cx,kp.cy,col,isQ?3:2,isQ?null:[4,3]);
+            ctx.fillStyle=col; ctx.font=isQ?'bold 11px Inter,sans-serif':'10px Inter,sans-serif';
+            ctx.textAlign= kp.cx>orig.cx?'left':'right';
+            ctx.fillText((isQ?'Q=':'K=')+'"'+t.name+'"',kp.cx+(kp.cx>orig.cx?6:-6),kp.cy-5);
+          });
+
+          // Draw Query arrow (solid, bright)
+          const qp=toV(Q);
+          ctx.fillStyle='#374151'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText('Origin',orig.cx,orig.cy+12);
+          ctx.beginPath(); ctx.arc(orig.cx,orig.cy,4,0,Math.PI*2); ctx.fillStyle='#374151'; ctx.fill();
+
+          // ── Right panel: attention weights ──
+          const BX=290, BY=25, BW=250, BH=220;
+          ctx.fillStyle='#374151'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText('Attention weights from "'+tokens[qi].name+'"',BX+BW/2,BY-8);
+
+          const barH=40, gap=10;
+          tokens.forEach((t,i)=>{
+            const y=BY+20+i*(barH+gap);
+            const rawScore=scores[i].toFixed(3);
+            const w=weights[i];
+            const bw=Math.max(4,w*(BW-90));
+            const col=colors[i];
+
+            // background bar track
+            ctx.fillStyle='#f3f4f6';
+            ctx.fillRect(BX+80,y,BW-90,barH);
+
+            // filled bar
+            const g=ctx.createLinearGradient(BX+80,0,BX+80+bw,0);
+            g.addColorStop(0,col+'99'); g.addColorStop(1,col);
+            ctx.fillStyle=g;
+            ctx.fillRect(BX+80,y,bw,barH);
+
+            // token label
+            ctx.fillStyle=col; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='right';
+            ctx.fillText('"'+t.name+'"',BX+75,y+barH/2+4);
+
+            // score and weight text
+            ctx.fillStyle='#374151'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='left';
+            ctx.fillText('score='+rawScore,BX+80+bw+5,y+barH/2-3);
+            ctx.fillStyle=col; ctx.font='bold 10px Inter,sans-serif';
+            ctx.fillText('w='+(w*100).toFixed(1)+'%',BX+80+bw+5,y+barH/2+10);
+
+            // query marker
+            if(i===qi){
+              ctx.strokeStyle=col; ctx.lineWidth=2;
+              ctx.strokeRect(BX+80-1,y-1,BW-90+2,barH+2);
+              ctx.fillStyle=col; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='left';
+              ctx.fillText('← QUERY',BX+2,y+barH/2+4);
+            }
+          });
+
+          // Formula note
+          ctx.fillStyle='#6b7280'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText('score = Q·K / √2   →   weight = softmax(scores)',BX+BW/2,BY+BH+10);
+        }
+
+        window.asQuery=function(i,btn){
+          qIdx=i;
+          document.getElementById('attn-score-box')
+            .querySelectorAll('.anim-btn').forEach(b=>b.classList.remove('active'));
+          if(btn) btn.classList.add('active');
+          draw(qIdx);
+        };
+
+        draw(0);
+      })();
+      </script>
+
+      <!-- ────────────────────────────────── -->
+      <h4 style="margin-top:2rem;font-size:1rem;color:#1e3a5f;">② Cosine Similarity &mdash; direction without magnitude</h4>
+
+      <p>
+        Cosine similarity removes the magnitude from the dot product, keeping only
+        the <em>direction</em>:
+      </p>
+      <div class="math-box" style="margin:0.75rem 0;">
+        <div class="label">Cosine Similarity</div>
+        cos(&theta;) = (<strong>a</strong> &middot; <strong>b</strong>) / (|<strong>a</strong>| &times; |<strong>b</strong>|)
+        &nbsp;&nbsp;&isin;&nbsp;&nbsp; [&minus;1, +1]<br/><br/>
+        = +1 &nbsp; same direction (identical meaning)<br/>
+        = &nbsp;0 &nbsp; perpendicular (unrelated)<br/>
+        = &minus;1 &nbsp; opposite direction (antonyms / opposites)
+      </div>
+      <p>
+        <strong>Why ignore magnitude?</strong> In word embeddings, "dog" might appear
+        10,000 times in the corpus (large magnitude vector) and "dachshund" only 200 times
+        (small magnitude). Their <em>directions</em> are nearly identical &mdash; they appear
+        in the same contexts. Raw dot product would rank "dog" higher just because of frequency.
+        Cosine similarity fixes this. It is the standard metric in:
+      </p>
+      <ul>
+        <li><strong>Semantic search / RAG:</strong> find the document whose embedding vector points in the same direction as the query embedding &mdash; regardless of document length.</li>
+        <li><strong>Face recognition:</strong> compare face embedding vectors; same person &rarr; cos &asymp; 1.</li>
+        <li><strong>Recommendation:</strong> users with similar taste vectors have high cosine similarity.</li>
+        <li><strong>Anomaly detection:</strong> an input with very low cosine similarity to all training examples is likely an anomaly.</li>
+      </ul>
+
+      <!-- ANIMATION: Cosine Similarity -->
+      <div class="anim-box" id="cos-box">
+        <div class="anim-title">Interactive &middot; Cosine Similarity = Angle Between Vectors</div>
+        <div class="anim-canvas-wrap">
+          <canvas id="cos-canvas" width="560" height="260"></canvas>
+        </div>
+        <div class="anim-controls">
+          <span style="font-size:0.8rem;">Word pair:</span>
+          <button class="anim-btn active" onclick="cosPair(0,this)">king / queen</button>
+          <button class="anim-btn" onclick="cosPair(1,this)">cat / dog</button>
+          <button class="anim-btn" onclick="cosPair(2,this)">hot / cold</button>
+          <button class="anim-btn" onclick="cosPair(3,this)">king / pizza</button>
+          <button class="anim-btn" onclick="cosPair(4,this)">good / bad</button>
+        </div>
+        <p class="anim-note">
+          Cosine similarity only cares about angle, not length. Similar meanings &rarr; small angle &rarr; cos &asymp; 1. Opposite meanings &rarr; angle &asymp; 180&deg; &rarr; cos &asymp; &minus;1.
+        </p>
+      </div>
+      <script>
+      (function(){
+        const cv=document.getElementById('cos-canvas');
+        const ctx=cv.getContext('2d');
+        const W=cv.width, H=cv.height;
+
+        // Word pairs with their approximate cosine similarities and angles
+        // We'll represent each as a 2D angle for visualization
+        const pairs=[
+          {a:'king',  b:'queen', sim:0.87,  angleA:30,  angleB:44,  desc:'Royalty — differ only in gender direction'},
+          {a:'cat',   b:'dog',   sim:0.76,  angleA:50,  angleB:72,  desc:'Both are pets — appear in very similar contexts'},
+          {a:'hot',   b:'cold',  sim:-0.58, angleA:40,  angleB:160, desc:'Antonyms — appear in complementary (opposite) contexts'},
+          {a:'king',  b:'pizza', sim:0.05,  angleA:30,  angleB:110, desc:'Unrelated — nearly perpendicular in embedding space'},
+          {a:'good',  b:'bad',   sim:-0.65, angleA:55,  angleB:175, desc:'Strong antonyms — high negative similarity'},
+        ];
+
+        let cur=0;
+
+        function draw(idx){
+          ctx.clearRect(0,0,W,H);
+          const p=pairs[idx];
+          const OX=160, OY=H/2+10, L=110;
+
+          // Convert angles to radians (measured from positive x-axis)
+          const tA=p.angleA*Math.PI/180;
+          const tB=p.angleB*Math.PI/180;
+          const ax=OX+L*Math.cos(-tA), ay=OY+L*Math.sin(-tA);
+          const bx=OX+L*Math.cos(-tB), by=OY+L*Math.sin(-tB);
+
+          // Background circle
+          ctx.strokeStyle='#f1f5f9'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.arc(OX,OY,L,0,Math.PI*2); ctx.stroke();
+
+          // Origin axes
+          ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.moveTo(OX-L-20,OY); ctx.lineTo(OX+L+20,OY); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(OX,OY-L-20); ctx.lineTo(OX,OY+L+20); ctx.stroke();
+
+          // Angle arc between vectors
+          const minA=Math.min(-tA,-tB), maxA=Math.max(-tA,-tB);
+          const arcCol=p.sim>0.3?'#15803d':p.sim<-0.3?'#e11d48':'#f59e0b';
+          ctx.strokeStyle=arcCol+'88'; ctx.lineWidth=2;
+          ctx.beginPath(); ctx.arc(OX,OY,35,minA,maxA); ctx.stroke();
+
+          const midA=(minA+maxA)/2;
+          const angDeg=Math.abs(p.angleB-p.angleA);
+          ctx.fillStyle=arcCol; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText(angDeg.toFixed(0)+'°',OX+50*Math.cos(midA),OY+50*Math.sin(midA));
+
+          // Helper arrow
+          function arrow(x1,y1,x2,y2,col){
+            const a=Math.atan2(y2-y1,x2-x1),hl=11;
+            ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=2.5;
+            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x2,y2);
+            ctx.lineTo(x2-hl*Math.cos(a-0.38),y2-hl*Math.sin(a-0.38));
+            ctx.lineTo(x2-hl*Math.cos(a+0.38),y2-hl*Math.sin(a+0.38));
+            ctx.closePath(); ctx.fill();
+          }
+
+          arrow(OX,OY,ax,ay,'#2563eb');
+          arrow(OX,OY,bx,by,'#15803d');
+
+          // Origin dot
+          ctx.fillStyle='#374151';
+          ctx.beginPath(); ctx.arc(OX,OY,4,0,Math.PI*2); ctx.fill();
+
+          // Labels on vectors
+          ctx.fillStyle='#2563eb'; ctx.font='bold 12px Inter,sans-serif';
+          ctx.textAlign=ax>OX?'left':'right';
+          ctx.fillText('"'+p.a+'"',ax+(ax>OX?8:-8),ay+(ay>OY?14:-6));
+
+          ctx.fillStyle='#15803d';
+          ctx.textAlign=bx>OX?'left':'right';
+          ctx.fillText('"'+p.b+'"',bx+(bx>OX?8:-8),by+(by>OY?14:-6));
+
+          // ── Right panel: similarity meter ──
+          const MX=330, MY=40, MW=210, MH=180;
+          ctx.fillStyle='#374151'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText('Cosine Similarity',MX+MW/2,MY-6);
+
+          // Meter background (-1 to +1)
+          const meterY=MY+30, meterH=28;
+          const grad=ctx.createLinearGradient(MX,0,MX+MW,0);
+          grad.addColorStop(0,'#fecaca');
+          grad.addColorStop(0.5,'#f3f4f6');
+          grad.addColorStop(1,'#bbf7d0');
+          ctx.fillStyle=grad;
+          ctx.fillRect(MX,meterY,MW,meterH);
+          ctx.strokeStyle='#d1d5db'; ctx.lineWidth=1;
+          ctx.strokeRect(MX,meterY,MW,meterH);
+
+          // Tick marks
+          [-1,-0.5,0,0.5,1].forEach(v=>{
+            const tx=MX+(v+1)/2*MW;
+            ctx.strokeStyle='#9ca3af'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(tx,meterY+meterH); ctx.lineTo(tx,meterY+meterH+5); ctx.stroke();
+            ctx.fillStyle='#6b7280'; ctx.font='9px Inter,sans-serif'; ctx.textAlign='center';
+            ctx.fillText(v,tx,meterY+meterH+15);
+          });
+
+          // Pointer
+          const px2=MX+(p.sim+1)/2*MW;
+          const pCol=p.sim>0.3?'#15803d':p.sim<-0.3?'#e11d48':'#f59e0b';
+          ctx.fillStyle=pCol;
+          ctx.beginPath();
+          ctx.moveTo(px2,meterY-2);
+          ctx.lineTo(px2-8,meterY-14);
+          ctx.lineTo(px2+8,meterY-14);
+          ctx.closePath(); ctx.fill();
+
+          // Value
+          ctx.fillStyle=pCol; ctx.font='bold 22px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText(p.sim.toFixed(2),MX+MW/2,meterY+meterH+40);
+          ctx.fillStyle='#374151'; ctx.font='10px Inter,sans-serif';
+          ctx.fillText('cos('+angDeg.toFixed(0)+'°)',MX+MW/2,meterY+meterH+54);
+
+          // Interpretation
+          const interp=p.sim>0.6?'Very similar direction'
+                      :p.sim>0.2?'Moderately similar'
+                      :p.sim>-0.2?'Mostly unrelated'
+                      :p.sim>-0.6?'Moderately opposite'
+                      :'Strongly opposite';
+          ctx.fillStyle=pCol; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText(interp,MX+MW/2,meterY+meterH+70);
+
+          // Description
+          ctx.fillStyle='#6b7280'; ctx.font='10px Inter,sans-serif'; ctx.textAlign='center';
+          const words=p.desc.split(' ');
+          let line='', lines=[], maxW=MW+30;
+          words.forEach(w=>{
+            const test=line+w+' ';
+            if(ctx.measureText(test).width>maxW){ lines.push(line.trim()); line=w+' '; }
+            else line=test;
+          });
+          lines.push(line.trim());
+          lines.forEach((l,i)=>ctx.fillText(l,MX+MW/2,meterY+meterH+90+i*14));
+
+          // Formula top-left
+          ctx.fillStyle='#1e3a5f'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='left';
+          ctx.fillText('a·b = |a||b|cos(θ)',OX-L-10,OY-L-8);
+          ctx.fillStyle='#2563eb'; ctx.font='bold 12px Inter,sans-serif';
+          ctx.fillText('cos(θ) = a·b / (|a||b|)',OX-L-10,OY-L+8);
+        }
+
+        window.cosPair=function(i,btn){
+          cur=i;
+          document.getElementById('cos-box')
+            .querySelectorAll('.anim-btn').forEach(b=>b.classList.remove('active'));
+          if(btn) btn.classList.add('active');
+          draw(cur);
+        };
+
+        draw(0);
+      })();
+      </script>
+
+      <!-- ────────────────────────────────── -->
+      <h4 style="margin-top:2rem;font-size:1rem;color:#1e3a5f;">③ Linear Classifier Decision Boundary &mdash; a hyperplane perpendicular to w</h4>
+
+      <p>
+        A linear classifier computes a single number for each input:
+      </p>
+      <div class="math-box" style="margin:0.75rem 0;">
+        <div class="label">Linear Classifier</div>
+        score(<strong>x</strong>) = <strong>w</strong> &middot; <strong>x</strong> + b<br/><br/>
+        Predict class A if score &gt; 0, class B if score &lt; 0.<br/><br/>
+        <strong>Decision boundary</strong> = all points where score = 0:<br/>
+        <strong>w</strong> &middot; <strong>x</strong> + b = 0
+        &nbsp;&rarr;&nbsp; a <strong>hyperplane perpendicular to w</strong>
+      </div>
+      <p>
+        <strong>What this means geometrically:</strong> <strong>w</strong> is the
+        "most discriminative direction" &mdash; the axis along which the two classes
+        differ the most. The dot product <strong>w &middot; x</strong> measures how
+        far <strong>x</strong> is along that axis. The boundary is a flat cut perpendicular
+        to <strong>w</strong>. Training a logistic regression, a linear SVM, or the final
+        layer of any neural network is fundamentally the problem of finding this <strong>w</strong>.
+        Every deep learning model, no matter how complex, ends with a linear classifier on top
+        of a learned representation.
+      </p>
+
+      <!-- ANIMATION: Decision Boundary -->
+      <div class="anim-box" id="db-box">
+        <div class="anim-title">Interactive &middot; Linear Decision Boundary = Hyperplane &perp; to w</div>
+        <div class="anim-canvas-wrap">
+          <canvas id="db-canvas" width="560" height="290"></canvas>
+        </div>
+        <div class="anim-controls">
+          <label style="font-size:0.8rem;">Rotate <strong>w</strong>: <strong id="db-angle-val">30°</strong></label>
+          <input type="range" id="db-angle" min="0" max="179" value="30" style="width:180px">
+          <label style="font-size:0.8rem;">Bias b: <strong id="db-bias-val">0.0</strong></label>
+          <input type="range" id="db-bias" min="-80" max="80" value="0" style="width:130px">
+        </div>
+        <p class="anim-note">
+          Rotate the weight vector <strong>w</strong> (blue arrow). The decision boundary (dashed line) is always perpendicular to it. Drag bias to shift the boundary. Points are correctly classified when they are on the correct side of w.
+        </p>
+      </div>
+      <script>
+      (function(){
+        const cv=document.getElementById('db-canvas');
+        const ctx=cv.getContext('2d');
+        const W=cv.width, H=cv.height;
+        const angleSl=document.getElementById('db-angle');
+        const biasSl=document.getElementById('db-bias');
+        const angleVal=document.getElementById('db-angle-val');
+        const biasVal=document.getElementById('db-bias-val');
+
+        // Fixed 2-D data points (illustrative, two linearly separable clusters)
+        const points=[
+          // Class A (blue) — upper-right cluster
+          {x:0.65,y:0.70,cls:0},{x:0.75,y:0.80,cls:0},{x:0.60,y:0.85,cls:0},
+          {x:0.80,y:0.65,cls:0},{x:0.70,y:0.55,cls:0},{x:0.85,y:0.75,cls:0},
+          {x:0.55,y:0.75,cls:0},{x:0.90,y:0.60,cls:0},
+          // Class B (red) — lower-left cluster
+          {x:0.25,y:0.30,cls:1},{x:0.15,y:0.20,cls:1},{x:0.30,y:0.15,cls:1},
+          {x:0.20,y:0.40,cls:1},{x:0.35,y:0.25,cls:1},{x:0.10,y:0.35,cls:1},
+          {x:0.40,y:0.18,cls:1},{x:0.18,y:0.50,cls:1},
+        ];
+
+        const PL=50,PR=20,PT=30,PB=50;
+        const PW=W-PL-PR, PH=H-PT-PB;
+        function tc(nx,ny){return{cx:PL+nx*PW, cy:PT+PH-ny*PH};}
+
+        function draw(angleDeg, biasVal2){
+          ctx.clearRect(0,0,W,H);
+          const t=angleDeg*Math.PI/180;
+          // Weight vector direction
+          const wx=Math.cos(t), wy=Math.sin(t);
+          const bias=biasVal2/100; // normalize
+
+          // Classify each point: score = w·x + bias (x,y in [0,1]^2, centered at 0.5)
+          function score(p){return wx*(p.x-0.5)+wy*(p.y-0.5)+bias;}
+
+          // ── Axes ──
+          ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=1;
+          ctx.strokeRect(PL,PT,PW,PH);
+          [0.25,0.5,0.75].forEach(g=>{
+            ctx.strokeStyle='#f1f5f9'; ctx.lineWidth=0.5;
+            ctx.beginPath();ctx.moveTo(PL+g*PW,PT);ctx.lineTo(PL+g*PW,PT+PH);ctx.stroke();
+            ctx.beginPath();ctx.moveTo(PL,PT+(1-g)*PH);ctx.lineTo(PL+PW,PT+(1-g)*PH);ctx.stroke();
+          });
+
+          // ── Background coloring by class region ──
+          const STEP=3;
+          for(let px=0;px<=PW;px+=STEP){
+            for(let py=0;py<=PH;py+=STEP){
+              const nx=px/PW, ny=1-py/PH;
+              const s=wx*(nx-0.5)+wy*(ny-0.5)+bias;
+              ctx.fillStyle=s>0?'rgba(37,99,235,0.06)':'rgba(220,38,38,0.06)';
+              ctx.fillRect(PL+px,PT+py,STEP,STEP);
+            }
+          }
+
+          // ── Decision boundary line ──
+          // w·x + bias = 0  →  wx*(x-0.5)+wy*(y-0.5)+bias=0
+          // Parametric: perpendicular direction is (-wy, wx)
+          // Boundary passes through (0.5-bias*wx, 0.5-bias*wy)
+          const cx2=0.5-bias*wx, cy2=0.5-bias*wy;
+          const perp_x=-wy, perp_y=wx;
+          const t1=-1, t2=1;
+          const b1=tc(cx2+t1*perp_x, cy2+t1*perp_y);
+          const b2=tc(cx2+t2*perp_x, cy2+t2*perp_y);
+          ctx.strokeStyle='#374151'; ctx.lineWidth=2; ctx.setLineDash([8,5]);
+          ctx.beginPath(); ctx.moveTo(b1.cx,b1.cy); ctx.lineTo(b2.cx,b2.cy); ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Boundary label
+          const midX=(b1.cx+b2.cx)/2, midY=(b1.cy+b2.cy)/2;
+          ctx.fillStyle='#374151'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+          const lblOff=wx>0?-18:18;
+          ctx.fillText('w·x + b = 0', midX+lblOff*wy, midY-lblOff*wx);
+
+          // ── Weight vector w from center ──
+          const center=tc(0.5,0.5);
+          const wLen=70;
+          const wTip={cx:center.cx+wx*wLen, cy:center.cy-wy*wLen};
+          function arr(x1,y1,x2,y2,col,lw){
+            const a=Math.atan2(y2-y1,x2-x1),hl=11;
+            ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=lw;ctx.setLineDash([]);
+            ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x2,y2);
+            ctx.lineTo(x2-hl*Math.cos(a-0.38),y2-hl*Math.sin(a-0.38));
+            ctx.lineTo(x2-hl*Math.cos(a+0.38),y2-hl*Math.sin(a+0.38));
+            ctx.closePath();ctx.fill();
+          }
+          arr(center.cx,center.cy,wTip.cx,wTip.cy,'#2563eb',3);
+          ctx.fillStyle='#2563eb'; ctx.font='bold 12px Inter,sans-serif'; ctx.textAlign='left';
+          ctx.fillText('w ('+angleDeg+'°)',wTip.cx+6,wTip.cy-4);
+
+          // ── Class region labels ──
+          // Find a safe spot in each region
+          ctx.fillStyle='rgba(37,99,235,0.7)'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText('Class A (w·x > 0)',PL+PW*0.75,PT+PH*0.15);
+          ctx.fillStyle='rgba(220,38,38,0.7)';
+          ctx.fillText('Class B (w·x < 0)',PL+PW*0.25,PT+PH*0.85);
+
+          // ── Data points ──
+          let correct=0;
+          points.forEach(p=>{
+            const {cx:pcx,cy:pcy}=tc(p.x,p.y);
+            const s=score(p);
+            const pred=s>0?0:1;
+            const isCorrect=(pred===p.cls);
+            if(isCorrect) correct++;
+            const col=p.cls===0?'#2563eb':'#dc2626';
+            const col2=p.cls===0?'#93c5fd':'#fca5a5';
+
+            const g=ctx.createRadialGradient(pcx-2,pcy-2,1,pcx,pcy,9);
+            g.addColorStop(0,col2); g.addColorStop(1,col);
+            ctx.fillStyle=g;
+            ctx.beginPath(); ctx.arc(pcx,pcy,9,0,Math.PI*2); ctx.fill();
+
+            if(isCorrect){
+              ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+            } else {
+              // misclassified — show X
+              ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2;
+            }
+            ctx.beginPath(); ctx.arc(pcx,pcy,9,0,Math.PI*2); ctx.stroke();
+
+            if(!isCorrect){
+              ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2;
+              ctx.beginPath(); ctx.moveTo(pcx-5,pcy-5); ctx.lineTo(pcx+5,pcy+5); ctx.stroke();
+              ctx.beginPath(); ctx.moveTo(pcx+5,pcy-5); ctx.lineTo(pcx-5,pcy+5); ctx.stroke();
+            }
+          });
+
+          // ── Accuracy bar ──
+          const acc=correct/points.length;
+          const barY=PT+PH+18, barH2=14;
+          ctx.fillStyle='#f3f4f6'; ctx.fillRect(PL,barY,PW,barH2);
+          const acol=acc>0.85?'#15803d':acc>0.6?'#f59e0b':'#e11d48';
+          ctx.fillStyle=acol; ctx.fillRect(PL,barY,PW*acc,barH2);
+          ctx.strokeStyle='#d1d5db'; ctx.lineWidth=1; ctx.strokeRect(PL,barY,PW,barH2);
+          ctx.fillStyle='#374151'; ctx.font='bold 10px Inter,sans-serif'; ctx.textAlign='center';
+          ctx.fillText('Accuracy: '+correct+'/'+points.length+' = '+(acc*100).toFixed(0)+'%   (orange X = misclassified)',PL+PW/2,barY+barH2+12);
+        }
+
+        function update(){
+          const a=parseInt(angleSl.value);
+          const b=parseInt(biasSl.value);
+          if(angleVal) angleVal.textContent=a+'°';
+          if(biasVal) biasVal.textContent=(b/100).toFixed(2);
+          draw(a,b);
+        }
+
+        angleSl.addEventListener('input',update);
+        biasSl.addEventListener('input',update);
+        update();
+      })();
+      </script>
 
       <pre><code>  import numpy as np
 
